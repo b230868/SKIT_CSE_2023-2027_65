@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/industry_internship_model.dart';
 import '../../data/services/industry_service.dart';
+import 'industry_internship_details_screen.dart';
 
 class InternshipManagementScreen extends StatefulWidget {
   const InternshipManagementScreen({super.key});
@@ -20,15 +21,21 @@ class _InternshipManagementScreenState
   @override
   void initState() {
     super.initState();
-    _internshipsFuture = _industryService.getIndustryInternships();
+    _loadInternships();
+  }
+
+  void _loadInternships() {
+    _internshipsFuture =
+        _industryService.getIndustryInternships();
   }
 
   Future<void> _refreshInternships() async {
-    setState(() {
-      _internshipsFuture = _industryService.getIndustryInternships();
-    });
-
+    setState(_loadInternships);
     await _internshipsFuture;
+  }
+
+  String _formatStatus(String status) {
+    return status.replaceAll('_', ' ').toUpperCase();
   }
 
   Color _getStatusColor(String status) {
@@ -37,70 +44,80 @@ class _InternshipManagementScreenState
       case 'approved':
       case 'verified':
         return Colors.green;
-
       case 'completed':
         return Colors.blue;
-
       case 'submitted':
         return Colors.indigo;
-
       case 'under_review':
       case 'in_progress':
         return Colors.orange;
-
       case 'pending':
       case 'draft':
         return Colors.grey;
-
       default:
         return Colors.grey;
     }
   }
 
-  String _formatStatus(String status) {
-    return status.replaceAll('_', ' ').toUpperCase();
-  }
-
-  Widget _statusRow(String label, String status) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 95,
-          child: Text(
-            '$label:',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
+  Widget _statusChip(String status) {
+    return Chip(
+      label: Text(
+        _formatStatus(status),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
         ),
-        Chip(
-          label: Text(
-            _formatStatus(status),
-            style: const TextStyle(color: Colors.white, fontSize: 11),
-          ),
-          backgroundColor: _getStatusColor(status),
-        ),
-      ],
+      ),
+      backgroundColor: _getStatusColor(status),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Internship Management')),
+      appBar: AppBar(
+        title: const Text('Internship Management'),
+      ),
       body: FutureBuilder<List<IndustryInternshipModel>>(
         future: _internshipsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'Unable to load internships.\n\n'
+                  '${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
           }
 
           final internships = snapshot.data ?? [];
 
           if (internships.isEmpty) {
-            return const Center(child: Text('No internships available'));
+            return RefreshIndicator(
+              onRefresh: _refreshInternships,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 250),
+                  Center(
+                    child: Text(
+                      'No internships available.',
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           return RefreshIndicator(
@@ -113,58 +130,93 @@ class _InternshipManagementScreenState
                 final internship = internships[index];
 
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              child: Text(internship.studentName[0]),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                internship.studentName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              IndustryInternshipDetailsScreen(
+                            internship: internship,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                child: Text(
+                                  internship.studentName
+                                          .isNotEmpty
+                                      ? internship.studentName[0]
+                                          .toUpperCase()
+                                      : 'S',
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  internship.studentName,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          Text(
+                            internship.internshipTitle,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
+                          ),
 
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                        Text(
-                          internship.internshipTitle,
-                          style: const TextStyle(fontSize: 15),
-                        ),
+                          LinearProgressIndicator(
+                            value: (internship.progress / 100)
+                                .clamp(0.0, 1.0),
+                          ),
 
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 6),
 
-                        LinearProgressIndicator(
-                          value: internship.progress / 100,
-                        ),
+                          Text(
+                            'Progress: '
+                            '${internship.progress.toStringAsFixed(0)}%',
+                          ),
 
-                        const SizedBox(height: 6),
+                          const SizedBox(height: 12),
 
-                        Text(
-                          'Internship Progress: '
-                          '${internship.progress.toStringAsFixed(0)}%',
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        _statusRow('Internship', internship.status),
-
-                        _statusRow('ITR', internship.itrStatus),
-
-                        _statusRow('Evaluation', internship.evaluationStatus),
-                      ],
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              _statusChip(internship.status),
+                              _statusChip(internship.itrStatus),
+                              _statusChip(
+                                internship.evaluationStatus,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
