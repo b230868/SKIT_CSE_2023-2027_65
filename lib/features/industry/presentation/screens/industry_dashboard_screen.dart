@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../evaluation/presentation/screens/evaluation_list_screen.dart';
 import '../../data/models/industry_internship_model.dart';
 import '../../data/services/industry_service.dart';
 import 'internship_management_screen.dart';
-import '../../../itr/presentation/screens/itr_screen.dart';
 
 class IndustryDashboardScreen extends StatefulWidget {
   const IndustryDashboardScreen({super.key});
@@ -14,45 +12,31 @@ class IndustryDashboardScreen extends StatefulWidget {
       _IndustryDashboardScreenState();
 }
 
-class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
-  final IndustryService _industryService = IndustryService();
+class _IndustryDashboardScreenState
+    extends State<IndustryDashboardScreen> {
+  final IndustryService _service = IndustryService();
 
-  late Future<List<IndustryInternshipModel>> _internshipsFuture;
+  late Future<List<IndustryInternshipModel>> _future;
 
   @override
   void initState() {
     super.initState();
-    _internshipsFuture = _industryService.getIndustryInternships();
+    _future = _service.getIndustryInternships();
   }
 
-  Future<void> _refreshDashboard() async {
+  Future<void> _refresh() async {
     setState(() {
-      _internshipsFuture = _industryService.getIndustryInternships();
+      _future = _service.getIndustryInternships();
     });
 
-    await _internshipsFuture;
+    await _future;
   }
 
-  int _countByStatus(List<IndustryInternshipModel> internships, String status) {
-    return internships.where((item) => item.status == status).length;
-  }
-
-  int _countItrStatus(
-    List<IndustryInternshipModel> internships,
-    List<String> statuses,
+  int _count(
+    List<IndustryInternshipModel> data,
+    bool Function(IndustryInternshipModel) test,
   ) {
-    return internships
-        .where((item) => statuses.contains(item.itrStatus))
-        .length;
-  }
-
-  int _countEvaluationStatus(
-    List<IndustryInternshipModel> internships,
-    List<String> statuses,
-  ) {
-    return internships
-        .where((item) => statuses.contains(item.evaluationStatus))
-        .length;
+    return data.where(test).length;
   }
 
   @override
@@ -63,170 +47,166 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
         centerTitle: true,
       ),
       body: FutureBuilder<List<IndustryInternshipModel>>(
-        future: _internshipsFuture,
+        future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Unable to load dashboard: ${snapshot.error}'),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'Unable to load dashboard.\n\n'
+                  '${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             );
           }
 
-          final internships = snapshot.data ?? [];
+          final data = snapshot.data ?? [];
 
-          if (internships.isEmpty) {
-            return const Center(
-              child: Text('No industry internship data available'),
-            );
-          }
+          final active = _count(
+            data,
+            (item) => item.status == 'active',
+          );
 
-          final activeInterns = _countByStatus(internships, 'active');
+          final pendingItr = _count(
+            data,
+            (item) => [
+              'draft',
+              'submitted',
+              'under_review',
+            ].contains(item.itrStatus),
+          );
 
-          final pendingItr = _countItrStatus(internships, [
-            'draft',
-            'submitted',
-            'under_review',
-          ]);
+          final pendingEvaluation = _count(
+            data,
+            (item) => [
+              'pending',
+              'in_progress',
+            ].contains(item.evaluationStatus),
+          );
 
-          final pendingEvaluation = _countEvaluationStatus(internships, [
-            'pending',
-            'in_progress',
-          ]);
-
-          final completedInternships = _countByStatus(internships, 'completed');
+          final completed = _count(
+            data,
+            (item) => item.status == 'completed',
+          );
 
           return RefreshIndicator(
-            onRefresh: _refreshDashboard,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+            onRefresh: _refresh,
+            child: ListView(
+              physics:
+                  const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardCard(
+                        title: 'Active Interns',
+                        value: active.toString(),
+                        icon: Icons.people,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DashboardCard(
+                        title: 'ITR Pending',
+                        value: pendingItr.toString(),
+                        icon: Icons.description,
+                      ),
+                    ),
+                  ],
+                ),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DashboardCard(
-                          title: 'Active Interns',
-                          value: activeInterns.toString(),
-                          icon: Icons.people,
-                        ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardCard(
+                        title: 'Evaluations Pending',
+                        value:
+                            pendingEvaluation.toString(),
+                        icon:
+                            Icons.assignment_turned_in,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DashboardCard(
-                          title: 'ITR Pending',
-                          value: pendingItr.toString(),
-                          icon: Icons.description,
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DashboardCard(
+                        title: 'Completed',
+                        value: completed.toString(),
+                        icon: Icons.check_circle,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
 
-                  const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DashboardCard(
-                          title: 'Evaluations Pending',
-                          value: pendingEvaluation.toString(),
-                          icon: Icons.assignment_turned_in,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DashboardCard(
-                          title: 'Completed',
-                          value: completedInternships.toString(),
-                          icon: Icons.check_circle,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ListTile(
-                    leading: const Icon(Icons.business_center),
-                    title: const Text('Manage Internships'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
+                Card(
+                  child: ListTile(
+                    leading:
+                        const Icon(Icons.business_center),
+                    title: const Text(
+                      'Manage Internships',
+                    ),
+                    subtitle: const Text(
+                      'View assigned internship records',
+                    ),
+                    trailing:
+                        const Icon(Icons.arrow_forward_ios),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
+                          builder: (_) =>
                               const InternshipManagementScreen(),
                         ),
                       );
                     },
                   ),
+                ),
 
-                  const Divider(),
+                const SizedBox(height: 12),
 
-                  ListTile(
-                    leading: const Icon(Icons.description),
-                    title: const Text('ITR Management'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ItrListScreen(),
-                        ),
-                      );
-                    },
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.refresh),
+                    title: const Text('Refresh Dashboard'),
+                    trailing:
+                        const Icon(Icons.refresh),
+                    onTap: _refresh,
                   ),
+                ),
 
-                  const Divider(),
-
-                  ListTile(
-                    leading: const Icon(Icons.assignment),
-                    title: const Text('Evaluation & Verification'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EvaluationListScreen(),
-                        ),
-                      );
-                      // Evaluation screen navigation will be added here.
-                    },
+                if (data.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 40),
+                    child: Center(
+                      child: Text(
+                        'No internship data available.',
+                      ),
+                    ),
                   ),
-
-                  const Divider(),
-
-                  ListTile(
-                    leading: const Icon(Icons.analytics),
-                    title: const Text('Reports & Analytics'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EvaluationListScreen(),
-                        ),
-                      );
-                      // Reports screen navigation will be added here.
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-                ],
-              ),
+              ],
             ),
           );
         },
@@ -253,14 +233,20 @@ class _DashboardCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Icon(icon, size: 32),
+            Icon(icon, size: 30),
             const SizedBox(height: 10),
             Text(
               value,
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
-            Text(title, textAlign: TextAlign.center),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
