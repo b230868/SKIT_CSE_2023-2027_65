@@ -1,6 +1,6 @@
 name: Weekly Progress Report Auto-Commit
 
-on:
+on: 
   schedule:
     # Runs every Thursday at 11:59 PM IST (which corresponds to 18:29 UTC)
     # Cron format: min hour day-of-month month day-of-week (4 = Thursday)
