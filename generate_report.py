@@ -369,4 +369,3 @@ def generate_pdf(interval="weekly"):
 if __name__ == "__main__":
     chosen_interval = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
     generate_pdf(chosen_interval)
-
