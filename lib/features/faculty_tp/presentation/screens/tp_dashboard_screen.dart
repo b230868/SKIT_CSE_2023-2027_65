@@ -1,5 +1,10 @@
-
+import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
+import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/auth/auth_service.dart';
+import 'faculty_dashboard_screen.dart';
 import 'student_monitoring_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
 import '../../data/repositories/faculty_dashboard_repository_factory.dart';
@@ -50,11 +55,22 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
         _statistics = statistics;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
+      final String message;
+      if (e is UnauthenticatedException) {
+        message = 'Please sign in to access dashboard data.';
+      } else if (e is UnauthorizedException ||
+          (e is PostgrestException && e.code == '42501') ||
+          e.toString().toLowerCase().contains('permission denied')) {
+        message = 'Your account does not have permission to access dashboard data.';
+      } else {
+        message = 'Unable to load T&P dashboard';
+      }
+
       setState(() {
-        _error = 'Unable to load T&P dashboard';
+        _error = message;
         _isLoading = false;
       });
     }
@@ -66,6 +82,42 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
       appBar: AppBar(
         title: const Text('T&P Dashboard'),
         actions: [
+          IconButton(
+            onPressed: () => AuthService.showAuthDialog(
+              context,
+              onSessionChanged: _loadDashboard,
+            ),
+            icon: Icon(
+              AuthService.hasActiveSession
+                  ? Icons.account_circle
+                  : Icons.account_circle_outlined,
+            ),
+            tooltip: AuthService.hasActiveSession ? 'Account' : 'Sign In',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const FacultyReportsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Reports & Analytics',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const FacultyDashboardScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Switch to Faculty Dashboard',
+          ),
           IconButton(
             onPressed: _loadDashboard,
             icon: const Icon(Icons.refresh),
@@ -91,11 +143,33 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(error),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                error,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadDashboard,
-              child: const Text('Retry'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _loadDashboard,
+                  child: const Text('Retry'),
+                ),
+                if (error.contains('sign in')) ...[
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: () => AuthService.showAuthDialog(
+                      context,
+                      onSessionChanged: _loadDashboard,
+                    ),
+                    child: const Text('Sign In'),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -192,11 +266,10 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                       label: 'View Approvals',
                       icon: Icons.assignment_outlined,
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Approval list will be available soon.',
-                            ),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TpApprovalDashboardScreen(),
                           ),
                         );
                       },
@@ -211,15 +284,29 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                       icon: Icons.people_outline,
                       onPressed: () {
                         Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const StudentMonitoringScreen(),
-                            ),
-                          );
-                        
+                          MaterialPageRoute(
+                            builder: (_) => const StudentMonitoringScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 12),
+
+              DashboardActionButton(
+                label: 'Reports & Analytics',
+                icon: Icons.bar_chart,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FacultyReportsScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
