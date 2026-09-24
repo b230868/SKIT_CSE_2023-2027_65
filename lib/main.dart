@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
-import 'features/industry/presentation/screens/industry_dashboard_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+import 'core/auth_gate.dart';
+import 'core/theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
   runApp(const PrashikshanApp());
 }
 
@@ -11,13 +21,10 @@ class PrashikshanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Prashikshan',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-      ),
-      home: const IndustryDashboardScreen(),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      home: const AuthGate(),
     );
   }
 }
