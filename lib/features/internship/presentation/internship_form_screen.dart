@@ -157,7 +157,7 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: DropdownButtonFormField<String>(
-                        value: _mode,
+                        initialValue: _mode,
                         decoration: const InputDecoration(
                           labelText: 'Work mode',
                           prefixIcon: Icon(Icons.location_on_outlined),

@@ -115,8 +115,7 @@ class InternshipService {
   }
 
   Future<void> uploadDocument(String internshipId, PlatformFile file) async {
-    final bytes = file.bytes;
-    if (bytes == null) throw Exception('Could not read the selected file');
+    final bytes = await file.readAsBytes();
 
     final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final path =

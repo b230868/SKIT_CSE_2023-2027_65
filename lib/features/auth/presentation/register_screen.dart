@@ -105,7 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: DropdownButtonFormField<String>(
-                        value: _role,
+                        initialValue: _role,
                         decoration: const InputDecoration(
                           labelText: 'I am a',
                           prefixIcon: Icon(Icons.badge_outlined),
@@ -162,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: DropdownButtonFormField<String>(
-                          value: _branch,
+                          initialValue: _branch,
                           decoration: const InputDecoration(
                             labelText: 'Branch',
                             prefixIcon: Icon(Icons.school_outlined),
