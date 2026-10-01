@@ -7,9 +7,12 @@ import 'itr_repository.dart';
 
 class SupabaseItrRepository implements ItrRepository {
   SupabaseItrRepository({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+      : _customClient = client;
 
-  final SupabaseClient _client;
+  final SupabaseClient? _customClient;
+
+  SupabaseClient get _client =>
+      _customClient ?? Supabase.instance.client;
 
   static const String _bucketName = 'itr-files';
 
@@ -48,6 +51,8 @@ class SupabaseItrRepository implements ItrRepository {
           presentation_path,
           submitted_at,
           reviewer_id,
+          reviewer_name,
+          remarks,
           internships (
             internship_title,
             industries (
@@ -87,6 +92,8 @@ class SupabaseItrRepository implements ItrRepository {
           presentation_path,
           submitted_at,
           reviewer_id,
+          reviewer_name,
+          remarks,
           internships (
             internship_title,
             industries (
@@ -158,6 +165,8 @@ class SupabaseItrRepository implements ItrRepository {
       submittedAt: item['submitted_at'] != null
           ? DateTime.tryParse(item['submitted_at'].toString())
           : null,
+      reviewerName: item['reviewer_name']?.toString(),
+      remarks: item['remarks']?.toString(),
     );
   }
 
@@ -237,5 +246,140 @@ class SupabaseItrRepository implements ItrRepository {
   @override
   Future<void> deleteFile(String filePath) async {
     await _client.storage.from(_bucketName).remove([filePath]);
+  }
+
+  Future<String?> _getIndustryId() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+
+    final row = await _client
+        .from('industry_users')
+        .select('industry_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    return row?['industry_id']?.toString();
+  }
+
+  @override
+  Future<List<ItrModel>> getIndustryItrs() async {
+    final industryId = await _getIndustryId();
+    if (industryId == null) {
+      return [];
+    }
+
+    final internshipRows = await _client
+        .from('internships')
+        .select('id')
+        .eq('industry_id', industryId);
+
+    final internshipIds = (internshipRows as List)
+        .map((r) => r['id'].toString())
+        .toList();
+
+    if (internshipIds.isEmpty) {
+      return [];
+    }
+
+    final data = await _client
+        .from('itrs')
+        .select('''
+          id,
+          internship_id,
+          student_id,
+          status,
+          content,
+          work_done,
+          technologies_used,
+          key_learnings,
+          challenges_faced,
+          document_path,
+          project_zip_path,
+          presentation_path,
+          submitted_at,
+          reviewer_id,
+          reviewer_name,
+          remarks,
+          internships (
+            internship_title,
+            industries (
+              name
+            ),
+            students (
+              profiles (
+                full_name
+              )
+            )
+          )
+        ''')
+        .inFilter('internship_id', internshipIds)
+        .order('submitted_at', ascending: false);
+
+    return data.map<ItrModel>((item) => _mapItr(item)).toList();
+  }
+
+  @override
+  Future<ItrModel?> getItrByInternshipId(String internshipId) async {
+    final data = await _client
+        .from('itrs')
+        .select('''
+          id,
+          internship_id,
+          student_id,
+          status,
+          content,
+          work_done,
+          technologies_used,
+          key_learnings,
+          challenges_faced,
+          document_path,
+          project_zip_path,
+          presentation_path,
+          submitted_at,
+          reviewer_id,
+          reviewer_name,
+          remarks,
+          internships (
+            internship_title,
+            industries (
+              name
+            ),
+            students (
+              profiles (
+                full_name
+              )
+            )
+          )
+        ''')
+        .eq('internship_id', internshipId)
+        .order('created_at', ascending: false)
+        .limit(1);
+
+    if (data.isEmpty) return null;
+    return _mapItr(data.first);
+  }
+
+  @override
+  Future<void> reviewItr({
+    required String itrId,
+    required String status,
+    required String remarks,
+    String? reviewerName,
+  }) async {
+    final user = _client.auth.currentUser;
+    final updates = <String, dynamic>{
+      'status': status,
+      'remarks': remarks,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    if (user != null) {
+      updates['reviewer_id'] = user.id;
+    }
+    if (reviewerName != null && reviewerName.trim().isNotEmpty) {
+      updates['reviewer_name'] = reviewerName.trim();
+    }
+
+    await _client.from('itrs').update(updates).eq('id', itrId);
   }
 }

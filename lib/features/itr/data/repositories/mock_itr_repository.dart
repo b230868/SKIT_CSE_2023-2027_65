@@ -127,4 +127,56 @@ class MockItrRepository implements ItrRepository {
 
   @override
   Future<void> deleteFile(String filePath) async {}
+
+  @override
+  Future<List<ItrModel>> getIndustryItrs() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return List.unmodifiable(_itrs);
+  }
+
+  @override
+  Future<ItrModel?> getItrByInternshipId(String internshipId) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    try {
+      return _itrs.firstWhere((itr) =>
+          itr.internshipId == internshipId ||
+          itr.internshipId == 'internship-$internshipId' ||
+          itr.internshipId.endsWith(internshipId));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> reviewItr({
+    required String itrId,
+    required String status,
+    required String remarks,
+    String? reviewerName,
+  }) async {
+    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    if (index == -1) return;
+
+    final existing = _itrs[index];
+    _itrs[index] = ItrModel(
+      id: existing.id,
+      internshipId: existing.internshipId,
+      studentId: existing.studentId,
+      studentName: existing.studentName,
+      internshipTitle: existing.internshipTitle,
+      companyName: existing.companyName,
+      status: status,
+      content: existing.content,
+      workDone: existing.workDone,
+      technologiesUsed: existing.technologiesUsed,
+      keyLearnings: existing.keyLearnings,
+      challengesFaced: existing.challengesFaced,
+      documentPath: existing.documentPath,
+      projectZipPath: existing.projectZipPath,
+      presentationPath: existing.presentationPath,
+      submittedAt: existing.submittedAt,
+      reviewerName: reviewerName ?? existing.reviewerName ?? 'Industry Supervisor',
+      remarks: remarks,
+    );
+  }
 }
