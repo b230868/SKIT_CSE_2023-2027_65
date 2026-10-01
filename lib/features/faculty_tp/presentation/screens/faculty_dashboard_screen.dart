@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-import '../../../approval/presentation/screens/faculty_approval_dashboard_screen.dart';
-import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+import 'dashboard_feature_placeholder_screen.dart';
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -100,7 +99,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const FacultyReportsScreen(),
+                  builder: (_) => const DashboardFeaturePlaceholderScreen(
+                    title: 'Reports & Analytics',
+                  ),
                 ),
               );
             },
@@ -287,7 +288,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                const FacultyApprovalDashboardScreen(),
+                                const DashboardFeaturePlaceholderScreen(
+                                  title: 'Approvals',
+                                ),
                           ),
                         );
                       },
@@ -321,7 +324,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const FacultyReportsScreen(),
+                      builder: (_) => const DashboardFeaturePlaceholderScreen(
+                        title: 'Reports & Analytics',
+                      ),
                     ),
                   );
                 },

@@ -8,15 +8,28 @@ import 'core/theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseKey = dotenv.env['SUPABASE_PUBLISHABLE_KEY'] ??
+      dotenv.env['SUPABASE_ANON_KEY'];
+  if (supabaseUrl == null ||
+      supabaseUrl.isEmpty ||
+      supabaseKey == null ||
+      supabaseKey.isEmpty) {
+    throw StateError(
+      'Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in the .env file before starting the app.',
+    );
+  }
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    url: supabaseUrl,
+    publishableKey: supabaseKey,
   );
   runApp(const PrashikshanApp());
 }
 
 class PrashikshanApp extends StatelessWidget {
-  const PrashikshanApp({super.key});
+  final Widget home;
+
+  const PrashikshanApp({super.key, this.home = const AuthGate()});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +37,7 @@ class PrashikshanApp extends StatelessWidget {
       title: 'Prashikshan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const AuthGate(),
+      home: home,
     );
   }
 }

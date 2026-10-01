@@ -1,9 +1,8 @@
-import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
-import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import 'dashboard_feature_placeholder_screen.dart';
 import 'faculty_dashboard_screen.dart';
 import 'student_monitoring_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -99,7 +98,9 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const FacultyReportsScreen(),
+                  builder: (_) => const DashboardFeaturePlaceholderScreen(
+                    title: 'Reports & Analytics',
+                  ),
                 ),
               );
             },
@@ -269,7 +270,10 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const TpApprovalDashboardScreen(),
+                            builder: (_) =>
+                                const DashboardFeaturePlaceholderScreen(
+                                  title: 'Approvals',
+                                ),
                           ),
                         );
                       },
@@ -303,7 +307,9 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const FacultyReportsScreen(),
+                      builder: (_) => const DashboardFeaturePlaceholderScreen(
+                        title: 'Reports & Analytics',
+                      ),
                     ),
                   );
                 },
@@ -315,4 +321,3 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
     );
   }
 }
-
