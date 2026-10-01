@@ -1,12 +1,17 @@
-
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/auth/auth_service.dart';
+import 'dashboard_feature_placeholder_screen.dart';
 import 'student_monitoring_screen.dart';
+import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
 import '../../data/repositories/faculty_dashboard_repository_factory.dart';
 import '../../data/services/faculty_dashboard_service.dart';
 import '../../domain/entities/dashboard_statistics.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/dashboard_action_button.dart';
+
 class FacultyDashboardScreen extends StatefulWidget {
   const FacultyDashboardScreen({super.key});
 
@@ -50,11 +55,22 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         _statistics = statistics;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
+      final String message;
+      if (e is UnauthenticatedException) {
+        message = 'Please sign in to access dashboard data.';
+      } else if (e is UnauthorizedException ||
+          (e is PostgrestException && e.code == '42501') ||
+          e.toString().toLowerCase().contains('permission denied')) {
+        message = 'Your account does not have permission to access dashboard data.';
+      } else {
+        message = 'Unable to load dashboard';
+      }
+
       setState(() {
-        _error = 'Unable to load dashboard';
+        _error = message;
         _isLoading = false;
       });
     }
@@ -66,6 +82,44 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       appBar: AppBar(
         title: const Text('Faculty & T&P Dashboard'),
         actions: [
+          IconButton(
+            onPressed: () => AuthService.showAuthDialog(
+              context,
+              onSessionChanged: _loadDashboard,
+            ),
+            icon: Icon(
+              AuthService.hasActiveSession
+                  ? Icons.account_circle
+                  : Icons.account_circle_outlined,
+            ),
+            tooltip: AuthService.hasActiveSession ? 'Account' : 'Sign In',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DashboardFeaturePlaceholderScreen(
+                    title: 'Reports & Analytics',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Reports & Analytics',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TpDashboardScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Switch to T&P Dashboard',
+          ),
           IconButton(
             onPressed: _loadDashboard,
             icon: const Icon(Icons.refresh),
@@ -98,11 +152,33 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(error),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                error,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadDashboard,
-              child: const Text('Retry'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _loadDashboard,
+                  child: const Text('Retry'),
+                ),
+                if (error.contains('sign in')) ...[
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: () => AuthService.showAuthDialog(
+                      context,
+                      onSessionChanged: _loadDashboard,
+                    ),
+                    child: const Text('Sign In'),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -203,34 +279,57 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
               Row(
                 children: [
-                 Expanded(
-  child: DashboardActionButton(
-    label: 'View Approvals',
-    icon: Icons.assignment_outlined,
-    onPressed: () {
-      ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Approval list will be available soon.'),
-        ),
-    );
-    },
-  ),
-),
-const SizedBox(width: 12),
-Expanded(
-  child: DashboardActionButton(
-    label: 'Student Monitoring',
-    icon: Icons.people_outline,
-    onPressed: () {
-       Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const StudentMonitoringScreen(),
-      ),
-    );
-    },
-  ),
-),
+                  Expanded(
+                    child: DashboardActionButton(
+                      label: 'View Approvals',
+                      icon: Icons.assignment_outlined,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const DashboardFeaturePlaceholderScreen(
+                                  title: 'Approvals',
+                                ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: DashboardActionButton(
+                      label: 'Student Monitoring',
+                      icon: Icons.people_outline,
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const StudentMonitoringScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
+              ),
+
+              const SizedBox(height: 12),
+
+              DashboardActionButton(
+                label: 'Reports & Analytics',
+                icon: Icons.bar_chart,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DashboardFeaturePlaceholderScreen(
+                        title: 'Reports & Analytics',
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -239,4 +338,3 @@ Expanded(
     );
   }
 }
-

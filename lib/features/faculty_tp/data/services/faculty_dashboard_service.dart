@@ -9,10 +9,6 @@ class FacultyDashboardService {
   });
 
   Future<DashboardStatistics> loadStatistics() async {
-    try {
-      return await repository.getDashboardStatistics();
-    } catch (e) {
-      throw Exception('Failed to load dashboard statistics');
-    }
+    return await repository.getDashboardStatistics();
   }
 }
