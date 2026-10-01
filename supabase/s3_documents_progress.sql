@@ -2,7 +2,7 @@
 
 create table public.documents (
   id uuid primary key default gen_random_uuid(),
-  application_id uuid not null references public.applications(id) on delete cascade,
+  internship_id uuid not null references public.internships(id) on delete cascade,
   student_id uuid not null references public.profiles(id) on delete cascade,
   doc_type text not null default 'other'
     check (doc_type in ('resume','offer_letter','noc','certificate','other')),
@@ -17,8 +17,8 @@ create policy "Students read own documents" on public.documents
 create policy "Students add own documents" on public.documents
   for insert with check (
     student_id = auth.uid()
-    and exists (select 1 from public.applications a
-                where a.id = application_id and a.student_id = auth.uid()));
+    and exists (select 1 from public.internships i
+                where i.id = internship_id and i.student_id = auth.uid()));
 create policy "Faculty and T&P read documents" on public.documents
   for select using (
     exists (select 1 from public.profiles p
@@ -26,13 +26,13 @@ create policy "Faculty and T&P read documents" on public.documents
 
 create table public.progress_logs (
   id uuid primary key default gen_random_uuid(),
-  application_id uuid not null references public.applications(id) on delete cascade,
+  internship_id uuid not null references public.internships(id) on delete cascade,
   student_id uuid not null references public.profiles(id) on delete cascade,
   week_no int not null check (week_no >= 1),
   progress int not null check (progress between 0 and 100),
   summary text,
   created_at timestamptz not null default now(),
-  unique (application_id, week_no)
+  unique (internship_id, week_no)
 );
 alter table public.progress_logs enable row level security;
 
@@ -41,9 +41,9 @@ create policy "Students read own progress" on public.progress_logs
 create policy "Students log progress on approved internships" on public.progress_logs
   for insert with check (
     student_id = auth.uid()
-    and exists (select 1 from public.applications a
-                where a.id = application_id and a.student_id = auth.uid()
-                  and a.status = 'approved'));
+    and exists (select 1 from public.internships i
+                where i.id = internship_id and i.student_id = auth.uid()
+                  and i.status = 'approved'));
 create policy "Faculty and T&P read progress" on public.progress_logs
   for select using (
     exists (select 1 from public.profiles p
