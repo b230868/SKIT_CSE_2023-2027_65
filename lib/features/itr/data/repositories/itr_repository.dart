@@ -26,4 +26,15 @@ abstract class ItrRepository {
   Future<String?> getFileUrl(String filePath);
 
   Future<void> deleteFile(String filePath);
+
+  Future<List<ItrModel>> getIndustryItrs();
+
+  Future<ItrModel?> getItrByInternshipId(String internshipId);
+
+  Future<void> reviewItr({
+    required String itrId,
+    required String status,
+    required String remarks,
+    String? reviewerName,
+  });
 }
