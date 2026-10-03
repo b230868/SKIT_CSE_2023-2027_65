@@ -63,10 +63,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           builder: (ctx) => AlertDialog(
             title: const Text('Check your email'),
             content: Text(
-                'We sent a confirmation link to ${_email.text.trim()}. Confirm it, then sign in.'),
+              'We sent a confirmation link to ${_email.text.trim()}. Confirm it, then sign in.',
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
             ],
           ),
         );
@@ -79,7 +82,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) showSnack(context, e.message, error: true);
     } catch (_) {
       if (mounted) {
-        showSnack(context, 'Could not create the account. Try again.', error: true);
+        showSnack(
+          context,
+          'Could not create the account. Try again.',
+          error: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -105,16 +112,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: DropdownButtonFormField<String>(
-                        value: _role,
+                        initialValue: _role,
                         decoration: const InputDecoration(
                           labelText: 'I am a',
                           prefixIcon: Icon(Icons.badge_outlined),
                         ),
                         items: _roles.entries
-                            .map((e) => DropdownMenuItem(
-                                value: e.key, child: Text(e.value)))
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
+                              ),
+                            )
                             .toList(),
-                        onChanged: (v) => setState(() => _role = v ?? 'student'),
+                        onChanged: (v) =>
+                            setState(() => _role = v ?? 'student'),
                       ),
                     ),
                     AppTextField(
@@ -131,7 +143,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Enter your email';
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Enter your email';
+                        }
                         if (!v.contains('@') || !v.contains('.')) {
                           return 'Enter a valid email';
                         }
@@ -162,17 +176,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: DropdownButtonFormField<String>(
-                          value: _branch,
+                          initialValue: _branch,
                           decoration: const InputDecoration(
                             labelText: 'Branch',
                             prefixIcon: Icon(Icons.school_outlined),
                           ),
                           items: _branches
-                              .map((b) =>
-                                  DropdownMenuItem(value: b, child: Text(b)))
+                              .map(
+                                (b) =>
+                                    DropdownMenuItem(value: b, child: Text(b)),
+                              )
                               .toList(),
                           onChanged: (v) => setState(() => _branch = v),
-                          validator: (v) => v == null ? 'Select your branch' : null,
+                          validator: (v) =>
+                              v == null ? 'Select your branch' : null,
                         ),
                       ),
                     ],
@@ -201,7 +218,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               height: 22,
                               width: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Create account'),
                     ),
