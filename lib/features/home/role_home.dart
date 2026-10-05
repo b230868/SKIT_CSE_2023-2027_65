@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../auth/data/auth_service.dart';
 import '../auth/models/app_user.dart';
-import '../student/student_shell.dart';
+import '../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
+import '../faculty_tp/presentation/screens/tp_dashboard_screen.dart';
+import '../industry/presentation/screens/industry_dashboard_screen.dart';
+import '../../screens/student/student_shell.dart';
 import 'coming_soon_screen.dart';
 
-/// Role-based access: each role opens its own home.
-/// MERGE POINT: teammates replace the ComingSoonScreen for their role here
-/// (faculty/tnp -> Vineet, industry -> Yashi). Keep this the only shared edit.
+/// Routes signed-in users to the dashboard for their role.
 class RoleHome extends StatefulWidget {
   const RoleHome({super.key});
 
@@ -62,12 +63,11 @@ class _RoleHomeState extends State<RoleHome> {
           case 'student':
             return StudentShell(user: user);
           case 'faculty':
+            return const FacultyDashboardScreen();
           case 'tnp':
-            // TODO (Vineet): return FacultyShell(user: user);
-            return ComingSoonScreen(user: user);
+            return const TpDashboardScreen();
           case 'industry':
-            // TODO (Yashi): return IndustryShell(user: user);
-            return ComingSoonScreen(user: user);
+            return const IndustryDashboardScreen();
           default:
             return ComingSoonScreen(user: user);
         }
