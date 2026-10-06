@@ -1,29 +1,40 @@
 import 'package:flutter/material.dart';
+
 import '../../models/notification_models.dart';
 import '../../services/notification_service.dart';
 
 IconData _iconFor(String type) => switch (type) {
-      'application' => Icons.assignment_turned_in_outlined,
-      'document' => Icons.description_outlined,
-      'progress' => Icons.timeline,
-      _ => Icons.notifications_outlined,
-    };
+  'application' => Icons.assignment_turned_in_outlined,
+  'document' => Icons.description_outlined,
+  'progress' => Icons.timeline,
+  _ => Icons.notifications_outlined,
+};
 
 /// UI design for the notifications list. Entries are read from the
 /// `notifications` table; the events that create them are added next week.
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  final NotificationDataSource? service;
+  const NotificationsScreen({super.key, this.service});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final _svc = NotificationService();
-  late Future<List<AppNotification>> _future = _svc.list();
+  late final NotificationDataSource _svc;
+  late Future<List<AppNotification>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _svc = widget.service ?? NotificationService();
+    _future = _svc.list();
+  }
 
   Future<void> _refresh() async {
-    setState(() => _future = _svc.list());
+    setState(() {
+      _future = _svc.list();
+    });
     await _future.catchError((_) => <AppNotification>[]);
   }
 
@@ -74,17 +85,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (s.hasError) {
-              return ListView(children: const [
-                SizedBox(height: 160),
-                Center(child: Text('Could not load notifications. Pull down to retry.')),
-              ]);
+              return ListView(
+                children: const [
+                  SizedBox(height: 160),
+                  Center(
+                    child: Text(
+                      'Could not load notifications. Pull down to retry.',
+                    ),
+                  ),
+                ],
+              );
             }
             final list = s.data!;
             if (list.isEmpty) {
-              return ListView(children: const [
-                SizedBox(height: 160),
-                Center(child: Text('No notifications yet.')),
-              ]);
+              return ListView(
+                children: const [
+                  SizedBox(height: 160),
+                  Center(child: Text('No notifications yet.')),
+                ],
+              );
             }
             return ListView.separated(
               itemCount: list.length,
@@ -98,10 +117,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         : Theme.of(context).colorScheme.primaryContainer,
                     child: Icon(_iconFor(n.type)),
                   ),
-                  title: Text(n.title,
-                      style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
+                  title: Text(
+                    n.title,
+                    style: TextStyle(
+                      fontWeight: n.isRead
+                          ? FontWeight.normal
+                          : FontWeight.bold,
+                    ),
+                  ),
                   subtitle: Text(n.body),
-                  trailing: n.isRead ? null : const Icon(Icons.circle, size: 10, color: Colors.blue),
+                  trailing: n.isRead
+                      ? null
+                      : const Icon(Icons.circle, size: 10, color: Colors.blue),
                   onTap: () => _onTap(n),
                 );
               },
@@ -115,15 +142,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 /// Small bell icon with an unread badge, meant for the dashboard AppBar.
 class NotificationBell extends StatefulWidget {
-  const NotificationBell({super.key});
+  final NotificationDataSource? service;
+  const NotificationBell({super.key, this.service});
 
   @override
   State<NotificationBell> createState() => _NotificationBellState();
 }
 
 class _NotificationBellState extends State<NotificationBell> {
-  final _svc = NotificationService();
-  late Future<int> _count = _svc.unreadCount();
+  late final NotificationDataSource _svc;
+  late Future<int> _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _svc = widget.service ?? NotificationService();
+    _count = _svc.unreadCount();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,9 +174,16 @@ class _NotificationBellState extends State<NotificationBell> {
             child: const Icon(Icons.notifications_outlined),
           ),
           onPressed: () async {
-            await Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-            if (mounted) setState(() => _count = _svc.unreadCount());
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => NotificationsScreen(service: _svc),
+              ),
+            );
+            if (mounted) {
+              setState(() {
+                _count = _svc.unreadCount();
+              });
+            }
           },
         );
       },
