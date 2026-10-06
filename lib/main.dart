@@ -20,8 +20,13 @@ Future<void> main() async {
     );
   }
   await Supabase.initialize(
+<<<<<<< HEAD
     url: supabaseUrl,
     publishableKey: supabaseKey,
+=======
+    url: dotenv.env['SUPABASE_URL']!,
+    publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
+>>>>>>> yash
   );
   runApp(const PrashikshanApp());
 }

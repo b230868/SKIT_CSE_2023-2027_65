@@ -68,12 +68,18 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
       return;
     }
     if (_end!.isBefore(_start!)) {
-      showSnack(context, 'End date must be on or after the start date', error: true);
+      showSnack(
+        context,
+        'End date must be on or after the start date',
+        error: true,
+      );
       return;
     }
 
     setState(() => _saving = true);
-    final desc = _description.text.trim().isEmpty ? null : _description.text.trim();
+    final desc = _description.text.trim().isEmpty
+        ? null
+        : _description.text.trim();
     try {
       if (_isEdit) {
         await _service.update(
@@ -100,7 +106,9 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
         Navigator.of(context).pop(true);
       }
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not save. Try again.', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not save. Try again.', error: true);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -126,7 +134,8 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text(_isEdit ? 'Edit application' : 'Apply for internship')),
+        title: Text(_isEdit ? 'Edit application' : 'Apply for internship'),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -163,9 +172,18 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
                           prefixIcon: Icon(Icons.location_on_outlined),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'onsite', child: Text('On-site')),
-                          DropdownMenuItem(value: 'remote', child: Text('Remote')),
-                          DropdownMenuItem(value: 'hybrid', child: Text('Hybrid')),
+                          DropdownMenuItem(
+                            value: 'onsite',
+                            child: Text('On-site'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'remote',
+                            child: Text('Remote'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'hybrid',
+                            child: Text('Hybrid'),
+                          ),
                         ],
                         onChanged: (v) => setState(() => _mode = v ?? 'onsite'),
                       ),
@@ -186,9 +204,13 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
                               height: 22,
                               width: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             )
-                          : Text(_isEdit ? 'Save changes' : 'Submit application'),
+                          : Text(
+                              _isEdit ? 'Save changes' : 'Submit application',
+                            ),
                     ),
                   ],
                 ),

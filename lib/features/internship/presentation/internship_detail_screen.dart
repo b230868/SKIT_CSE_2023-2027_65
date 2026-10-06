@@ -57,9 +57,11 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _edit() async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => InternshipFormScreen(existing: _internship),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InternshipFormScreen(existing: _internship),
+      ),
+    );
     _load();
   }
 
@@ -68,14 +70,18 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete this application?'),
-        content: const Text('Its progress updates and documents will be removed too.'),
+        content: const Text(
+          'Its progress updates and documents will be removed too.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep it')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep it'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -84,7 +90,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       await _service.delete(widget.internshipId);
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not delete the application', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not delete the application', error: true);
+      }
     }
   }
 
@@ -96,7 +104,10 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     if (result == null) return;
     try {
       await _service.addProgress(
-          widget.internshipId, result['note'] as String, result['percent'] as int);
+        widget.internshipId,
+        result['note'] as String,
+        result['percent'] as int,
+      );
       if (mounted) showSnack(context, 'Progress updated');
       _load();
     } catch (_) {
@@ -109,6 +120,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'],
     );
+<<<<<<< HEAD
     if (files.isEmpty) return;
     final file = files.single;
     final size = await file.length();
@@ -120,6 +132,14 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     }
     if (size > 10 * 1024 * 1024) {
       if (mounted) showSnack(context, 'Choose a file smaller than 10 MB', error: true);
+=======
+    if (picked == null || picked.files.isEmpty) return;
+    final file = picked.files.single;
+    if (file.size > 10 * 1024 * 1024) {
+      if (mounted) {
+        showSnack(context, 'Choose a file smaller than 10 MB', error: true);
+      }
+>>>>>>> yash
       return;
     }
     setState(() => _uploading = true);
@@ -139,7 +159,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       final url = await _service.signedUrl(doc.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not open the document', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not open the document', error: true);
+      }
     }
   }
 
@@ -148,7 +170,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       await _service.deleteDocument(doc);
       _load();
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not delete the document', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not delete the document', error: true);
+      }
     }
   }
 
@@ -158,8 +182,10 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text(title,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
           ),
           ?action,
         ],
@@ -179,7 +205,10 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
               onSelected: (v) => v == 'edit' ? _edit() : _delete(),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit application')),
-                PopupMenuItem(value: 'delete', child: Text('Delete application')),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete application'),
+                ),
               ],
             ),
         ],
@@ -187,127 +216,160 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null || i == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? 'Not found'),
+                  TextButton(onPressed: _load, child: const Text('Try again')),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+                children: [
+                  Row(
                     children: [
-                      Text(_error ?? 'Not found'),
-                      TextButton(onPressed: _load, child: const Text('Try again')),
+                      Expanded(
+                        child: Text(
+                          i.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                      ),
+                      StatusChip(status: i.status),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+                  const SizedBox(height: 4),
+                  Text(
+                    i.companyName,
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _InfoRow(
+                          'Duration',
+                          '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}',
+                        ),
+                        _InfoRow(
+                          'Work mode',
+                          i.mode[0].toUpperCase() + i.mode.substring(1),
+                        ),
+                        if (i.description != null && i.description!.isNotEmpty)
+                          _InfoRow('About', i.description!),
+                      ],
+                    ),
+                  ),
+                  _sectionHeader(
+                    'Progress',
+                    action: TextButton.icon(
+                      onPressed: _addProgress,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add update'),
+                    ),
+                  ),
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(i.title,
-                                style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.ink)),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: i.progress / 100,
+                            minHeight: 10,
+                            backgroundColor: Colors.grey.shade200,
+                            color: AppTheme.saffron,
                           ),
-                          StatusChip(status: i.status),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(i.companyName,
-                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _InfoRow('Duration',
-                                '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}'),
-                            _InfoRow('Work mode',
-                                i.mode[0].toUpperCase() + i.mode.substring(1)),
-                            if (i.description != null && i.description!.isNotEmpty)
-                              _InfoRow('About', i.description!),
-                          ],
                         ),
                       ),
-                      _sectionHeader('Progress',
-                          action: TextButton.icon(
-                            onPressed: _addProgress,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add update'),
-                          )),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: i.progress / 100,
-                                minHeight: 10,
-                                backgroundColor: Colors.grey.shade200,
-                                color: AppTheme.saffron,
-                              ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${i.progress}%',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_updates.isEmpty)
+                    Text(
+                      'No updates yet. Add one when you finish a milestone.',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    )
+                  else
+                    ..._updates.map(
+                      (u) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.ink,
+                          child: Text(
+                            '${u.percent}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Text('${i.progress}%',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w800)),
-                        ],
+                        ),
+                        title: Text(u.note),
+                        subtitle: Text(fmtDate(u.createdAt)),
                       ),
-                      const SizedBox(height: 12),
-                      if (_updates.isEmpty)
-                        Text('No updates yet. Add one when you finish a milestone.',
-                            style: TextStyle(color: Colors.grey.shade700))
-                      else
-                        ..._updates.map((u) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                backgroundColor: AppTheme.ink,
-                                child: Text('${u.percent}',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 12)),
-                              ),
-                              title: Text(u.note),
-                              subtitle: Text(fmtDate(u.createdAt)),
-                            )),
-                      _sectionHeader('Documents',
-                          action: TextButton.icon(
-                            onPressed: _uploading ? null : _upload,
-                            icon: _uploading
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.upload_file),
-                            label: Text(_uploading ? 'Uploading' : 'Upload'),
-                          )),
-                      if (_docs.isEmpty)
-                        Text('Upload your offer letter, certificate or reports here.',
-                            style: TextStyle(color: Colors.grey.shade700))
-                      else
-                        ..._docs.map((d) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.insert_drive_file_outlined),
-                              title: Text(d.fileName,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                              subtitle: Text('Added ${fmtDate(d.createdAt)}'),
-                              onTap: () => _openDoc(d),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: () => _deleteDoc(d),
-                              ),
-                            )),
-                    ],
+                    ),
+                  _sectionHeader(
+                    'Documents',
+                    action: TextButton.icon(
+                      onPressed: _uploading ? null : _upload,
+                      icon: _uploading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.upload_file),
+                      label: Text(_uploading ? 'Uploading' : 'Upload'),
+                    ),
                   ),
-                ),
+                  if (_docs.isEmpty)
+                    Text(
+                      'Upload your offer letter, certificate or reports here.',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    )
+                  else
+                    ..._docs.map(
+                      (d) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.insert_drive_file_outlined),
+                        title: Text(
+                          d.fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text('Added ${fmtDate(d.createdAt)}'),
+                        onTap: () => _openDoc(d),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _deleteDoc(d),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -369,8 +431,10 @@ class _ProgressDialogState extends State<_ProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Overall progress: ${_percent.round()}%',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              'Overall progress: ${_percent.round()}%',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             Slider(
               value: _percent,
               min: 0,
@@ -392,7 +456,9 @@ class _ProgressDialogState extends State<_ProgressDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
           onPressed: () {
