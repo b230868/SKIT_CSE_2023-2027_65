@@ -18,7 +18,12 @@ class SupabaseItrRepository implements ItrRepository {
 
   @override
   Future<List<ItrModel>> getItrs() async {
-    final user = _client.auth.currentUser;
+    final User? user;
+    try {
+      user = _client.auth.currentUser;
+    } catch (_) {
+      return [];
+    }
 
     if (user == null) {
       return [];
@@ -32,6 +37,43 @@ class SupabaseItrRepository implements ItrRepository {
 
     if (student == null) {
       return [];
+    }
+
+    final studentId = student['id'].toString();
+
+    // Ensure every internship belonging to this student has at least a draft ITR record
+    try {
+      final internships = await _client
+          .from('internships')
+          .select('id')
+          .eq('student_id', studentId);
+
+      final existingItrs = await _client
+          .from('itrs')
+          .select('internship_id')
+          .eq('student_id', studentId);
+
+      final existingInternshipIds = (existingItrs as List)
+          .map((e) => e['internship_id']?.toString())
+          .whereType<String>()
+          .toSet();
+
+      for (final intern in (internships as List)) {
+        final internId = intern['id']?.toString();
+        if (internId != null && !existingInternshipIds.contains(internId)) {
+          await _client.from('itrs').upsert(
+            {
+              'internship_id': internId,
+              'student_id': studentId,
+              'status': 'draft',
+            },
+            onConflict: 'internship_id',
+            ignoreDuplicates: true,
+          );
+        }
+      }
+    } catch (_) {
+      // Non-blocking if auto-draft creation encounters a transient issue
     }
 
     final data = await _client
@@ -65,7 +107,7 @@ class SupabaseItrRepository implements ItrRepository {
             )
           )
         ''')
-        .eq('student_id', student['id'])
+        .eq('student_id', studentId)
         .order('created_at', ascending: false);
 
     return data.map<ItrModel>((item) {
@@ -172,11 +214,16 @@ class SupabaseItrRepository implements ItrRepository {
 
   @override
   Future<void> submitItr(ItrModel itr) async {
+    final effectiveContent =
+        (itr.content != null && itr.content!.trim().isNotEmpty)
+            ? itr.content!.trim()
+            : itr.workDone?.trim();
+
     await _client
         .from('itrs')
         .update({
           'status': 'submitted',
-          'content': itr.content,
+          'content': effectiveContent,
           'work_done': itr.workDone,
           'technologies_used': itr.technologiesUsed,
           'key_learnings': itr.keyLearnings,
@@ -186,12 +233,19 @@ class SupabaseItrRepository implements ItrRepository {
           'presentation_path': itr.presentationPath,
           'submitted_at': DateTime.now().toIso8601String(),
         })
-        .eq('id', itr.id);
+        .eq('id', itr.id)
+        .select('id')
+        .single();
   }
 
   @override
   Future<void> updateItrStatus(String id, String status) async {
-    await _client.from('itrs').update({'status': status}).eq('id', id);
+    await _client
+        .from('itrs')
+        .update({'status': status})
+        .eq('id', id)
+        .select('id')
+        .single();
   }
 
   @override
@@ -249,7 +303,12 @@ class SupabaseItrRepository implements ItrRepository {
   }
 
   Future<String?> _getIndustryId() async {
-    final user = _client.auth.currentUser;
+    final User? user;
+    try {
+      user = _client.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
     if (user == null) return null;
 
     final row = await _client
@@ -366,7 +425,12 @@ class SupabaseItrRepository implements ItrRepository {
     required String remarks,
     String? reviewerName,
   }) async {
-    final user = _client.auth.currentUser;
+    User? user;
+    try {
+      user = _client.auth.currentUser;
+    } catch (_) {
+      user = null;
+    }
     final updates = <String, dynamic>{
       'status': status,
       'remarks': remarks,
@@ -380,6 +444,11 @@ class SupabaseItrRepository implements ItrRepository {
       updates['reviewer_name'] = reviewerName.trim();
     }
 
-    await _client.from('itrs').update(updates).eq('id', itrId);
+    await _client
+        .from('itrs')
+        .update(updates)
+        .eq('id', itrId)
+        .select('id')
+        .single();
   }
 }

@@ -22,6 +22,10 @@ class ItrSubmissionScreen extends StatefulWidget {
 
 class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
   late final TextEditingController _contentController;
+  late final TextEditingController _workDoneController;
+  late final TextEditingController _technologiesController;
+  late final TextEditingController _learningsController;
+  late final TextEditingController _challengesController;
 
   PlatformFile? _projectZipFile;
   PlatformFile? _presentationFile;
@@ -36,11 +40,22 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     super.initState();
 
     _contentController = TextEditingController(text: widget.itr.content ?? '');
+    _workDoneController = TextEditingController(text: widget.itr.workDone ?? '');
+    _technologiesController =
+        TextEditingController(text: widget.itr.technologiesUsed ?? '');
+    _learningsController =
+        TextEditingController(text: widget.itr.keyLearnings ?? '');
+    _challengesController =
+        TextEditingController(text: widget.itr.challengesFaced ?? '');
   }
 
   @override
   void dispose() {
     _contentController.dispose();
+    _workDoneController.dispose();
+    _technologiesController.dispose();
+    _learningsController.dispose();
+    _challengesController.dispose();
     super.dispose();
   }
 
@@ -101,7 +116,10 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
   }
 
   Future<void> _submitItr() async {
-    if (_contentController.text.trim().isEmpty) {
+    final summaryText = _contentController.text.trim();
+    final workDoneText = _workDoneController.text.trim();
+
+    if (summaryText.isEmpty && workDoneText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter your internship work details.'),
@@ -158,7 +176,17 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
         internshipTitle: widget.itr.internshipTitle,
         companyName: widget.itr.companyName,
         status: 'submitted',
-        content: _contentController.text.trim(),
+        content: summaryText.isNotEmpty ? summaryText : workDoneText,
+        workDone: workDoneText.isNotEmpty ? workDoneText : summaryText,
+        technologiesUsed: _technologiesController.text.trim().isNotEmpty
+            ? _technologiesController.text.trim()
+            : widget.itr.technologiesUsed,
+        keyLearnings: _learningsController.text.trim().isNotEmpty
+            ? _learningsController.text.trim()
+            : widget.itr.keyLearnings,
+        challengesFaced: _challengesController.text.trim().isNotEmpty
+            ? _challengesController.text.trim()
+            : widget.itr.challengesFaced,
         documentPath: widget.itr.documentPath,
         projectZipPath: projectZipPath,
         presentationPath: presentationPath,
@@ -296,10 +324,63 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
               TextField(
                 controller: _contentController,
-                maxLines: 10,
+                maxLines: 5,
                 decoration: const InputDecoration(
-                  labelText: 'Internship Work Details',
-                  hintText: 'Describe the work you completed, technologies used, features developed, learning outcomes, and your contribution...',
+                  labelText: 'Internship Work Details / Summary *',
+                  hintText:
+                      'Describe the work you completed, technologies used, features developed, learning outcomes, and your contribution...',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: _workDoneController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Work Completed (Deliverables & Modules)',
+                  hintText: 'Key tasks, modules, or deliverables completed...',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: _technologiesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Technologies & Tools Used',
+                  hintText: 'e.g., Flutter, Dart, Supabase, PostgreSQL, Git...',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: _learningsController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Key Learnings',
+                  hintText: 'Skills and domain knowledge gained...',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: _challengesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Challenges Faced & Solutions',
+                  hintText: 'Technical or workflow challenges and how you solved them...',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
