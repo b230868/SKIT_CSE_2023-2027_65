@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
+=======
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+>>>>>>> f5707ce ( Hive offline cache)
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,12 +14,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<Map>(GeoProgressQueue.boxName);
+<<<<<<< HEAD
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
     defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
   );
   if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
+=======
+  await dotenv.load(fileName: '.env');
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseKey =
+      dotenv.env['SUPABASE_PUBLISHABLE_KEY'] ?? dotenv.env['SUPABASE_ANON_KEY'];
+  if (supabaseUrl == null ||
+      supabaseUrl.isEmpty ||
+      supabaseKey == null ||
+      supabaseKey.isEmpty) {
+>>>>>>> f5707ce ( Hive offline cache)
     throw StateError(
       'Provide SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (or the legacy '
       'SUPABASE_ANON_KEY) with '

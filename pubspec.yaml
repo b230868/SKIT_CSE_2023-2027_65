@@ -34,6 +34,10 @@ dependencies:
   hive_flutter: ^1.1.0
   fl_chart: ^1.2.0
   file_picker: ^13.1.0
+<<<<<<< HEAD
+=======
+  flutter_dotenv: ^6.0.1
+>>>>>>> f5707ce ( Hive offline cache)
   geolocator: ^14.0.2
   intl: ^0.20.3
   url_launcher: ^6.3.2
@@ -66,6 +70,12 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+<<<<<<< HEAD
+=======
+  assets:
+    - .env
+
+>>>>>>> f5707ce ( Hive offline cache)
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
