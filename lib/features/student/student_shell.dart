@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../auth/models/app_user.dart';
 import '../auth/presentation/profile_screen.dart';
 import '../internship/presentation/internship_list_screen.dart';
+import '../itr/presentation/screens/itr_screen.dart';
 import 'student_dashboard_screen.dart';
 
-/// Bottom navigation for the student portal: Home | Internships | Profile
+/// Bottom navigation for the student portal: Home | Internships | ITRs | Profile
 class StudentShell extends StatefulWidget {
   final AppUser user;
   const StudentShell({super.key, required this.user});
@@ -39,6 +40,7 @@ class _StudentShellState extends State<StudentShell> {
             onApply: () => setState(() => _index = 1),
           ),
           InternshipListScreen(onChanged: _refreshDashboard),
+          ItrListScreen(key: ValueKey('itrs-$_version')),
           ProfileScreen(
             user: _user,
             onUpdated: (u) => setState(() => _user = u),
@@ -57,6 +59,10 @@ class _StudentShellState extends State<StudentShell> {
               icon: Icon(Icons.work_outline),
               selectedIcon: Icon(Icons.work),
               label: 'Internships'),
+          NavigationDestination(
+              icon: Icon(Icons.assignment_outlined),
+              selectedIcon: Icon(Icons.assignment),
+              label: 'ITRs'),
           NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person),
