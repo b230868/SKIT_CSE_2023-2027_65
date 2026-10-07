@@ -1,9 +1,5 @@
 name: prashikshan
-<<<<<<< HEAD
 description: "Prashikshan internship tracking app."
-=======
-description: "A new Flutter project."
->>>>>>> yash
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -37,10 +33,10 @@ dependencies:
 
   hive_flutter: ^1.1.0
   fl_chart: ^1.2.0
-  file_picker: ^10.3.2
-  flutter_dotenv: ^5.2.1
+  file_picker: ^13.1.0
+  flutter_dotenv: ^6.0.1
   geolocator: ^14.0.2
-  intl: ^0.20.2
+  intl: ^0.20.3
   url_launcher: ^6.3.2
   uuid: ^4.5.1
 
@@ -48,10 +44,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.17.2
-  intl: ^0.20.3
-  file_picker: ^13.1.0
-  url_launcher: ^6.3.2
-  flutter_dotenv: ^6.0.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

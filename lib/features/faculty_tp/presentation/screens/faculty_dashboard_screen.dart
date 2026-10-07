@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-<<<<<<< HEAD
-import 'dashboard_feature_placeholder_screen.dart';
-=======
 import 'dashboard_feature_placeholder.dart';
->>>>>>> yash
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -103,11 +99,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-<<<<<<< HEAD
-                  builder: (_) => const DashboardFeaturePlaceholderScreen(
-=======
                   builder: (_) => const DashboardFeaturePlaceholder(
->>>>>>> yash
                     title: 'Reports & Analytics',
                   ),
                 ),
@@ -291,16 +283,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-<<<<<<< HEAD
-                            builder: (_) =>
-                                const DashboardFeaturePlaceholderScreen(
-                                  title: 'Approvals',
-                                ),
-=======
                             builder: (_) => const DashboardFeaturePlaceholder(
                               title: 'Approvals',
                             ),
->>>>>>> yash
                           ),
                         );
                       },
@@ -334,11 +319,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-<<<<<<< HEAD
-                      builder: (_) => const DashboardFeaturePlaceholderScreen(
-=======
                       builder: (_) => const DashboardFeaturePlaceholder(
->>>>>>> yash
                         title: 'Reports & Analytics',
                       ),
                     ),

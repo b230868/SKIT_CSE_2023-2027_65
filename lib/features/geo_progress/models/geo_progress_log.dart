@@ -10,6 +10,7 @@ class GeoProgressLog {
   final DateTime capturedAt;
   final double? distanceFromSiteM;
   final bool? withinGeofence;
+  final bool isPendingSync;
 
   const GeoProgressLog({
     this.id,
@@ -23,6 +24,7 @@ class GeoProgressLog {
     required this.capturedAt,
     this.distanceFromSiteM,
     this.withinGeofence,
+    this.isPendingSync = false,
   });
 
   factory GeoProgressLog.fromJson(Map<String, dynamic> j) => GeoProgressLog(
@@ -37,6 +39,7 @@ class GeoProgressLog {
     capturedAt: DateTime.parse(j['captured_at'] as String),
     distanceFromSiteM: (j['distance_from_site_m'] as num?)?.toDouble(),
     withinGeofence: j['within_geofence'] as bool?,
+    isPendingSync: j['is_pending_sync'] as bool? ?? false,
   );
 
   /// Only client-owned fields; server computes geofence + student_id.

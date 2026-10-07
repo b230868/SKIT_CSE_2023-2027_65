@@ -18,6 +18,8 @@ void main() {
     expect(json['internship_id'], 'internship-id');
     expect(json.containsKey('application_id'), isFalse);
     expect(json['captured_at'], '2026-09-28T00:00:00.000Z');
+    expect(json.containsKey('owner_id'), isFalse);
+    expect(json.containsKey('is_pending_sync'), isFalse);
   });
 
   test('reads internship progress returned by the database', () {

@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:io' show SocketException;
+
+import 'package:http/http.dart' show ClientException;
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/geo_progress_log.dart';
+import 'geo_progress_queue.dart';
 
 class GeoProgressException implements Exception {
   final String message;
@@ -11,12 +17,30 @@ class GeoProgressException implements Exception {
   String toString() => message;
 }
 
+class GeoProgressSyncResult {
+  const GeoProgressSyncResult({
+    required this.syncedCount,
+    required this.remainingCount,
+    required this.failures,
+  });
+
+  final int syncedCount;
+  final int remainingCount;
+  final Map<String, String> failures;
+
+  bool get isComplete => remainingCount == 0;
+}
+
 /// Integrates device GPS with Supabase so every progress update is geo-tagged.
 class GeoProgressService {
-  GeoProgressService({SupabaseClient? client})
-    : _db = client ?? Supabase.instance.client;
+  GeoProgressService({SupabaseClient? client, GeoProgressQueue? queue})
+    : _db = client ?? Supabase.instance.client,
+      _queue =
+          queue ??
+          GeoProgressQueue(box: Hive.box<Map>(GeoProgressQueue.boxName));
 
   final SupabaseClient _db;
+  final GeoProgressQueue _queue;
   static const _uuid = Uuid();
   static const _table = 'geo_progress_logs';
 
@@ -78,6 +102,10 @@ class GeoProgressService {
         'Task descriptions must be 500 characters or less.',
       );
     }
+    final ownerId = _db.auth.currentUser?.id;
+    if (ownerId == null) {
+      throw GeoProgressException('Sign in before submitting progress.');
+    }
 
     final pos = await getCurrentPosition();
 
@@ -90,45 +118,123 @@ class GeoProgressService {
       longitude: pos.longitude,
       accuracyM: pos.accuracy,
       capturedAt: pos.timestamp,
+      isPendingSync: true,
     );
 
+    await _queue.enqueue(log, ownerId: ownerId);
     try {
-      final row = await _db
-          .from(_table)
-          .upsert(
-            log.toInsertJson(),
-            onConflict: 'client_ref',
-            ignoreDuplicates: true,
-          )
-          .select()
-          .maybeSingle();
-      if (row != null) return GeoProgressLog.fromJson(row);
-
-      final existing = await _db
-          .from(_table)
-          .select()
-          .eq('client_ref', log.clientRef)
-          .maybeSingle();
-      if (existing != null) return GeoProgressLog.fromJson(existing);
-      throw GeoProgressException('Progress could not be saved.');
+      final savedLog = await _send(log);
+      await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
+      return savedLog;
     } on PostgrestException catch (e) {
-      throw GeoProgressException(e.message);
+      throw GeoProgressException(
+        'Progress is saved on this device, but the server rejected it: ${e.message}',
+      );
+    } on Exception catch (e) {
+      if (_isNetworkError(e)) return log;
+      throw GeoProgressException(
+        'Progress is saved on this device, but could not be synced: $e',
+      );
     }
+  }
+
+  Future<GeoProgressLog> _send(GeoProgressLog log) async {
+    final row = await _db
+        .from(_table)
+        .upsert(
+          log.toInsertJson(),
+          onConflict: 'client_ref',
+          ignoreDuplicates: true,
+        )
+        .select()
+        .maybeSingle();
+    if (row != null) return GeoProgressLog.fromJson(row);
+
+    final existing = await _db
+        .from(_table)
+        .select()
+        .eq('client_ref', log.clientRef)
+        .maybeSingle();
+    if (existing != null) return GeoProgressLog.fromJson(existing);
+    throw GeoProgressException('Progress could not be saved.');
+  }
+
+  /// Returns this signed-in user's queued logs, newest first.
+  List<GeoProgressLog> getPendingProgress({String? internshipId}) {
+    final ownerId = _db.auth.currentUser?.id;
+    if (ownerId == null) {
+      throw GeoProgressException('Sign in before viewing cached progress.');
+    }
+    return _queue.pending(ownerId: ownerId, internshipId: internshipId);
+  }
+
+  /// Retries locally cached progress. Failed entries remain queued for retry.
+  Future<GeoProgressSyncResult> syncPendingProgress() async {
+    final ownerId = _db.auth.currentUser?.id;
+    if (ownerId == null) {
+      throw GeoProgressException('Sign in before syncing cached progress.');
+    }
+
+    var syncedCount = 0;
+    final failures = <String, String>{};
+    for (final log in _queue.pending(ownerId: ownerId)) {
+      try {
+        await _send(log);
+        await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
+        syncedCount++;
+      } on Exception catch (e) {
+        failures[log.clientRef] = e.toString();
+      }
+    }
+    return GeoProgressSyncResult(
+      syncedCount: syncedCount,
+      remainingCount: _queue.count(ownerId: ownerId),
+      failures: failures,
+    );
   }
 
   /// Full history for one internship, newest first.
   Future<List<GeoProgressLog>> fetchHistory(String internshipId) async {
+    final ownerId = _db.auth.currentUser?.id;
+    final pending = ownerId == null
+        ? <GeoProgressLog>[]
+        : _queue.pending(ownerId: ownerId, internshipId: internshipId);
     try {
       final rows = await _db
           .from(_table)
           .select()
           .eq('internship_id', internshipId)
           .order('captured_at', ascending: false);
-      return rows.map<GeoProgressLog>(GeoProgressLog.fromJson).toList();
+      final logsByRef = {
+        for (final row in rows)
+          (row['client_ref'] as String): GeoProgressLog.fromJson(row),
+      };
+      for (final log in pending) {
+        logsByRef.putIfAbsent(log.clientRef, () => log);
+      }
+      final logs = logsByRef.values.toList()
+        ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+      return logs;
     } on PostgrestException catch (e) {
       throw GeoProgressException(e.message);
+    } on Exception catch (e) {
+      if (!_isNetworkError(e)) {
+        throw GeoProgressException('Could not load progress history: $e');
+      }
+      if (pending.isEmpty) {
+        throw GeoProgressException(
+          'Progress history is unavailable offline and there are no cached entries.',
+        );
+      }
+      return pending;
     }
   }
+
+  bool _isNetworkError(Exception error) =>
+      error is ClientException ||
+      error is TimeoutException ||
+      error is SocketException ||
+      error is AuthRetryableFetchException;
 
   /// Latest log per internship (for faculty / T&P / industry dashboards).
   Future<GeoProgressLog?> fetchLatest(String internshipId) async {

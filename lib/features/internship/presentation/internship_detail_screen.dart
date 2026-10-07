@@ -116,13 +116,12 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _upload() async {
-    final files = await FilePicker.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'],
     );
-<<<<<<< HEAD
-    if (files.isEmpty) return;
-    final file = files.single;
+    if (picked.isEmpty) return;
+    final file = picked.single;
     final size = await file.length();
     if (size == null) {
       if (mounted) {
@@ -131,15 +130,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       return;
     }
     if (size > 10 * 1024 * 1024) {
-      if (mounted) showSnack(context, 'Choose a file smaller than 10 MB', error: true);
-=======
-    if (picked == null || picked.files.isEmpty) return;
-    final file = picked.files.single;
-    if (file.size > 10 * 1024 * 1024) {
       if (mounted) {
         showSnack(context, 'Choose a file smaller than 10 MB', error: true);
       }
->>>>>>> yash
       return;
     }
     setState(() => _uploading = true);
