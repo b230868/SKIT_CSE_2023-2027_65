@@ -34,7 +34,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Future<void> _reload() async {
     final f = _service.fetchMine();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     await f;
   }
 

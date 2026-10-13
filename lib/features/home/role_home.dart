@@ -25,7 +25,11 @@ class _RoleHomeState extends State<RoleHome> {
     _future = AuthService().fetchProfile();
   }
 
-  void _retry() => setState(() => _future = AuthService().fetchProfile());
+  void _retry() {
+    setState(() {
+      _future = AuthService().fetchProfile();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
