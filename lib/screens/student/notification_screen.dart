@@ -10,45 +10,47 @@ IconData _iconFor(String type) => switch (type) {
   _ => Icons.notifications_outlined,
 };
 
-/// UI design for the notifications list. Entries are read from the
-/// `notifications` table; the events that create them are added next week.
-class NotificationsScreen extends StatefulWidget {
+/// Now backed by a live stream: approvals, rejections and other events
+/// created by the database triggers appear here instantly.
+class NotificationScreen extends StatefulWidget {
   final NotificationDataSource? service;
-  const NotificationsScreen({super.key, this.service});
+  const NotificationScreen({super.key, this.service});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationScreenState extends State<NotificationScreen> {
   late final NotificationDataSource _svc;
-  late Future<List<AppNotification>> _future;
+  late final Stream<List<AppNotification>> _stream = _svc.watch();
 
   @override
   void initState() {
     super.initState();
     _svc = widget.service ?? NotificationService();
-    _future = _svc.list();
-  }
-
-  Future<void> _refresh() async {
-    setState(() {
-      _future = _svc.list();
-    });
-    await _future.catchError((_) => <AppNotification>[]);
   }
 
   Future<void> _onTap(AppNotification n) async {
     if (!n.isRead) {
       try {
         await _svc.markRead(n.id);
-        if (mounted) _refresh();
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not update the notification.')),
         );
       }
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await _svc.markAllRead();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update notifications.')),
+      );
     }
   }
 
@@ -59,134 +61,84 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         title: const Text('Notifications'),
         actions: [
           TextButton(
-            onPressed: () async {
-              try {
-                await _svc.markAllRead();
-                if (mounted) _refresh();
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Could not update notifications.'),
-                  ),
-                );
-              }
-            },
+            onPressed: _markAllRead,
             child: const Text('Mark all read'),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<List<AppNotification>>(
-          future: _future,
-          builder: (context, s) {
-            if (s.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (s.hasError) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 160),
-                  Center(
-                    child: Text(
-                      'Could not load notifications. Pull down to retry.',
-                    ),
+      body: StreamBuilder<List<AppNotification>>(
+        stream: _stream,
+        builder: (context, s) {
+          if (s.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (s.hasError) {
+            return const Center(child: Text('Could not load notifications.'));
+          }
+          final list = s.data ?? const <AppNotification>[];
+          if (list.isEmpty) {
+            return const Center(child: Text('No notifications yet.'));
+          }
+          return ListView.separated(
+            itemCount: list.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, i) {
+              final n = list[i];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: n.isRead
+                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                      : Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(_iconFor(n.type)),
+                ),
+                title: Text(
+                  n.title,
+                  style: TextStyle(
+                    fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold,
                   ),
-                ],
+                ),
+                subtitle: Text(n.body),
+                trailing: n.isRead
+                    ? null
+                    : const Icon(Icons.circle, size: 10, color: Colors.blue),
+                onTap: () => _onTap(n),
               );
-            }
-            final list = s.data!;
-            if (list.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 160),
-                  Center(child: Text('No notifications yet.')),
-                ],
-              );
-            }
-            return ListView.separated(
-              itemCount: list.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final n = list[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: n.isRead
-                        ? Theme.of(context).colorScheme.surfaceContainerHighest
-                        : Theme.of(context).colorScheme.primaryContainer,
-                    child: Icon(_iconFor(n.type)),
-                  ),
-                  title: Text(
-                    n.title,
-                    style: TextStyle(
-                      fontWeight: n.isRead
-                          ? FontWeight.normal
-                          : FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(n.body),
-                  trailing: n.isRead
-                      ? null
-                      : const Icon(Icons.circle, size: 10, color: Colors.blue),
-                  onTap: () => _onTap(n),
-                );
-              },
-            );
-          },
-        ),
+            },
+          );
+        },
       ),
     );
   }
 }
 
-/// Small bell icon with an unread badge, meant for the dashboard AppBar.
-class NotificationBell extends StatefulWidget {
+/// Bell icon with a live unread badge. Place it in an AppBar's actions.
+class NotificationBell extends StatelessWidget {
   final NotificationDataSource? service;
   const NotificationBell({super.key, this.service});
 
   @override
-  State<NotificationBell> createState() => _NotificationBellState();
-}
-
-class _NotificationBellState extends State<NotificationBell> {
-  late final NotificationDataSource _svc;
-  late Future<int> _count;
-
-  @override
-  void initState() {
-    super.initState();
-    _svc = widget.service ?? NotificationService();
-    _count = _svc.unreadCount();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: _count,
+    final svc = service ?? NotificationService();
+    return StreamBuilder<List<AppNotification>>(
+      stream: svc.watch(),
       builder: (context, s) {
-        final n = s.data ?? 0;
+        final unread = (s.data ?? const <AppNotification>[])
+            .where((n) => !n.isRead)
+            .length;
         return IconButton(
           tooltip: 'Notifications',
           icon: Badge(
-            label: Text('$n'),
-            isLabelVisible: n > 0,
+            label: Text('$unread'),
+            isLabelVisible: unread > 0,
             child: const Icon(Icons.notifications_outlined),
           ),
-          onPressed: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => NotificationsScreen(service: _svc),
-              ),
-            );
-            if (mounted) {
-              setState(() {
-                _count = _svc.unreadCount();
-              });
-            }
-          },
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => NotificationScreen(service: svc)),
+          ),
         );
       },
     );
   }
 }
+
+typedef NotificationsScreen = NotificationScreen;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prashikshan/models/notification_models.dart';
@@ -61,7 +63,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(service.markedIds, ['notification-1']);
-      expect(service.listCalls, 2);
+      expect(service.notifications.single.isRead, isTrue);
     });
 
     testWidgets('shows an empty state when no notifications exist', (
@@ -89,9 +91,9 @@ void main() {
         ),
       ]);
 
-      await tester.pumpWidget(MaterialApp(
-        home: NotificationsScreen(service: service),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(home: NotificationsScreen(service: service)),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Mark all read'));
@@ -114,10 +116,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Could not load notifications. Pull down to retry.'),
-        findsOneWidget,
-      );
+      expect(find.text('Could not load notifications.'), findsOneWidget);
     });
 
     testWidgets('bell opens notifications and shows its unread count', (
@@ -187,25 +186,32 @@ void main() {
       );
     });
 
-    testWidgets('explains that PDF export is not available yet', (
+    testWidgets('exports a PDF report using the current summary', (
       tester,
     ) async {
+      const summary = ReportSummary(
+        totalApplications: 3,
+        approved: 1,
+        pending: 1,
+        rejected: 1,
+        documentsUploaded: 2,
+        latestProgress: 50,
+      );
+      final exporter = _FakeReportPdfExporter();
       await tester.pumpWidget(
         MaterialApp(
           home: ReportsScreen(
-            service: _FakeReportService(summary: ReportSummary.empty()),
+            service: _FakeReportService(summary: summary),
+            pdfExporter: exporter,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Export as PDF'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(
-        find.text('PDF export is coming once this layout is approved.'),
-        findsOneWidget,
-      );
+      expect(exporter.exportedSummaries, [summary]);
     });
   });
 }
@@ -221,18 +227,42 @@ class _FakeNotificationService implements NotificationDataSource {
   final int unread;
   final bool shouldFail;
   final List<String> markedIds = [];
-  int listCalls = 0;
+  final StreamController<List<AppNotification>> _updates =
+      StreamController<List<AppNotification>>.broadcast();
   int markAllCalls = 0;
+  int watchCalls = 0;
 
   @override
-  Future<List<AppNotification>> list() async {
-    listCalls++;
-    if (shouldFail) throw StateError('Notification load failed');
-    return notifications;
+  Future<List<AppNotification>> list() async => notifications;
+
+  @override
+  Stream<List<AppNotification>> watch() {
+    watchCalls++;
+    if (shouldFail) {
+      return Stream.error(StateError('Notification load failed'));
+    }
+    return Stream.multi((controller) {
+      final initialNotifications = [...notifications];
+      for (var index = initialNotifications.length; index < unread; index++) {
+        initialNotifications.add(
+          AppNotification(
+            id: 'unread-$index',
+            title: 'Unread notification',
+            body: '',
+            type: 'general',
+            isRead: false,
+            createdAt: DateTime.utc(2026, 10, 6),
+          ),
+        );
+      }
+      controller.add(initialNotifications);
+      final subscription = _updates.stream.listen(
+        controller.add,
+        onError: controller.addError,
+      );
+      controller.onCancel = subscription.cancel;
+    });
   }
-
-  @override
-  Future<int> unreadCount() async => unread;
 
   @override
   Future<void> markRead(String id) async {
@@ -251,6 +281,7 @@ class _FakeNotificationService implements NotificationDataSource {
               : notification,
         )
         .toList();
+    _updates.add(notifications);
   }
 
   @override
@@ -268,6 +299,7 @@ class _FakeNotificationService implements NotificationDataSource {
           ),
         )
         .toList();
+    _updates.add(notifications);
   }
 }
 
@@ -281,5 +313,14 @@ class _FakeReportService implements ReportDataSource {
   Future<ReportSummary> studentSummary() async {
     if (shouldFail) throw StateError('Report load failed');
     return summary!;
+  }
+}
+
+class _FakeReportPdfExporter implements ReportPdfExporter {
+  final List<ReportSummary> exportedSummaries = [];
+
+  @override
+  Future<void> export(ReportSummary summary) async {
+    exportedSummaries.add(summary);
   }
 }
