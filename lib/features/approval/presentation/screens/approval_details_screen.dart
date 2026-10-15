@@ -86,18 +86,7 @@ class _ApprovalDetailsScreenState
     );
   }
 
-  String _statusLabel(ApprovalStatus status) {
-    switch (status) {
-      case ApprovalStatus.pending:
-        return 'Pending';
-      case ApprovalStatus.underReview:
-        return 'Under Review';
-      case ApprovalStatus.approved:
-        return 'Approved';
-      case ApprovalStatus.rejected:
-        return 'Rejected';
-    }
-  }
+  String _statusLabel(ApprovalStatus status) => status.displayName;
 
   String _stageLabel() {
     switch (widget.stage) {
@@ -123,8 +112,8 @@ class _ApprovalDetailsScreenState
     }
 
     return widget.stage == ApprovalReviewStage.tpAdmin &&
-        widget.request.approvalStatus ==
-            ApprovalStatus.approved;
+        (widget.request.approvalStatus == ApprovalStatus.approved ||
+            widget.request.approvalStatus == ApprovalStatus.underReview);
   }
 
   Future<void> _openReview(BuildContext context) async {

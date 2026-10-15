@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../domain/entities/dashboard_statistics.dart';
 import '../models/mock_dashboard_data.dart';
 import 'faculty_dashboard_repository.dart';
@@ -23,7 +24,9 @@ class SupabaseFacultyDashboardRepository
   }
 
   @override
-  Future<DashboardStatistics> getDashboardStatistics() async {
+  Future<DashboardStatistics> getDashboardStatistics({
+    ApprovalReviewStage? stage,
+  }) async {
     final client = _client;
     if (client == null) {
       return MockDashboardData.statistics;
@@ -32,6 +35,17 @@ class SupabaseFacultyDashboardRepository
     await AuthService.requireAuthenticatedClient(client: client);
 
     try {
+      ApprovalReviewStage? effectiveStage = stage;
+      if (effectiveStage == null) {
+        final profile =
+            await AuthService(client: client).getCurrentUserProfile();
+        if (profile?.role == AppRole.tpOfficer) {
+          effectiveStage = ApprovalReviewStage.tpAdmin;
+        } else {
+          effectiveStage = ApprovalReviewStage.faculty;
+        }
+      }
+
       final response = await client.from('internships').select('''
         id,
         status,
@@ -59,20 +73,73 @@ class SupabaseFacultyDashboardRepository
         reviews.sort((a, b) => DateTime.parse(b['created_at'] as String)
             .compareTo(DateTime.parse(a['created_at'] as String)));
 
-        String latestStatus = 'pending';
-        if (reviews.isNotEmpty) {
-          latestStatus = reviews.first['status'] as String? ?? 'pending';
-        }
+        if (effectiveStage == ApprovalReviewStage.faculty) {
+          final hasTpReview = reviews.any(
+            (review) => review['review_stage'] == 'tp_admin',
+          );
 
-        if (latestStatus == 'pending' || latestStatus == 'under_review') {
-          pendingApprovals++;
-          if (studentId != null) {
-            studentsNeedingReview.add(studentId);
+          if (hasTpReview) {
+            approvedInternships++;
+            continue;
           }
-        } else if (latestStatus == 'approved') {
-          approvedInternships++;
-        } else if (latestStatus == 'rejected') {
-          rejectedApplications++;
+
+          final facultyReviews = reviews
+              .where((r) => r['review_stage'] == 'faculty')
+              .toList();
+
+          if (facultyReviews.isEmpty) {
+            pendingApprovals++;
+            if (studentId != null) {
+              studentsNeedingReview.add(studentId);
+            }
+          } else {
+            final latestStatus =
+                facultyReviews.first['status'] as String? ?? 'pending';
+            if (latestStatus == 'approved') {
+              approvedInternships++;
+            } else if (latestStatus == 'rejected') {
+              rejectedApplications++;
+            } else {
+              pendingApprovals++;
+              if (studentId != null) {
+                studentsNeedingReview.add(studentId);
+              }
+            }
+          }
+        } else if (effectiveStage == ApprovalReviewStage.tpAdmin) {
+          final facultyApproved = reviews.any(
+            (review) =>
+                review['review_stage'] == 'faculty' &&
+                review['status'] == 'approved',
+          );
+
+          if (!facultyApproved) {
+            continue;
+          }
+
+          final tpReviews = reviews
+              .where((r) => r['review_stage'] == 'tp_admin')
+              .toList();
+
+          if (tpReviews.isEmpty) {
+            pendingApprovals++;
+            if (studentId != null) {
+              studentsNeedingReview.add(studentId);
+            }
+          } else {
+            final latestStatus =
+                tpReviews.first['status'] as String? ?? 'pending';
+            if (latestStatus == 'approved') {
+              approvedInternships++;
+            } else if (latestStatus == 'rejected') {
+              rejectedApplications++;
+            } else {
+              pendingApprovals++;
+              if (studentId != null) {
+                studentsNeedingReview.add(studentId);
+              }
+            }
+          }
         }
       }
 

@@ -1,3 +1,4 @@
+import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'package:flutter/material.dart';
@@ -47,7 +48,9 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
     }
 
     try {
-      final statistics = await _service.loadStatistics();
+      final statistics = await _service.loadStatistics(
+        stage: ApprovalReviewStage.tpAdmin,
+      );
 
       if (!mounted) return;
 

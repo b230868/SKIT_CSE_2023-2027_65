@@ -13,11 +13,13 @@ import 'approval_details_screen.dart';
 class ApprovalListScreen extends StatefulWidget {
   final String title;
   final ApprovalReviewStage stage;
+  final ApprovalStatus? initialStatus;
 
   const ApprovalListScreen({
     super.key,
     this.title = 'Approval Requests',
     required this.stage,
+    this.initialStatus,
   });
 
   @override
@@ -42,6 +44,7 @@ class _ApprovalListScreenState
   void initState() {
     super.initState();
 
+    _selectedStatus = widget.initialStatus;
     _searchController.addListener(_applyFilters);
     _loadRequests();
   }
@@ -149,18 +152,7 @@ class _ApprovalListScreenState
     ).then((_) => _loadRequests());
   }
 
-  String _statusLabel(ApprovalStatus status) {
-    switch (status) {
-      case ApprovalStatus.pending:
-        return 'Pending';
-      case ApprovalStatus.underReview:
-        return 'Under Review';
-      case ApprovalStatus.approved:
-        return 'Approved';
-      case ApprovalStatus.rejected:
-        return 'Rejected';
-    }
-  }
+  String _statusLabel(ApprovalStatus status) => status.displayName;
 
   @override
   void dispose() {
