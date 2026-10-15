@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-import 'dashboard_feature_placeholder_screen.dart';
+<<<<<<< HEAD
+import '../../../approval/domain/entities/approval_review_stage.dart';
+import '../../../approval/presentation/screens/faculty_approval_dashboard_screen.dart';
+import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
+import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+=======
+import 'dashboard_feature_placeholder.dart';
+>>>>>>> origin/main
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -16,8 +23,7 @@ class FacultyDashboardScreen extends StatefulWidget {
   const FacultyDashboardScreen({super.key});
 
   @override
-  State<FacultyDashboardScreen> createState() =>
-      _FacultyDashboardScreenState();
+  State<FacultyDashboardScreen> createState() => _FacultyDashboardScreenState();
 }
 
 class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
@@ -47,7 +53,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
     }
 
     try {
-      final statistics = await _service.loadStatistics();
+      final statistics = await _service.loadStatistics(
+        stage: ApprovalReviewStage.faculty,
+      );
 
       if (!mounted) return;
 
@@ -64,7 +72,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access dashboard data.';
+        message =
+            'Your account does not have permission to access dashboard data.';
       } else {
         message = 'Unable to load dashboard';
       }
@@ -98,11 +107,15 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
+<<<<<<< HEAD
+                MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
+=======
                 MaterialPageRoute(
-                  builder: (_) => const DashboardFeaturePlaceholderScreen(
+                  builder: (_) => const DashboardFeaturePlaceholder(
                     title: 'Reports & Analytics',
                   ),
                 ),
+>>>>>>> origin/main
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -112,9 +125,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const TpDashboardScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const TpDashboardScreen()),
               );
             },
             icon: const Icon(Icons.swap_horiz),
@@ -231,8 +242,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         final crossAxisCount = constraints.maxWidth >= 900
             ? 4
             : constraints.maxWidth >= 600
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
         return RefreshIndicator(
           onRefresh: _loadDashboard,
@@ -241,9 +252,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             children: [
               Text(
                 'Overview',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 16),
@@ -270,9 +280,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
               Text(
                 'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 12),
@@ -283,16 +292,38 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     child: DashboardActionButton(
                       label: 'View Approvals',
                       icon: Icons.assignment_outlined,
+<<<<<<< HEAD
+                      onPressed: () async {
+                        final profile = await AuthService()
+                            .getCurrentUserProfile();
+                        if (!context.mounted) return;
+                        if (profile?.role == AppRole.tpOfficer) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TpApprovalDashboardScreen(),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const FacultyApprovalDashboardScreen(),
+                            ),
+                          );
+                        }
+=======
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const DashboardFeaturePlaceholderScreen(
-                                  title: 'Approvals',
-                                ),
+                            builder: (_) => const DashboardFeaturePlaceholder(
+                              title: 'Approvals',
+                            ),
                           ),
                         );
+>>>>>>> origin/main
                       },
                     ),
                   ),
@@ -324,7 +355,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DashboardFeaturePlaceholderScreen(
+                      builder: (_) => const DashboardFeaturePlaceholder(
                         title: 'Reports & Analytics',
                       ),
                     ),

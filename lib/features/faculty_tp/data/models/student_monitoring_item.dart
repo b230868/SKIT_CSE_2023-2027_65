@@ -4,6 +4,17 @@ class StudentMonitoringItem {
   final String internshipId;
   final String internshipTitle;
   final String applicationStatus;
+  final String? studentEmail;
+  final String? rollNumber;
+  final String? department;
+  final int? batchYear;
+  final String? companyName;
+  final String? internshipStatus;
+  final String? itrStatus;
+  final bool hasCertificate;
+  final String? certificateStatus;
+  final int progress;
+  final bool hasPendingApprovals;
 
   const StudentMonitoringItem({
     required this.studentId,
@@ -11,5 +22,16 @@ class StudentMonitoringItem {
     required this.internshipId,
     required this.internshipTitle,
     required this.applicationStatus,
+    this.studentEmail,
+    this.rollNumber,
+    this.department,
+    this.batchYear,
+    this.companyName,
+    this.internshipStatus,
+    this.itrStatus,
+    this.hasCertificate = false,
+    this.certificateStatus,
+    this.progress = 0,
+    this.hasPendingApprovals = false,
   });
 }

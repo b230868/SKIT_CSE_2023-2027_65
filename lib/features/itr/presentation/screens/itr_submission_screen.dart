@@ -61,15 +61,14 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
   Future<void> _pickProjectZip() async {
     try {
-      final files = await FilePicker.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip'],
       );
 
-      if (files.isEmpty) return;
+      if (result.isEmpty) return;
 
-      final file = files.single;
-
+      final file = result.single;
       final Uint8List bytes = await file.readAsBytes();
 
       if (!mounted) return;
@@ -89,15 +88,14 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
   Future<void> _pickPresentation() async {
     try {
-      final files = await FilePicker.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['ppt', 'pptx'],
       );
 
-      if (files.isEmpty) return;
+      if (result.isEmpty) return;
 
-      final file = files.single;
-
+      final file = result.single;
       final Uint8List bytes = await file.readAsBytes();
 
       if (!mounted) return;

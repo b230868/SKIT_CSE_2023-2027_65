@@ -1,9 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/app_user.dart';
 
 class AuthService {
+  static const _configuredAuthRedirectUrl =
+      String.fromEnvironment('SUPABASE_AUTH_REDIRECT_URL');
+
   final SupabaseClient _client = Supabase.instance.client;
+
+  String? get _emailRedirectTo {
+    if (_configuredAuthRedirectUrl.isNotEmpty) {
+      return _configuredAuthRedirectUrl;
+    }
+    return kIsWeb ? Uri.base.origin : null;
+  }
 
   Future<AuthResponse> signIn(String email, String password) {
     return _client.auth.signInWithPassword(email: email, password: password);
@@ -22,6 +33,7 @@ class AuthService {
     return _client.auth.signUp(
       email: email,
       password: password,
+      emailRedirectTo: _emailRedirectTo,
       data: {
         'full_name': fullName,
         'role': role,

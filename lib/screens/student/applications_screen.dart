@@ -1,28 +1,49 @@
 import 'package:flutter/material.dart';
+
 import '../../models/student_models.dart';
+import '../../services/document_progress_service.dart';
 import '../../services/student_service.dart';
 import 'application_detail_screen.dart';
 import 'student_ui.dart';
 
 class ApplicationsScreen extends StatefulWidget {
-  const ApplicationsScreen({super.key});
+  final StudentDataSource? service;
+  final DocumentProgressDataSource? documentService;
+  const ApplicationsScreen({super.key, this.service, this.documentService});
 
   @override
   State<ApplicationsScreen> createState() => _ApplicationsScreenState();
 }
 
 class _ApplicationsScreenState extends State<ApplicationsScreen> {
-  late Future<List<Application>> _future = StudentService().myApplications();
+  late final StudentDataSource _service;
+  late Future<List<Application>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = widget.service ?? StudentService();
+    _future = _service.myApplications();
+  }
 
   Future<void> _refresh() async {
-    setState(() => _future = StudentService().myApplications());
+    setState(() {
+      _future = _service.myApplications();
+    });
     await _future.catchError((_) => <Application>[]);
   }
 
-  static Widget _message(String text) => ListView(children: [
-        const SizedBox(height: 160),
-        Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(text, textAlign: TextAlign.center))),
-      ]);
+  static Widget _message(String text) => ListView(
+    children: [
+      const SizedBox(height: 160),
+      Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(text, textAlign: TextAlign.center),
+        ),
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +55,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           if (s.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (s.hasError) return _message('Could not load applications. Pull down to retry.');
+          if (s.hasError) {
+            return _message('Could not load applications. Pull down to retry.');
+          }
           final list = s.data!;
-          if (list.isEmpty) return _message('No applications yet. Open the Internships tab and apply.');
+          if (list.isEmpty) {
+            return _message(
+              'No applications yet. Open the Internships tab and apply.',
+            );
+          }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: list.length,
@@ -50,8 +77,14 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                   ),
                   isThreeLine: true,
                   trailing: statusChip(a.status),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ApplicationDetailScreen(application: a))),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ApplicationDetailScreen(
+                        application: a,
+                        service: widget.documentService,
+                      ),
+                    ),
+                  ),
                 ),
               );
             },

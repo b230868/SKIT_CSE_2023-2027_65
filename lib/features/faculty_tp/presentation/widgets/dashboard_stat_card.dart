@@ -26,9 +26,8 @@ class DashboardStatCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               value.toString(),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),

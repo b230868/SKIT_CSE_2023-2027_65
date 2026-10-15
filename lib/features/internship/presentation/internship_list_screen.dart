@@ -29,7 +29,9 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
 
   Future<void> _reload() async {
     final f = _service.fetchMine();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     await f;
   }
 

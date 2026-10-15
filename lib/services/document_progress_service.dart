@@ -7,11 +7,11 @@ class DocumentItem {
   const DocumentItem(this.id, this.docType, this.fileName, this.uploadedAt);
 
   factory DocumentItem.fromMap(Map<String, dynamic> m) => DocumentItem(
-        m['id'] as String,
-        m['doc_type'] as String,
-        m['file_name'] as String,
-        DateTime.parse(m['uploaded_at'] as String),
-      );
+    m['id'] as String,
+    m['doc_type'] as String,
+    m['file_name'] as String,
+    DateTime.parse(m['uploaded_at'] as String),
+  );
 }
 
 class ProgressLog {
@@ -20,17 +20,30 @@ class ProgressLog {
   const ProgressLog(this.id, this.weekNo, this.progress, this.summary);
 
   factory ProgressLog.fromMap(Map<String, dynamic> m) => ProgressLog(
-        m['id'] as String,
-        m['week_no'] as int,
-        m['progress'] as int,
-        (m['summary'] ?? '') as String,
-      );
+    m['id'] as String,
+    m['week_no'] as int,
+    m['progress'] as int,
+    (m['summary'] ?? '') as String,
+  );
 }
 
-class DocumentProgressService {
+abstract interface class DocumentProgressDataSource {
+  Future<List<DocumentItem>> documents(String internshipId);
+  Future<void> upload(String internshipId, String docType, PlatformFile file);
+  Future<List<ProgressLog>> progress(String internshipId);
+  Future<void> addProgress(
+    String internshipId,
+    int week,
+    int progress,
+    String summary,
+  );
+}
+
+class DocumentProgressService implements DocumentProgressDataSource {
   final SupabaseClient _db = Supabase.instance.client;
   String get _uid => _db.auth.currentUser!.id;
 
+  @override
   Future<List<DocumentItem>> documents(String internshipId) async {
     final rows = await _db
         .from('documents')
@@ -40,6 +53,7 @@ class DocumentProgressService {
     return rows.map<DocumentItem>((r) => DocumentItem.fromMap(r)).toList();
   }
 
+  @override
   Future<void> upload(
     String internshipId,
     String docType,
@@ -48,10 +62,9 @@ class DocumentProgressService {
     final safe = file.name.replaceAll(RegExp(r'[^\w.\-]'), '_');
     final path =
         '$_uid/$internshipId/${DateTime.now().millisecondsSinceEpoch}_$safe';
-    await _db.storage.from('documents').uploadBinary(
-          path,
-          await file.readAsBytes(),
-        );
+    await _db.storage
+        .from('documents')
+        .uploadBinary(path, await file.readAsBytes());
     await _db.from('documents').insert({
       'internship_id': internshipId,
       'student_id': _uid,
@@ -61,6 +74,7 @@ class DocumentProgressService {
     });
   }
 
+  @override
   Future<List<ProgressLog>> progress(String internshipId) async {
     final rows = await _db
         .from('progress_logs')
@@ -70,6 +84,7 @@ class DocumentProgressService {
     return rows.map<ProgressLog>((r) => ProgressLog.fromMap(r)).toList();
   }
 
+  @override
   Future<void> addProgress(
     String internshipId,
     int week,

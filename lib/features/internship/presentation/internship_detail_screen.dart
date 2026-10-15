@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/status_chip.dart';
+import '../../geo_progress/models/geo_progress_log.dart';
+import '../../geo_progress/services/geo_progress_service.dart';
 import '../data/internship_service.dart';
 import '../models/internship.dart';
 import 'internship_form_screen.dart';
@@ -20,13 +22,23 @@ class InternshipDetailScreen extends StatefulWidget {
 
 class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   final _service = InternshipService();
+  final _geoProgressService = GeoProgressService();
 
   Internship? _internship;
-  List<ProgressUpdate> _updates = [];
+  List<GeoProgressLog> _updates = [];
   List<InternshipDocument> _docs = [];
   bool _loading = true;
   bool _uploading = false;
+  bool _syncingProgress = false;
+  bool _submittingProgress = false;
   String? _error;
+  String? _progressError;
+
+  int get _currentProgress => _updates.fold<int>(
+    _internship?.progress ?? 0,
+    (current, update) =>
+        current > update.progressPercent ? current : update.progressPercent,
+  );
 
   @override
   void initState() {
@@ -36,9 +48,27 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
 
   Future<void> _load() async {
     try {
-      final internship = await _service.fetchOne(widget.internshipId);
-      final updates = await _service.fetchProgress(widget.internshipId);
-      final docs = await _service.fetchDocuments(widget.internshipId);
+      Internship internship;
+      try {
+        internship = await _service.fetchOne(widget.internshipId);
+      } catch (_) {
+        if (_internship == null) rethrow;
+        internship = _internship!;
+      }
+      List<InternshipDocument> docs;
+      try {
+        docs = await _service.fetchDocuments(widget.internshipId);
+      } catch (_) {
+        docs = _docs;
+      }
+      List<GeoProgressLog> updates;
+      String? progressError;
+      try {
+        updates = await _geoProgressService.fetchHistory(widget.internshipId);
+      } catch (error) {
+        updates = _updates;
+        progressError = error.toString();
+      }
       if (!mounted) return;
       setState(() {
         _internship = internship;
@@ -46,20 +76,23 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
         _docs = docs;
         _loading = false;
         _error = null;
+        _progressError = progressError;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not load this internship.';
+        if (_internship == null) _error = 'Could not load this internship.';
       });
     }
   }
 
   Future<void> _edit() async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => InternshipFormScreen(existing: _internship),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InternshipFormScreen(existing: _internship),
+      ),
+    );
     _load();
   }
 
@@ -68,32 +101,50 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete this application?'),
-        content: const Text('Its progress updates and documents will be removed too.'),
+        content: const Text(
+          'Its progress updates and documents will be removed too.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep it')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep it'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
     try {
       await _service.delete(widget.internshipId);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not delete the application', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not delete the application', error: true);
+      }
     }
   }
 
   Future<void> _addProgress() async {
+    if (_internship?.status != 'approved' || _submittingProgress) return;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _ProgressDialog(initial: _internship?.progress ?? 0),
+      builder: (_) => _ProgressDialog(initial: _currentProgress),
     );
-    if (result == null) return;
+    if (!mounted || result == null) return;
+    if ((result['percent'] as int) < _currentProgress) {
+      showSnack(
+        context,
+        'Progress cannot go below $_currentProgress%.',
+        error: true,
+      );
+      return;
+    }
+    setState(() => _submittingProgress = true);
     try {
       await _service.addProgress(
           widget.internshipId, result['note'] as String, result['percent'] as int);
@@ -105,12 +156,12 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _upload() async {
-    final files = await FilePicker.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'],
     );
-    if (files.isEmpty) return;
-    final file = files.single;
+    if (picked.isEmpty) return;
+    final file = picked.single;
     final size = await file.length();
     if (size == null) {
       if (mounted) {
@@ -119,7 +170,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       return;
     }
     if (size > 10 * 1024 * 1024) {
-      if (mounted) showSnack(context, 'Choose a file smaller than 10 MB', error: true);
+      if (mounted) {
+        showSnack(context, 'Choose a file smaller than 10 MB', error: true);
+      }
       return;
     }
     setState(() => _uploading = true);
@@ -139,7 +192,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       final url = await _service.signedUrl(doc.filePath);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not open the document', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not open the document', error: true);
+      }
     }
   }
 
@@ -148,7 +203,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       await _service.deleteDocument(doc);
       _load();
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not delete the document', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not delete the document', error: true);
+      }
     }
   }
 
@@ -158,8 +215,10 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text(title,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
           ),
           ?action,
         ],
@@ -179,7 +238,10 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
               onSelected: (v) => v == 'edit' ? _edit() : _delete(),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit application')),
-                PopupMenuItem(value: 'delete', child: Text('Delete application')),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete application'),
+                ),
               ],
             ),
         ],
@@ -369,8 +431,10 @@ class _ProgressDialogState extends State<_ProgressDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Overall progress: ${_percent.round()}%',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              'Overall progress: ${_percent.round()}%',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             Slider(
               value: _percent,
               min: 0,
@@ -382,6 +446,7 @@ class _ProgressDialogState extends State<_ProgressDialog> {
             TextField(
               controller: _note,
               maxLines: 3,
+              maxLength: 500,
               decoration: InputDecoration(
                 labelText: 'What did you complete?',
                 errorText: _error,
@@ -392,16 +457,22 @@ class _ProgressDialogState extends State<_ProgressDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
           onPressed: () {
-            if (_note.text.trim().isEmpty) {
-              setState(() => _error = 'Describe what you completed');
+            final summary = _note.text.trim();
+            if (summary.length < 3 || summary.length > 500) {
+              setState(
+                () =>
+                    _error = 'Describe 3 to 500 characters of completed work.',
+              );
               return;
             }
             Navigator.pop(context, {
-              'note': _note.text.trim(),
+              'note': summary,
               'percent': _percent.round(),
             });
           },
