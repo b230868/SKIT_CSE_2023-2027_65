@@ -3,13 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:prashikshan/features/faculty_tp/presentation/screens/student_monitoring_screen.dart';
 
 void main() {
-  testWidgets('student monitoring screen displays student data',
-      (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: StudentMonitoringScreen(),
-      ),
-    );
+  testWidgets('student monitoring screen displays student data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: StudentMonitoringScreen()));
 
     await tester.pumpAndSettle();
 
@@ -20,9 +17,6 @@ void main() {
       find.textContaining('Software Development Internship'),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Data Analytics Internship'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Data Analytics Internship'), findsOneWidget);
   });
 }

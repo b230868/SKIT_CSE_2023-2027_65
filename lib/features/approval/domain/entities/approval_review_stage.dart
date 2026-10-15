@@ -1,7 +1,4 @@
-enum ApprovalReviewStage {
-  faculty,
-  tpAdmin,
-}
+enum ApprovalReviewStage { faculty, tpAdmin }
 
 extension ApprovalReviewStageExtension on ApprovalReviewStage {
   String get value {

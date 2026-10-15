@@ -47,7 +47,14 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.17.2
+<<<<<<< HEAD
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_dotenv: ^6.0.1
+  http: ^1.2.0
+=======
   http: ^1.6.0
+>>>>>>> origin/main
 
 dev_dependencies:
   flutter_test:
@@ -71,11 +78,16 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 <<<<<<< HEAD
+  assets:
+  - .env
+=======
+<<<<<<< HEAD
 =======
   assets:
     - .env
 
 >>>>>>> f5707ce ( Hive offline cache)
+>>>>>>> origin/main
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

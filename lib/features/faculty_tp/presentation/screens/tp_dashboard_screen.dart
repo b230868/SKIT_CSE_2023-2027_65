@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+import '../../../approval/domain/entities/approval_review_stage.dart';
+import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
+import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+
+=======
+>>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,7 +53,9 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
     }
 
     try {
-      final statistics = await _service.loadStatistics();
+      final statistics = await _service.loadStatistics(
+        stage: ApprovalReviewStage.tpAdmin,
+      );
 
       if (!mounted) return;
 
@@ -98,11 +107,15 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
+<<<<<<< HEAD
+                MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
+=======
                 MaterialPageRoute(
                   builder: (_) => const DashboardFeaturePlaceholder(
                     title: 'Reports & Analytics',
                   ),
                 ),
+>>>>>>> origin/main
               );
             },
             icon: const Icon(Icons.bar_chart),

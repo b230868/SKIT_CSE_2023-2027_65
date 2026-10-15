@@ -28,24 +28,11 @@ class ApprovalStatusFilter extends StatelessWidget {
         ...ApprovalStatus.values.map(
           (status) => DropdownMenuItem<ApprovalStatus?>(
             value: status,
-            child: Text(_label(status)),
+            child: Text(status.displayName),
           ),
         ),
       ],
       onChanged: onChanged,
     );
-  }
-
-  String _label(ApprovalStatus status) {
-    switch (status) {
-      case ApprovalStatus.pending:
-        return 'Pending';
-      case ApprovalStatus.underReview:
-        return 'Under Review';
-      case ApprovalStatus.approved:
-        return 'Approved';
-      case ApprovalStatus.rejected:
-        return 'Rejected';
-    }
   }
 }

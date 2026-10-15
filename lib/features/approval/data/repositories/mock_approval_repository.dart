@@ -98,12 +98,9 @@ class MockApprovalRepository implements ApprovalRepository {
   }) async {
     return List.unmodifiable(
       _reviews.where((review) {
-        final matchesStatus =
-            status == null || review.status == status;
+        final matchesStatus = status == null || review.status == status;
 
-        final matchesStage =
-            stage == null ||
-            review.reviewStage == stage.value;
+        final matchesStage = stage == null || review.reviewStage == stage.value;
 
         return matchesStatus && matchesStage;
       }),
@@ -138,9 +135,7 @@ class MockApprovalRepository implements ApprovalRepository {
     required ApprovalStatus status,
     String? remarks,
   }) async {
-    final index = _reviews.indexWhere(
-      (review) => review.id == reviewId,
-    );
+    final index = _reviews.indexWhere((review) => review.id == reviewId);
 
     if (index == -1) {
       throw StateError('Approval review not found.');
@@ -168,14 +163,12 @@ class MockApprovalRepository implements ApprovalRepository {
     ApprovalReviewStage? stage,
   }) async {
     final filtered = _requests.where((request) {
-      if (status != null &&
-          request.approvalStatus != status) {
+      if (status != null && request.approvalStatus != status) {
         return false;
       }
 
       if (stage == ApprovalReviewStage.tpAdmin) {
-        return request.approvalStatus ==
-            ApprovalStatus.approved;
+        return request.approvalStatus == ApprovalStatus.approved;
       }
 
       return true;
