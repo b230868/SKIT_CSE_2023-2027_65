@@ -85,7 +85,9 @@ void main() {
   });
 
   group('FacultyReportsScreen Widget Tests', () {
-    testWidgets('renders all report sections and metric titles', (tester) async {
+    testWidgets('renders all report sections and metric titles', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -93,11 +95,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: FacultyReportsScreen(),
-        ),
-      );
+      await tester.pumpWidget(const MaterialApp(home: FacultyReportsScreen()));
 
       await tester.pumpAndSettle();
 
@@ -116,11 +114,7 @@ void main() {
     });
 
     testWidgets('refresh icon button triggers reload', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: FacultyReportsScreen(),
-        ),
-      );
+      await tester.pumpWidget(const MaterialApp(home: FacultyReportsScreen()));
 
       await tester.pumpAndSettle();
 

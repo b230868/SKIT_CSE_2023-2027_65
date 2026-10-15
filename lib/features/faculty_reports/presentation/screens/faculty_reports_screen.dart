@@ -51,7 +51,8 @@ class _FacultyReportsScreenState extends State<FacultyReportsScreen> {
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access report data.';
+        message =
+            'Your account does not have permission to access report data.';
       } else {
         message = 'Unable to load report data';
       }
@@ -70,10 +71,7 @@ class _FacultyReportsScreenState extends State<FacultyReportsScreen> {
         title: Text(title),
         trailing: Text(
           value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -162,9 +160,7 @@ class _FacultyReportsScreenState extends State<FacultyReportsScreen> {
 
     final report = _report;
     if (report == null || report.totalInternships == 0) {
-      return const Center(
-        child: Text('No report data available'),
-      );
+      return const Center(child: Text('No report data available'));
     }
 
     return RefreshIndicator(
@@ -174,36 +170,65 @@ class _FacultyReportsScreenState extends State<FacultyReportsScreen> {
         children: [
           Text(
             'Internship Overview',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          _statTile('Total Internships', '${report.totalInternships}', Icons.work_outline),
-          _statTile('Approval Rate', '${report.approvalRate.toStringAsFixed(1)}%', Icons.pie_chart_outline),
-          _statTile('Approved', '${report.approvedInternships}', Icons.check_circle_outline),
-          _statTile('Pending Approvals', '${report.pendingApprovals}', Icons.pending_actions),
-          _statTile('Under Review', '${report.underReviewApprovals}', Icons.rate_review_outlined),
-          _statTile('Rejected', '${report.rejectedApplications}', Icons.cancel_outlined),
+          _statTile(
+            'Total Internships',
+            '${report.totalInternships}',
+            Icons.work_outline,
+          ),
+          _statTile(
+            'Approval Rate',
+            '${report.approvalRate.toStringAsFixed(1)}%',
+            Icons.pie_chart_outline,
+          ),
+          _statTile(
+            'Approved',
+            '${report.approvedInternships}',
+            Icons.check_circle_outline,
+          ),
+          _statTile(
+            'Pending Approvals',
+            '${report.pendingApprovals}',
+            Icons.pending_actions,
+          ),
+          _statTile(
+            'Under Review',
+            '${report.underReviewApprovals}',
+            Icons.rate_review_outlined,
+          ),
+          _statTile(
+            'Rejected',
+            '${report.rejectedApplications}',
+            Icons.cancel_outlined,
+          ),
 
           const SizedBox(height: 20),
           Text(
             'Stage Distribution',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          _statTile('Faculty Review Stage', '${report.facultyStageCount}', Icons.school_outlined),
-          _statTile('T&P Review Stage', '${report.tpStageCount}', Icons.business_outlined),
+          _statTile(
+            'Faculty Review Stage',
+            '${report.facultyStageCount}',
+            Icons.school_outlined,
+          ),
+          _statTile(
+            'T&P Review Stage',
+            '${report.tpStageCount}',
+            Icons.business_outlined,
+          ),
 
           if (report.departmentSummary.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text(
               'Department Breakdown',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             ...report.departmentSummary.entries.map(

@@ -23,14 +23,11 @@ class ApprovalListScreen extends StatefulWidget {
   });
 
   @override
-  State<ApprovalListScreen> createState() =>
-      _ApprovalListScreenState();
+  State<ApprovalListScreen> createState() => _ApprovalListScreenState();
 }
 
-class _ApprovalListScreenState
-    extends State<ApprovalListScreen> {
-  final ApprovalRepository _repository =
-      ApprovalRepositoryProvider.instance;
+class _ApprovalListScreenState extends State<ApprovalListScreen> {
+  final ApprovalRepository _repository = ApprovalRepositoryProvider.instance;
 
   final _searchController = TextEditingController();
 
@@ -56,8 +53,7 @@ class _ApprovalListScreenState
     });
 
     try {
-      final requests =
-          await _repository.getApprovalRequests(
+      final requests = await _repository.getApprovalRequests(
         stage: widget.stage,
       );
 
@@ -78,7 +74,8 @@ class _ApprovalListScreenState
       } else if (error is UnauthorizedException ||
           (error is PostgrestException && error.code == '42501') ||
           error.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access approval data.';
+        message =
+            'Your account does not have permission to access approval data.';
       } else {
         message = 'Unable to load approval requests: $error';
       }
@@ -88,37 +85,24 @@ class _ApprovalListScreenState
         _errorMessage = message;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   void _applyFilters() {
-    final query =
-        _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim().toLowerCase();
 
     final filtered = _requests.where((request) {
       final matchesSearch =
           query.isEmpty ||
-          request.studentName
-              .toLowerCase()
-              .contains(query) ||
-          request.rollNumber
-              .toLowerCase()
-              .contains(query) ||
-          request.internshipTitle
-              .toLowerCase()
-              .contains(query) ||
-          request.industryName
-              .toLowerCase()
-              .contains(query);
+          request.studentName.toLowerCase().contains(query) ||
+          request.rollNumber.toLowerCase().contains(query) ||
+          request.internshipTitle.toLowerCase().contains(query) ||
+          request.industryName.toLowerCase().contains(query);
 
       final matchesStatus =
-          _selectedStatus == null ||
-          request.approvalStatus == _selectedStatus;
+          _selectedStatus == null || request.approvalStatus == _selectedStatus;
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -138,16 +122,12 @@ class _ApprovalListScreenState
     _applyFilters();
   }
 
-  void _openDetails(
-    ApprovalRequestModel request,
-  ) {
+  void _openDetails(ApprovalRequestModel request) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ApprovalDetailsScreen(
-          request: request,
-          stage: widget.stage,
-        ),
+        builder: (_) =>
+            ApprovalDetailsScreen(request: request, stage: widget.stage),
       ),
     ).then((_) => _loadRequests());
   }
@@ -184,113 +164,80 @@ class _ApprovalListScreenState
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadRequests,
-                          child: const Text('Retry'),
-                        ),
-                        if (_errorMessage!.contains('sign in')) ...[
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: () => AuthService.showAuthDialog(
-                              context,
-                              onSessionChanged: _loadRequests,
-                            ),
-                            child: const Text('Sign In'),
-                          ),
-                        ],
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                  ),
-                )
-              : RefreshIndicator(
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadRequests,
+                      child: const Text('Retry'),
+                    ),
+                    if (_errorMessage!.contains('sign in')) ...[
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => AuthService.showAuthDialog(
+                          context,
+                          onSessionChanged: _loadRequests,
+                        ),
+                        child: const Text('Sign In'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
               onRefresh: _loadRequests,
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      8,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: TextField(
                       controller: _searchController,
                       decoration: const InputDecoration(
                         labelText: 'Search approvals',
                         hintText:
                             'Student, roll number, internship or industry',
-                        prefixIcon:
-                            Icon(Icons.search),
-                        border:
-                            OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      8,
-                      16,
-                      16,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     child: ApprovalStatusFilter(
-                      selectedStatus:
-                          _selectedStatus,
-                      onChanged:
-                          _onStatusChanged,
+                      selectedStatus: _selectedStatus,
+                      onChanged: _onStatusChanged,
                     ),
                   ),
                   Expanded(
                     child: _filteredRequests.isEmpty
                         ? const Center(
-                            child: Text(
-                              'No approval requests found.',
-                            ),
+                            child: Text('No approval requests found.'),
                           )
                         : ListView.builder(
-                            padding:
-                                const EdgeInsets.symmetric(
-                              horizontal: 16,
-                            ),
-                            itemCount:
-                                _filteredRequests.length,
-                            itemBuilder:
-                                (context, index) {
-                              final request =
-                                  _filteredRequests[
-                                      index];
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredRequests.length,
+                            itemBuilder: (context, index) {
+                              final request = _filteredRequests[index];
 
                               return Card(
-                                margin:
-                                    const EdgeInsets.only(
-                                  bottom: 12,
-                                ),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
-                                  leading:
-                                      const CircleAvatar(
-                                    child: Icon(
-                                      Icons.person,
-                                    ),
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.person),
                                   ),
-                                  title: Text(
-                                    request.studentName,
-                                  ),
+                                  title: Text(request.studentName),
                                   subtitle: Text(
                                     '${request.rollNumber}\n'
                                     '${request.internshipTitle}\n'
@@ -298,32 +245,18 @@ class _ApprovalListScreenState
                                   ),
                                   isThreeLine: true,
                                   trailing: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment
-                                            .center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        _statusLabel(
-                                          request
-                                              .approvalStatus,
-                                        ),
-                                        style:
-                                            const TextStyle(
-                                          fontWeight:
-                                              FontWeight
-                                                  .bold,
+                                        _statusLabel(request.approvalStatus),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const Icon(
-                                        Icons
-                                            .chevron_right,
-                                      ),
+                                      const Icon(Icons.chevron_right),
                                     ],
                                   ),
-                                  onTap: () =>
-                                      _openDetails(
-                                    request,
-                                  ),
+                                  onTap: () => _openDetails(request),
                                 ),
                               );
                             },

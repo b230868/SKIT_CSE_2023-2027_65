@@ -4,11 +4,12 @@ import '../models/student_monitoring_detail.dart';
 import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
 
-class BackendStudentMonitoringRepository implements StudentMonitoringRepository {
+class BackendStudentMonitoringRepository
+    implements StudentMonitoringRepository {
   final ApiClient _apiClient;
 
   BackendStudentMonitoringRepository({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   @override
   Future<List<StudentMonitoringItem>> getStudents() async {

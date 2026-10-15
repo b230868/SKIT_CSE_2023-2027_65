@@ -53,7 +53,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         return;
       }
 
-
       // Query student record for authenticated user
       final studentRes = await client
           .from('students')
@@ -127,16 +126,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         if (internshipRes != null) {
           internshipMap = Map<String, dynamic>.from(internshipRes);
 
-          if (internshipMap['itrs'] is List && (internshipMap['itrs'] as List).isNotEmpty) {
-            itrMap = Map<String, dynamic>.from((internshipMap['itrs'] as List).first as Map);
+          if (internshipMap['itrs'] is List &&
+              (internshipMap['itrs'] as List).isNotEmpty) {
+            itrMap = Map<String, dynamic>.from(
+              (internshipMap['itrs'] as List).first as Map,
+            );
           } else if (internshipMap['itrs'] is Map) {
             itrMap = Map<String, dynamic>.from(internshipMap['itrs'] as Map);
           }
 
-          if (internshipMap['certificates'] is List && (internshipMap['certificates'] as List).isNotEmpty) {
-            certMap = Map<String, dynamic>.from((internshipMap['certificates'] as List).first as Map);
+          if (internshipMap['certificates'] is List &&
+              (internshipMap['certificates'] as List).isNotEmpty) {
+            certMap = Map<String, dynamic>.from(
+              (internshipMap['certificates'] as List).first as Map,
+            );
           } else if (internshipMap['certificates'] is Map) {
-            certMap = Map<String, dynamic>.from(internshipMap['certificates'] as Map);
+            certMap = Map<String, dynamic>.from(
+              internshipMap['certificates'] as Map,
+            );
           }
 
           if (internshipMap['approval_reviews'] is List) {
@@ -151,7 +158,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
       setState(() {
         _profile = profile;
-        _studentData = studentRes != null ? Map<String, dynamic>.from(studentRes) : null;
+        _studentData = studentRes != null
+            ? Map<String, dynamic>.from(studentRes)
+            : null;
         _internshipData = internshipMap;
         _itrData = itrMap;
         _certData = certMap;
@@ -219,8 +228,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     final name = _profile?.fullName ?? 'Student';
     final email = _profile?.email ?? '';
-    final rollNo = _studentData?['roll_number'] as String? ?? 'Pending Enrollment';
-    final dept = _studentData?['department'] as String? ?? _profile?.department ?? 'General';
+    final rollNo =
+        _studentData?['roll_number'] as String? ?? 'Pending Enrollment';
+    final dept =
+        _studentData?['department'] as String? ??
+        _profile?.department ??
+        'General';
     final batch = _studentData?['batch_year']?.toString() ?? 'N/A';
 
     return RefreshIndicator(
@@ -237,7 +250,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer,
                     child: Text(
                       name.isNotEmpty ? name[0].toUpperCase() : 'S',
                       style: TextStyle(
@@ -254,19 +269,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         Text(
                           'Welcome, $name',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Roll No: $rollNo • $dept (Batch $batch)',
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
                         ),
                         if (email.isNotEmpty)
                           Text(
                             email,
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
                           ),
                       ],
                     ),
@@ -281,9 +301,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           // Current Internship Card
           Text(
             'My Internship Status',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
 
@@ -293,7 +312,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    const Icon(Icons.business_center_outlined, size: 40, color: Colors.grey),
+                    const Icon(
+                      Icons.business_center_outlined,
+                      size: 40,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 8),
                     const Text(
                       'No active internship record registered yet.',
@@ -302,7 +325,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Contact your department Faculty Mentor or T&P Officer.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -320,7 +346,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _internshipData!['internship_title'] as String? ?? 'Internship',
+                            _internshipData!['internship_title'] as String? ??
+                                'Internship',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -329,8 +356,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ),
                         Chip(
                           label: Text(
-                            (_internshipData!['status'] as String? ?? 'ACTIVE').toUpperCase(),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            (_internshipData!['status'] as String? ?? 'ACTIVE')
+                                .toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           backgroundColor: Colors.green.shade50,
                           padding: EdgeInsets.zero,
@@ -338,8 +369,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       ],
                     ),
                     Text(
-                      _internshipData!['company_name'] as String? ?? 'Host Organization',
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                      _internshipData!['company_name'] as String? ??
+                          'Host Organization',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -348,7 +383,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: ((_internshipData!['progress'] as num? ?? 0) / 100).clamp(0.0, 1.0),
+                              value:
+                                  ((_internshipData!['progress'] as num? ?? 0) /
+                                          100)
+                                      .clamp(0.0, 1.0),
                               minHeight: 8,
                               color: Colors.blue.shade700,
                               backgroundColor: Colors.blue.shade50,
@@ -358,7 +396,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         const SizedBox(width: 10),
                         Text(
                           '${_internshipData!['progress'] ?? 0}% Completed',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -382,9 +423,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.description, size: 18, color: Colors.blue),
+                            Icon(
+                              Icons.description,
+                              size: 18,
+                              color: Colors.blue,
+                            ),
                             SizedBox(width: 6),
-                            Text('ITR Report', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              'ITR Report',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -395,7 +443,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _itrData != null ? Colors.green.shade800 : Colors.orange.shade800,
+                            color: _itrData != null
+                                ? Colors.green.shade800
+                                : Colors.orange.shade800,
                           ),
                         ),
                       ],
@@ -415,7 +465,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           children: [
                             Icon(Icons.verified, size: 18, color: Colors.green),
                             SizedBox(width: 6),
-                            Text('Certificate', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              'Certificate',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -426,7 +479,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: (_certData != null && _certData!['file_path'] != null)
+                            color:
+                                (_certData != null &&
+                                    _certData!['file_path'] != null)
                                 ? Colors.green.shade800
                                 : Colors.orange.shade800,
                           ),
@@ -445,9 +500,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           if (_approvalReviews.isNotEmpty) ...[
             Text(
               'Approvals Status',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Card(
@@ -456,10 +510,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   final stage = rev['review_stage'] as String? ?? 'Faculty';
                   final status = rev['status'] as String? ?? 'Pending';
                   return ListTile(
-                    leading: const Icon(Icons.check_circle_outline, color: Colors.blue),
+                    leading: const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.blue,
+                    ),
                     title: Text('Stage: ${stage.toUpperCase()}'),
                     trailing: Chip(
-                      label: Text(status.toUpperCase(), style: const TextStyle(fontSize: 11)),
+                      label: Text(
+                        status.toUpperCase(),
+                        style: const TextStyle(fontSize: 11),
+                      ),
                       backgroundColor: status.toLowerCase() == 'approved'
                           ? Colors.green.shade50
                           : Colors.orange.shade50,

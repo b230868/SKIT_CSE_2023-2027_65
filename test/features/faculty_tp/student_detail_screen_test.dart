@@ -10,10 +10,7 @@ class TestMockMonitoringRepo implements StudentMonitoringRepository {
   final StudentMonitoringDetail? detailToReturn;
   final bool shouldThrow;
 
-  TestMockMonitoringRepo({
-    this.detailToReturn,
-    this.shouldThrow = false,
-  });
+  TestMockMonitoringRepo({this.detailToReturn, this.shouldThrow = false});
 
   @override
   Future<List<StudentMonitoringItem>> getStudents() async => [];
@@ -46,8 +43,6 @@ void main() {
   tearDown(() {
     StudentMonitoringRepositoryFactory.reset();
   });
-
-
 
   final sampleDetail = StudentMonitoringDetail(
     studentId: 'student-101',
@@ -107,42 +102,47 @@ void main() {
     ],
   );
 
-  testWidgets('StudentDetailScreen renders all 6 tabs and displays overview info', (tester) async {
-    StudentMonitoringRepositoryFactory.setRepository(
-      TestMockMonitoringRepo(detailToReturn: sampleDetail),
-    );
+  testWidgets(
+    'StudentDetailScreen renders all 6 tabs and displays overview info',
+    (tester) async {
+      StudentMonitoringRepositoryFactory.setRepository(
+        TestMockMonitoringRepo(detailToReturn: sampleDetail),
+      );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: StudentDetailScreen(
-          studentId: 'student-101',
-          internshipId: 'internship-202',
-          studentName: 'Aarav Sharma',
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: StudentDetailScreen(
+            studentId: 'student-101',
+            internshipId: 'internship-202',
+            studentName: 'Aarav Sharma',
+          ),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Verify TabBar
-    expect(find.text('Overview'), findsOneWidget);
-    expect(find.text('Academic Details'), findsOneWidget);
-    expect(find.text('Internship'), findsOneWidget);
-    expect(find.text('ITR / Work'), findsOneWidget);
-    expect(find.text('Certificates'), findsOneWidget);
-    expect(find.text('Approvals & Progress'), findsOneWidget);
+      // Verify TabBar
+      expect(find.text('Overview'), findsOneWidget);
+      expect(find.text('Academic Details'), findsOneWidget);
+      expect(find.text('Internship'), findsOneWidget);
+      expect(find.text('ITR / Work'), findsOneWidget);
+      expect(find.text('Certificates'), findsOneWidget);
+      expect(find.text('Approvals & Progress'), findsOneWidget);
 
-    // Verify Overview content
-    expect(find.text('Aarav Sharma'), findsWidgets);
-    expect(find.textContaining('23CS101'), findsOneWidget);
-    expect(find.textContaining('aarav.sharma@college.edu'), findsOneWidget);
-    expect(find.text('Progress & Completion Summary'), findsOneWidget);
-    expect(find.text('Profile Completion'), findsOneWidget);
-    expect(find.text('Internship Progress'), findsOneWidget);
-    expect(find.text('75%'), findsOneWidget);
-  });
+      // Verify Overview content
+      expect(find.text('Aarav Sharma'), findsWidgets);
+      expect(find.textContaining('23CS101'), findsOneWidget);
+      expect(find.textContaining('aarav.sharma@college.edu'), findsOneWidget);
+      expect(find.text('Progress & Completion Summary'), findsOneWidget);
+      expect(find.text('Profile Completion'), findsOneWidget);
+      expect(find.text('Internship Progress'), findsOneWidget);
+      expect(find.text('75%'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Academic tab displays real personal and enrollment details', (tester) async {
+  testWidgets('Academic tab displays real personal and enrollment details', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {
@@ -177,7 +177,9 @@ void main() {
     expect(find.text('2026'), findsOneWidget);
   });
 
-  testWidgets('Internship tab displays company, role, mode, and objectives', (tester) async {
+  testWidgets('Internship tab displays company, role, mode, and objectives', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {
@@ -208,12 +210,17 @@ void main() {
     expect(find.text('ABC Technologies'), findsWidgets);
     expect(find.text('onsite'), findsOneWidget);
     expect(find.text('75%'), findsOneWidget);
-    expect(find.text('Developing Prashikshan mobile portal modules.'), findsOneWidget);
+    expect(
+      find.text('Developing Prashikshan mobile portal modules.'),
+      findsOneWidget,
+    );
     expect(find.text('Host Organization Details'), findsOneWidget);
     expect(find.text('contact@abctech.com'), findsOneWidget);
   });
 
-  testWidgets('ITR tab displays report details and secure file access', (tester) async {
+  testWidgets('ITR tab displays report details and secure file access', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {
@@ -244,7 +251,10 @@ void main() {
     expect(find.text('Prashikshan Mobile App'), findsOneWidget);
     expect(find.text('SUBMITTED'), findsOneWidget);
     expect(find.text('Dr. Verma'), findsOneWidget);
-    expect(find.text('Good progress. Ready for final evaluation.'), findsOneWidget);
+    expect(
+      find.text('Good progress. Ready for final evaluation.'),
+      findsOneWidget,
+    );
     expect(find.text('ITR Written Report'), findsOneWidget);
     expect(find.text('Project Source Code / Archive'), findsOneWidget);
 
@@ -253,48 +263,59 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify secure link dialog appeared with signed URL
-    expect(find.textContaining('secure link has been generated'), findsOneWidget);
-    expect(find.textContaining('https://supabase.prashikshan.test'), findsOneWidget);
+    expect(
+      find.textContaining('secure link has been generated'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('https://supabase.prashikshan.test'),
+      findsOneWidget,
+    );
     expect(find.text('Copy Link'), findsOneWidget);
 
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Certificates tab shows uploaded status and missing expiry disclaimer', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'Certificates tab shows uploaded status and missing expiry disclaimer',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1400, 900);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    StudentMonitoringRepositoryFactory.setRepository(
-      TestMockMonitoringRepo(detailToReturn: sampleDetail),
-    );
+      StudentMonitoringRepositoryFactory.setRepository(
+        TestMockMonitoringRepo(detailToReturn: sampleDetail),
+      );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: StudentDetailScreen(
-          studentId: 'student-101',
-          internshipId: 'internship-202',
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: StudentDetailScreen(
+            studentId: 'student-101',
+            internshipId: 'internship-202',
+          ),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Switch to Certificates tab
-    await tester.tap(find.text('Certificates'));
-    await tester.pumpAndSettle();
+      // Switch to Certificates tab
+      await tester.tap(find.text('Certificates'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Internship Certificate Uploaded'), findsOneWidget);
-    expect(find.text('APPROVED'), findsOneWidget);
-    expect(find.text('Not tracked in database schema'), findsOneWidget);
-    expect(find.text('Access & Preview Certificate'), findsOneWidget);
-  });
+      expect(find.text('Internship Certificate Uploaded'), findsOneWidget);
+      expect(find.text('APPROVED'), findsOneWidget);
+      expect(find.text('Not tracked in database schema'), findsOneWidget);
+      expect(find.text('Access & Preview Certificate'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Approvals tab displays review workflow and checklist', (tester) async {
+  testWidgets('Approvals tab displays review workflow and checklist', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 900);
     addTearDown(() {
@@ -321,7 +342,6 @@ void main() {
     await tester.tap(find.text('Approvals & Progress'));
     await tester.pumpAndSettle();
 
-
     expect(find.text('Approval Review Workflow'), findsOneWidget);
     expect(find.text('Stage: FACULTY'), findsOneWidget);
     expect(find.text('Stage: TP_ADMIN'), findsOneWidget);
@@ -330,20 +350,23 @@ void main() {
     expect(find.text('ITR / Work Report Submitted'), findsOneWidget);
   });
 
-  testWidgets('Failed data load shows user-friendly error message and retry button', (tester) async {
-    StudentMonitoringRepositoryFactory.setRepository(
-      TestMockMonitoringRepo(shouldThrow: true),
-    );
+  testWidgets(
+    'Failed data load shows user-friendly error message and retry button',
+    (tester) async {
+      StudentMonitoringRepositoryFactory.setRepository(
+        TestMockMonitoringRepo(shouldThrow: true),
+      );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: StudentDetailScreen(studentId: 'student-error'),
-      ),
-    );
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: StudentDetailScreen(studentId: 'student-error'),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(find.text('Unable to load student details.'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
-  });
+      expect(find.text('Unable to load student details.'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    },
+  );
 }

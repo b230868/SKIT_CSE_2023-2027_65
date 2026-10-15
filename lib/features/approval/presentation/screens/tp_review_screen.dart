@@ -9,21 +9,16 @@ import '../../domain/entities/approval_status.dart';
 class TpReviewScreen extends StatefulWidget {
   final ApprovalRequestModel request;
 
-  const TpReviewScreen({
-    super.key,
-    required this.request,
-  });
+  const TpReviewScreen({super.key, required this.request});
 
   @override
   State<TpReviewScreen> createState() => _TpReviewScreenState();
 }
 
-class _TpReviewScreenState
-    extends State<TpReviewScreen> {
+class _TpReviewScreenState extends State<TpReviewScreen> {
   final _remarksController = TextEditingController();
 
-  ApprovalStatus _selectedStatus =
-      ApprovalStatus.approved;
+  ApprovalStatus _selectedStatus = ApprovalStatus.approved;
 
   bool _isSubmitting = false;
 
@@ -36,14 +31,9 @@ class _TpReviewScreenState
   Future<void> _submitReview() async {
     final remarks = _remarksController.text.trim();
 
-    if (_selectedStatus == ApprovalStatus.rejected &&
-        remarks.isEmpty) {
+    if (_selectedStatus == ApprovalStatus.rejected && remarks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please enter rejection remarks.',
-          ),
-        ),
+        const SnackBar(content: Text('Please enter rejection remarks.')),
       );
       return;
     }
@@ -75,11 +65,8 @@ class _TpReviewScreenState
         message = 'Unable to submit T&P decision: $error';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
 
       setState(() {
         _isSubmitting = false;
@@ -90,36 +77,25 @@ class _TpReviewScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('T&P Review'),
-      ),
+      appBar: AppBar(title: const Text('T&P Review')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           const Text(
             'Faculty Approved Application',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           Text(
             widget.request.studentName,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(widget.request.rollNumber),
           const SizedBox(height: 20),
           Text(
             widget.request.internshipTitle,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(widget.request.industryName),
@@ -168,15 +144,11 @@ class _TpReviewScreenState
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check_circle),
             label: Text(
-              _isSubmitting
-                  ? 'Submitting...'
-                  : 'Submit T&P Decision',
+              _isSubmitting ? 'Submitting...' : 'Submit T&P Decision',
             ),
           ),
         ],

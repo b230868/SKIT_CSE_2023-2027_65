@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -36,8 +37,8 @@ void main() {
             'success': true,
             'count': 1,
             'data': [
-              {'id': '123', 'roll_number': 'CS101'}
-            ]
+              {'id': '123', 'roll_number': 'CS101'},
+            ],
           }),
           200,
           headers: {'content-type': 'application/json'},
@@ -74,11 +75,13 @@ void main() {
 
       expect(
         () => apiClient.get('/students/00000000-0000-0000-0000-000000000000'),
-        throwsA(isA<ApiException>().having(
-          (e) => e.statusCode,
-          'statusCode',
-          equals(404),
-        )),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            equals(404),
+          ),
+        ),
       );
     });
 
@@ -90,7 +93,7 @@ void main() {
         return http.Response(
           jsonEncode({
             'success': true,
-            'data': {'id': 'update-1', 'progress_percentage': 50}
+            'data': {'id': 'update-1', 'progress_percentage': 50},
           }),
           201,
           headers: {'content-type': 'application/json'},
@@ -132,8 +135,8 @@ void main() {
                 'internshipId': 'int-2',
                 'internshipTitle': 'Mobile App Intern',
                 'applicationStatus': 'pending',
-              }
-            ]
+              },
+            ],
           }),
           200,
           headers: {'content-type': 'application/json'},
@@ -198,10 +201,7 @@ void main() {
       );
 
       final repo = BackendStudentMonitoringRepository(apiClient: apiClient);
-      expect(
-        () => repo.getStudents(),
-        throwsA(isA<UnauthorizedException>()),
-      );
+      expect(() => repo.getStudents(), throwsA(isA<UnauthorizedException>()));
     });
 
     test('StudentMonitoringRepositoryFactory creates Backend repository', () {

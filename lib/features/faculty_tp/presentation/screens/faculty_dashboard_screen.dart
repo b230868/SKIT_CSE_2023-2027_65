@@ -19,8 +19,7 @@ class FacultyDashboardScreen extends StatefulWidget {
   const FacultyDashboardScreen({super.key});
 
   @override
-  State<FacultyDashboardScreen> createState() =>
-      _FacultyDashboardScreenState();
+  State<FacultyDashboardScreen> createState() => _FacultyDashboardScreenState();
 }
 
 class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
@@ -69,7 +68,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access dashboard data.';
+        message =
+            'Your account does not have permission to access dashboard data.';
       } else {
         message = 'Unable to load dashboard';
       }
@@ -103,9 +103,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const FacultyReportsScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -115,9 +113,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const TpDashboardScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const TpDashboardScreen()),
               );
             },
             icon: const Icon(Icons.swap_horiz),
@@ -234,8 +230,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         final crossAxisCount = constraints.maxWidth >= 900
             ? 4
             : constraints.maxWidth >= 600
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
         return RefreshIndicator(
           onRefresh: _loadDashboard,
@@ -244,9 +240,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             children: [
               Text(
                 'Overview',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 16),
@@ -273,9 +268,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
               Text(
                 'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 12),
@@ -287,15 +281,14 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       label: 'View Approvals',
                       icon: Icons.assignment_outlined,
                       onPressed: () async {
-                        final profile =
-                            await AuthService().getCurrentUserProfile();
+                        final profile = await AuthService()
+                            .getCurrentUserProfile();
                         if (!context.mounted) return;
                         if (profile?.role == AppRole.tpOfficer) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  const TpApprovalDashboardScreen(),
+                              builder: (_) => const TpApprovalDashboardScreen(),
                             ),
                           );
                         } else {

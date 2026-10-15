@@ -138,7 +138,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 Clipboard.setData(ClipboardData(text: url));
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Secure link copied to clipboard!')),
+                  const SnackBar(
+                    content: Text('Secure link copied to clipboard!'),
+                  ),
                 );
               },
               child: const Text('Copy Link'),
@@ -152,15 +154,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to retrieve file: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to retrieve file: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.studentName ?? _detail?.studentName ?? 'Student Details';
+    final title =
+        widget.studentName ?? _detail?.studentName ?? 'Student Details';
 
     return Scaffold(
       appBar: AppBar(
@@ -181,7 +183,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             Tab(icon: Icon(Icons.business_center_outlined), text: 'Internship'),
             Tab(icon: Icon(Icons.description_outlined), text: 'ITR / Work'),
             Tab(icon: Icon(Icons.verified_outlined), text: 'Certificates'),
-            Tab(icon: Icon(Icons.checklist_rtl_outlined), text: 'Approvals & Progress'),
+            Tab(
+              icon: Icon(Icons.checklist_rtl_outlined),
+              text: 'Approvals & Progress',
+            ),
           ],
         ),
       ),
@@ -222,9 +227,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
 
     final detail = _detail;
     if (detail == null) {
-      return const Center(
-        child: Text('Student information not found.'),
-      );
+      return const Center(child: Text('Student information not found.'));
     }
 
     return TabBarView(
@@ -256,8 +259,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundImage: (detail.avatarUrl != null &&
-                          detail.avatarUrl!.isNotEmpty)
+                  backgroundImage:
+                      (detail.avatarUrl != null && detail.avatarUrl!.isNotEmpty)
                       ? NetworkImage(detail.avatarUrl!)
                       : null,
                   child: (detail.avatarUrl == null || detail.avatarUrl!.isEmpty)
@@ -279,9 +282,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                     children: [
                       Text(
                         detail.studentName,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -295,7 +297,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                       const SizedBox(height: 4),
                       Text(
                         detail.studentEmail,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -310,9 +315,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         // Progress Metric Summary
         Text(
           'Progress & Completion Summary',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
 
@@ -328,7 +332,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                     children: [
                       const Text(
                         'Profile Completion',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -361,7 +368,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                     children: [
                       const Text(
                         'Internship Progress',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -403,7 +413,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 _statusMilestoneRow(
                   title: 'Internship Status',
                   status: detail.internshipStatus ?? 'Not registered',
-                  isGood: detail.internshipStatus == 'active' ||
+                  isGood:
+                      detail.internshipStatus == 'active' ||
                       detail.internshipStatus == 'completed',
                 ),
                 _statusMilestoneRow(
@@ -411,7 +422,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   status: detail.itrStatus != null
                       ? 'ITR: ${detail.itrStatus!.toUpperCase()}'
                       : 'Not submitted',
-                  isGood: detail.itrStatus == 'submitted' ||
+                  isGood:
+                      detail.itrStatus == 'submitted' ||
                       detail.itrStatus == 'approved',
                 ),
                 _statusMilestoneRow(
@@ -423,14 +435,17 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 ),
                 _statusMilestoneRow(
                   title: 'Pending Approvals',
-                  status: detail.approvalReviews
-                          .any((r) => r.status.toLowerCase() == 'pending')
+                  status:
+                      detail.approvalReviews.any(
+                        (r) => r.status.toLowerCase() == 'pending',
+                      )
                       ? 'Review Pending'
                       : (detail.approvalReviews.isNotEmpty
-                          ? 'Reviews Complete'
-                          : 'No reviews logged'),
-                  isGood: !detail.approvalReviews
-                      .any((r) => r.status.toLowerCase() == 'pending'),
+                            ? 'Reviews Complete'
+                            : 'No reviews logged'),
+                  isGood: !detail.approvalReviews.any(
+                    (r) => r.status.toLowerCase() == 'pending',
+                  ),
                 ),
               ],
             ),
@@ -460,8 +475,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 color: isGood ? Colors.green.shade900 : Colors.orange.shade900,
               ),
             ),
-            backgroundColor:
-                isGood ? Colors.green.shade50 : Colors.orange.shade50,
+            backgroundColor: isGood
+                ? Colors.green.shade50
+                : Colors.orange.shade50,
             side: BorderSide(
               color: isGood ? Colors.green.shade300 : Colors.orange.shade300,
             ),
@@ -490,7 +506,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 _dataItem('Full Name', detail.studentName),
                 _dataItem('Email Address', detail.studentEmail),
                 _dataItem('Phone Number', detail.phone ?? 'Not provided'),
-                _dataItem('Residential Address', detail.address ?? 'Not provided'),
+                _dataItem(
+                  'Residential Address',
+                  detail.address ?? 'Not provided',
+                ),
                 _dataItem('Account Active', detail.isActive ? 'Yes' : 'No'),
               ],
             ),
@@ -505,10 +524,19 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               children: [
                 _sectionHeader(Icons.school, 'Academic Enrollment'),
                 const Divider(),
-                _dataItem('Roll Number / Student ID', detail.rollNumber ?? 'Not assigned'),
+                _dataItem(
+                  'Roll Number / Student ID',
+                  detail.rollNumber ?? 'Not assigned',
+                ),
                 _dataItem('Department', detail.department ?? 'Not assigned'),
-                _dataItem('Branch / Course', detail.branch ?? detail.department ?? 'Not assigned'),
-                _dataItem('Batch Year', detail.batchYear?.toString() ?? 'Not specified'),
+                _dataItem(
+                  'Branch / Course',
+                  detail.branch ?? detail.department ?? 'Not assigned',
+                ),
+                _dataItem(
+                  'Batch Year',
+                  detail.batchYear?.toString() ?? 'Not specified',
+                ),
                 _dataItem(
                   'Profile Created On',
                   detail.profileCreatedAt != null
@@ -540,7 +568,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.business_center_outlined, size: 48, color: Colors.grey),
+              Icon(
+                Icons.business_center_outlined,
+                size: 48,
+                color: Colors.grey,
+              ),
               SizedBox(height: 12),
               Text(
                 'No internship records found for this student.',
@@ -563,21 +595,38 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               children: [
                 _sectionHeader(Icons.work_outline, 'Internship Overview'),
                 const Divider(),
-                _dataItem('Internship Title / Role', detail.internshipTitle ?? 'Untitled'),
-                _dataItem('Company / Organization', detail.companyName ?? 'Not specified'),
-                _dataItem('Internship Mode', detail.internshipMode ?? 'Not specified'),
-                _dataItem('Current Status', detail.internshipStatus?.toUpperCase() ?? 'PENDING'),
+                _dataItem(
+                  'Internship Title / Role',
+                  detail.internshipTitle ?? 'Untitled',
+                ),
+                _dataItem(
+                  'Company / Organization',
+                  detail.companyName ?? 'Not specified',
+                ),
+                _dataItem(
+                  'Internship Mode',
+                  detail.internshipMode ?? 'Not specified',
+                ),
+                _dataItem(
+                  'Current Status',
+                  detail.internshipStatus?.toUpperCase() ?? 'PENDING',
+                ),
                 _dataItem('Reported Progress', '${detail.progress}%'),
                 _dataItem(
                   'Start Date',
-                  detail.startDate != null ? _formatDate(detail.startDate!) : 'N/A',
+                  detail.startDate != null
+                      ? _formatDate(detail.startDate!)
+                      : 'N/A',
                 ),
                 _dataItem(
                   'End Date',
                   detail.endDate != null ? _formatDate(detail.endDate!) : 'N/A',
                 ),
                 if (detail.durationInWeeks != null)
-                  _dataItem('Calculated Duration', '${detail.durationInWeeks} weeks'),
+                  _dataItem(
+                    'Calculated Duration',
+                    '${detail.durationInWeeks} weeks',
+                  ),
                 _dataItem(
                   'Description & Objectives',
                   detail.description ?? 'No description provided.',
@@ -593,12 +642,27 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader(Icons.location_city, 'Host Organization Details'),
+                _sectionHeader(
+                  Icons.location_city,
+                  'Host Organization Details',
+                ),
                 const Divider(),
-                _dataItem('Industry Name', detail.industryName ?? detail.companyName ?? 'N/A'),
-                _dataItem('Industry Address', detail.industryAddress ?? 'Not provided'),
-                _dataItem('Contact Email', detail.industryEmail ?? 'Not provided'),
-                _dataItem('Contact Phone', detail.industryPhone ?? 'Not provided'),
+                _dataItem(
+                  'Industry Name',
+                  detail.industryName ?? detail.companyName ?? 'N/A',
+                ),
+                _dataItem(
+                  'Industry Address',
+                  detail.industryAddress ?? 'Not provided',
+                ),
+                _dataItem(
+                  'Contact Email',
+                  detail.industryEmail ?? 'Not provided',
+                ),
+                _dataItem(
+                  'Contact Phone',
+                  detail.industryPhone ?? 'Not provided',
+                ),
               ],
             ),
           ),
@@ -611,14 +675,20 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
   // TAB 4: ITR / WORK SUBMISSION DETAILS
   // ===========================================================================
   Widget _buildItrTab(StudentMonitoringDetail detail) {
-    if (detail.itrId == null && detail.itrContent == null && detail.itrStatus == null) {
+    if (detail.itrId == null &&
+        detail.itrContent == null &&
+        detail.itrStatus == null) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.assignment_late_outlined, size: 48, color: Colors.grey),
+              Icon(
+                Icons.assignment_late_outlined,
+                size: 48,
+                color: Colors.grey,
+              ),
               SizedBox(height: 12),
               Text(
                 'No Industrial Training Report (ITR) submitted yet.',
@@ -639,7 +709,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader(Icons.description, 'Industrial Training Report (ITR)'),
+                _sectionHeader(
+                  Icons.description,
+                  'Industrial Training Report (ITR)',
+                ),
                 const Divider(),
                 _dataItem(
                   'Submission Title',
@@ -663,7 +736,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   _dataItem('Reviewer Feedback / Remarks', detail.itrRemarks!),
                 _dataItem(
                   'Report Content / Overview',
-                  detail.itrContent ?? detail.itrProjectDescription ?? 'No text summary provided.',
+                  detail.itrContent ??
+                      detail.itrProjectDescription ??
+                      'No text summary provided.',
                 ),
                 if (detail.itrWorkDone != null)
                   _dataItem('Work Done Details', detail.itrWorkDone!),
@@ -686,9 +761,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               children: [
                 _sectionHeader(Icons.attach_file, 'Uploaded Report Documents'),
                 const Divider(),
-                if (detail.itrDocumentPath != null && detail.itrDocumentPath!.isNotEmpty)
+                if (detail.itrDocumentPath != null &&
+                    detail.itrDocumentPath!.isNotEmpty)
                   ListTile(
-                    leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                    leading: const Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.red,
+                    ),
                     title: const Text('ITR Written Report'),
                     subtitle: Text(detail.itrDocumentPath!),
                     trailing: FilledButton.tonalIcon(
@@ -706,7 +785,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                     padding: EdgeInsets.symmetric(vertical: 8.0),
                     child: Text('No main document file uploaded for ITR.'),
                   ),
-                if (detail.itrProjectZipPath != null && detail.itrProjectZipPath!.isNotEmpty)
+                if (detail.itrProjectZipPath != null &&
+                    detail.itrProjectZipPath!.isNotEmpty)
                   ListTile(
                     leading: const Icon(Icons.folder_zip, color: Colors.amber),
                     title: const Text('Project Source Code / Archive'),
@@ -724,7 +804,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                 if (detail.itrPresentationPath != null &&
                     detail.itrPresentationPath!.isNotEmpty)
                   ListTile(
-                    leading: const Icon(Icons.slideshow, color: Colors.deepOrange),
+                    leading: const Icon(
+                      Icons.slideshow,
+                      color: Colors.deepOrange,
+                    ),
                     title: const Text('Project Presentation (PPT)'),
                     subtitle: Text(detail.itrPresentationPath!),
                     trailing: FilledButton.tonalIcon(
@@ -762,7 +845,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               children: [
                 Icon(
                   hasUploaded ? Icons.verified : Icons.warning_amber_rounded,
-                  color: hasUploaded ? Colors.green.shade800 : Colors.orange.shade800,
+                  color: hasUploaded
+                      ? Colors.green.shade800
+                      : Colors.orange.shade800,
                   size: 32,
                 ),
                 const SizedBox(width: 16),
@@ -827,10 +912,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                       ? _formatDate(detail.certificateCreatedAt!)
                       : 'N/A',
                 ),
-                _dataItem(
-                  'Expiry Date',
-                  'Not tracked in database schema',
-                ),
+                _dataItem('Expiry Date', 'Not tracked in database schema'),
                 _dataItem(
                   'File Path Reference',
                   detail.certificateFilePath ?? 'No file reference stored',
@@ -882,8 +964,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   ...detail.approvalReviews.map((review) {
                     final isApproved =
                         review.status.toLowerCase() == 'approved';
-                    final isPending =
-                        review.status.toLowerCase() == 'pending';
+                    final isPending = review.status.toLowerCase() == 'pending';
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -891,8 +972,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                         backgroundColor: isApproved
                             ? Colors.green.shade100
                             : (isPending
-                                ? Colors.orange.shade100
-                                : Colors.red.shade100),
+                                  ? Colors.orange.shade100
+                                  : Colors.red.shade100),
                         child: Icon(
                           isApproved
                               ? Icons.check
@@ -900,8 +981,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                           color: isApproved
                               ? Colors.green.shade800
                               : (isPending
-                                  ? Colors.orange.shade800
-                                  : Colors.red.shade800),
+                                    ? Colors.orange.shade800
+                                    : Colors.red.shade800),
                         ),
                       ),
                       title: Text(
@@ -936,14 +1017,41 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader(Icons.pending_actions, 'Requirements Verification Checklist'),
+                _sectionHeader(
+                  Icons.pending_actions,
+                  'Requirements Verification Checklist',
+                ),
                 const Divider(),
-                _checklistTile('Student Profile Completed', detail.profileCompletionPercentage >= 80),
-                _checklistTile('Internship Application Stored', detail.internshipId != null),
-                _checklistTile('ITR / Work Report Submitted', detail.itrStatus == 'submitted' || detail.itrStatus == 'approved'),
-                _checklistTile('Completion Certificate Uploaded', detail.hasCertificateUploaded),
-                _checklistTile('Faculty Review Approved', detail.approvalReviews.any((r) => r.reviewStage == 'faculty' && r.status == 'approved')),
-                _checklistTile('T&P Approval Granted', detail.approvalReviews.any((r) => r.reviewStage == 'tp_admin' && r.status == 'approved')),
+                _checklistTile(
+                  'Student Profile Completed',
+                  detail.profileCompletionPercentage >= 80,
+                ),
+                _checklistTile(
+                  'Internship Application Stored',
+                  detail.internshipId != null,
+                ),
+                _checklistTile(
+                  'ITR / Work Report Submitted',
+                  detail.itrStatus == 'submitted' ||
+                      detail.itrStatus == 'approved',
+                ),
+                _checklistTile(
+                  'Completion Certificate Uploaded',
+                  detail.hasCertificateUploaded,
+                ),
+                _checklistTile(
+                  'Faculty Review Approved',
+                  detail.approvalReviews.any(
+                    (r) => r.reviewStage == 'faculty' && r.status == 'approved',
+                  ),
+                ),
+                _checklistTile(
+                  'T&P Approval Granted',
+                  detail.approvalReviews.any(
+                    (r) =>
+                        r.reviewStage == 'tp_admin' && r.status == 'approved',
+                  ),
+                ),
               ],
             ),
           ),
@@ -976,9 +1084,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -1002,12 +1109,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );

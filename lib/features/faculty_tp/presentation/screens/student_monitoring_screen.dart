@@ -15,8 +15,7 @@ class StudentMonitoringScreen extends StatefulWidget {
       _StudentMonitoringScreenState();
 }
 
-class _StudentMonitoringScreenState
-    extends State<StudentMonitoringScreen> {
+class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
   late final StudentMonitoringService _service;
 
   List<StudentMonitoringItem> _students = [];
@@ -71,8 +70,7 @@ class _StudentMonitoringScreenState
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message =
-            'Your account does not have permission to access student monitoring data.';
+        message = 'Your account does not have permission to access student monitoring data.';
       } else {
         message = 'Unable to load student monitoring data';
       }
@@ -104,8 +102,7 @@ class _StudentMonitoringScreenState
             student.studentEmail?.toLowerCase().contains(q) ?? false;
         final rollMatches =
             student.rollNumber?.toLowerCase().contains(q) ?? false;
-        final titleMatches =
-            student.internshipTitle.toLowerCase().contains(q);
+        final titleMatches = student.internshipTitle.toLowerCase().contains(q);
         if (!nameMatches && !emailMatches && !rollMatches && !titleMatches) {
           return false;
         }
@@ -122,7 +119,8 @@ class _StudentMonitoringScreenState
       // 3. Internship Status filter
       if (_selectedInternshipStatus != 'All') {
         final currentStatus =
-            (student.internshipStatus ?? student.applicationStatus).toLowerCase();
+            (student.internshipStatus ?? student.applicationStatus)
+                .toLowerCase();
         if (currentStatus != _selectedInternshipStatus.toLowerCase()) {
           return false;
         }
@@ -131,11 +129,15 @@ class _StudentMonitoringScreenState
       // 4. ITR status filter
       if (_selectedItrStatus != 'All') {
         final itr = student.itrStatus?.toLowerCase();
-        if (_selectedItrStatus == 'submitted' && itr != 'submitted' && itr != 'approved') {
+        if (_selectedItrStatus == 'submitted' &&
+            itr != 'submitted' &&
+            itr != 'approved') {
           return false;
         } else if (_selectedItrStatus == 'draft' && itr != 'draft') {
           return false;
-        } else if (_selectedItrStatus == 'missing' && itr != null && itr.isNotEmpty) {
+        } else if (_selectedItrStatus == 'missing' &&
+            itr != null &&
+            itr.isNotEmpty) {
           return false;
         }
       }
@@ -144,7 +146,8 @@ class _StudentMonitoringScreenState
       if (_selectedCertStatus != 'All') {
         if (_selectedCertStatus == 'uploaded' && !student.hasCertificate) {
           return false;
-        } else if (_selectedCertStatus == 'not_uploaded' && student.hasCertificate) {
+        } else if (_selectedCertStatus == 'not_uploaded' &&
+            student.hasCertificate) {
           return false;
         }
       }
@@ -249,9 +252,7 @@ class _StudentMonitoringScreenState
     }
 
     if (_students.isEmpty) {
-      return const Center(
-        child: Text('No students available'),
-      );
+      return const Center(child: Text('No students available'));
     }
 
     final filtered = _filteredStudents;
@@ -314,7 +315,10 @@ class _StudentMonitoringScreenState
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               isDense: true,
             ),
             onChanged: (val) {
@@ -370,14 +374,20 @@ class _StudentMonitoringScreenState
                     });
                   },
                   itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'All', child: Text('All Internship Statuses')),
+                    PopupMenuItem(
+                      value: 'All',
+                      child: Text('All Internship Statuses'),
+                    ),
                     PopupMenuItem(value: 'active', child: Text('Active')),
                     PopupMenuItem(value: 'planned', child: Text('Planned')),
                     PopupMenuItem(value: 'completed', child: Text('Completed')),
                     PopupMenuItem(value: 'pending', child: Text('Pending')),
                   ],
                   child: Chip(
-                    avatar: const Icon(Icons.business_center_outlined, size: 16),
+                    avatar: const Icon(
+                      Icons.business_center_outlined,
+                      size: 16,
+                    ),
                     label: Text(
                       _selectedInternshipStatus == 'All'
                           ? 'Internship Status'
@@ -400,8 +410,14 @@ class _StudentMonitoringScreenState
                     });
                   },
                   itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'All', child: Text('All ITR Statuses')),
-                    PopupMenuItem(value: 'submitted', child: Text('ITR Submitted')),
+                    PopupMenuItem(
+                      value: 'All',
+                      child: Text('All ITR Statuses'),
+                    ),
+                    PopupMenuItem(
+                      value: 'submitted',
+                      child: Text('ITR Submitted'),
+                    ),
                     PopupMenuItem(value: 'draft', child: Text('ITR Draft')),
                     PopupMenuItem(value: 'missing', child: Text('ITR Missing')),
                   ],
@@ -429,16 +445,27 @@ class _StudentMonitoringScreenState
                     });
                   },
                   itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'All', child: Text('All Certificate Statuses')),
-                    PopupMenuItem(value: 'uploaded', child: Text('Certificate Uploaded')),
-                    PopupMenuItem(value: 'not_uploaded', child: Text('Certificate Missing')),
+                    PopupMenuItem(
+                      value: 'All',
+                      child: Text('All Certificate Statuses'),
+                    ),
+                    PopupMenuItem(
+                      value: 'uploaded',
+                      child: Text('Certificate Uploaded'),
+                    ),
+                    PopupMenuItem(
+                      value: 'not_uploaded',
+                      child: Text('Certificate Missing'),
+                    ),
                   ],
                   child: Chip(
                     avatar: const Icon(Icons.verified_outlined, size: 16),
                     label: Text(
                       _selectedCertStatus == 'All'
                           ? 'Certificate'
-                          : (_selectedCertStatus == 'uploaded' ? 'Cert Uploaded' : 'Cert Missing'),
+                          : (_selectedCertStatus == 'uploaded'
+                                ? 'Cert Uploaded'
+                                : 'Cert Missing'),
                       style: const TextStyle(fontSize: 12),
                     ),
                     backgroundColor: _selectedCertStatus != 'All'
@@ -450,7 +477,10 @@ class _StudentMonitoringScreenState
 
                 // Pending Approvals Toggle Chip
                 FilterChip(
-                  label: const Text('Pending Approvals', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Pending Approvals',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   selected: _pendingApprovalsOnly,
                   onSelected: (val) {
                     setState(() {
@@ -538,7 +568,9 @@ class _StudentMonitoringScreenState
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer,
                     child: Text(
                       student.studentName.isNotEmpty
                           ? student.studentName[0].toUpperCase()
@@ -561,12 +593,16 @@ class _StudentMonitoringScreenState
                             fontSize: 15,
                           ),
                         ),
-                        if (student.rollNumber != null || student.department != null)
+                        if (student.rollNumber != null ||
+                            student.department != null)
                           Text(
                             [
-                              if (student.rollNumber != null) 'Roll: ${student.rollNumber}',
-                              if (student.department != null) student.department,
-                              if (student.batchYear != null) 'Batch ${student.batchYear}',
+                              if (student.rollNumber != null)
+                                'Roll: ${student.rollNumber}',
+                              if (student.department != null)
+                                student.department,
+                              if (student.batchYear != null)
+                                'Batch ${student.batchYear}',
                             ].join(' • '),
                             style: TextStyle(
                               color: Colors.grey.shade700,
@@ -607,7 +643,8 @@ class _StudentMonitoringScreenState
                             fontSize: 13,
                           ),
                         ),
-                        if (student.companyName != null && student.companyName!.isNotEmpty)
+                        if (student.companyName != null &&
+                            student.companyName!.isNotEmpty)
                           Text(
                             student.companyName!,
                             style: TextStyle(
@@ -675,7 +712,8 @@ class _StudentMonitoringScreenState
                     label: student.itrStatus != null
                         ? 'ITR: ${student.itrStatus!.toUpperCase()}'
                         : 'ITR: Missing',
-                    isPositive: student.itrStatus == 'submitted' ||
+                    isPositive:
+                        student.itrStatus == 'submitted' ||
                         student.itrStatus == 'approved',
                   ),
                   _badgeChip(
@@ -728,7 +766,9 @@ class _StudentMonitoringScreenState
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isPositive ? Colors.green.shade900 : Colors.orange.shade900,
+              color: isPositive
+                  ? Colors.green.shade900
+                  : Colors.orange.shade900,
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -67,7 +68,8 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access dashboard data.';
+        message =
+            'Your account does not have permission to access dashboard data.';
       } else {
         message = 'Unable to load T&P dashboard';
       }
@@ -101,9 +103,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const FacultyReportsScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -134,9 +134,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final error = _error;
@@ -182,9 +180,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
     final statistics = _statistics;
 
     if (statistics == null) {
-      return const Center(
-        child: Text('No dashboard data available'),
-      );
+      return const Center(child: Text('No dashboard data available'));
     }
 
     final statItems = [
@@ -215,8 +211,8 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
         final crossAxisCount = constraints.maxWidth >= 900
             ? 4
             : constraints.maxWidth >= 600
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
         return RefreshIndicator(
           onRefresh: _loadDashboard,
@@ -225,9 +221,8 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
             children: [
               Text(
                 'T&P Overview',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 16),
@@ -245,7 +240,6 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                       (item) => DashboardStatCard(
                         title: item.title,
                         value: item.value,
-                       
                       ),
                     )
                     .toList(),
@@ -255,9 +249,8 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
 
               Text(
                 'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 12),
@@ -318,4 +311,3 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
     );
   }
 }
-

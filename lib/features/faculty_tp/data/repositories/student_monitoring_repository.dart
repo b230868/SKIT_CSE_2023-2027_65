@@ -9,8 +9,5 @@ abstract class StudentMonitoringRepository {
     String? internshipId,
   });
 
-  Future<String?> getFileUrl({
-    required String bucket,
-    required String path,
-  });
+  Future<String?> getFileUrl({required String bucket, required String path});
 }

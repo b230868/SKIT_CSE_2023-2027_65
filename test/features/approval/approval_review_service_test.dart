@@ -29,17 +29,20 @@ void main() {
       expect(review.remarks, equals('Approved by faculty'));
     });
 
-    test('submitReview throws ArgumentError when rejecting without remarks', () async {
-      expect(
-        () => service.submitReview(
-          internshipId: 'internship-001',
-          stage: ApprovalReviewStage.faculty,
-          status: ApprovalStatus.rejected,
-          remarks: '   ',
-        ),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'submitReview throws ArgumentError when rejecting without remarks',
+      () async {
+        expect(
+          () => service.submitReview(
+            internshipId: 'internship-001',
+            stage: ApprovalReviewStage.faculty,
+            status: ApprovalStatus.rejected,
+            remarks: '   ',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test('providers resolve repository and service instances', () {
       expect(ApprovalRepositoryProvider.instance, isNotNull);

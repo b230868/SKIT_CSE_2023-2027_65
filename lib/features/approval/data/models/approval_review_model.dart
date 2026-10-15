@@ -30,9 +30,7 @@ class ApprovalReviewModel {
         orElse: () => ApprovalStatus.pending,
       ),
       remarks: map['remarks'] as String?,
-      createdAt: DateTime.parse(
-        map['created_at'] as String,
-      ),
+      createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
 

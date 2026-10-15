@@ -10,9 +10,8 @@ class SupabaseStudentMonitoringRepository
     implements StudentMonitoringRepository {
   final SupabaseClient? _providedClient;
 
-  SupabaseStudentMonitoringRepository({
-    SupabaseClient? client,
-  }) : _providedClient = client;
+  SupabaseStudentMonitoringRepository({SupabaseClient? client})
+    : _providedClient = client;
 
   SupabaseClient? get _client {
     if (_providedClient != null) return _providedClient;
@@ -33,7 +32,9 @@ class SupabaseStudentMonitoringRepository
     await AuthService.requireAuthenticatedClient(client: client);
 
     try {
-      final response = await client.from('internships').select('''
+      final response = await client
+          .from('internships')
+          .select('''
         id,
         internship_title,
         status,
@@ -78,7 +79,8 @@ class SupabaseStudentMonitoringRepository
           remarks,
           created_at
         )
-      ''').order('created_at', ascending: false);
+      ''')
+          .order('created_at', ascending: false);
 
       final items = <StudentMonitoringItem>[];
 
@@ -93,7 +95,8 @@ class SupabaseStudentMonitoringRepository
             ? Map<String, dynamic>.from(student['profiles'] as Map)
             : <String, dynamic>{};
 
-        final studentName = profile['full_name'] as String? ?? 'Unknown Student';
+        final studentName =
+            profile['full_name'] as String? ?? 'Unknown Student';
         final internshipTitle =
             map['internship_title'] as String? ?? 'Untitled Internship';
         final internshipId = map['id'] as String? ?? '';
@@ -118,9 +121,11 @@ class SupabaseStudentMonitoringRepository
             ? (reviews.first['status'] as String? ?? 'pending')
             : (map['status'] as String? ?? 'pending');
 
-        final bool hasPendingReview = reviews.any(
-          (r) => (r['status'] as String?)?.toLowerCase() == 'pending',
-        ) || (map['status'] as String?)?.toLowerCase() == 'pending';
+        final bool hasPendingReview =
+            reviews.any(
+              (r) => (r['status'] as String?)?.toLowerCase() == 'pending',
+            ) ||
+            (map['status'] as String?)?.toLowerCase() == 'pending';
 
         // Extract ITR status
         String? itrStatus;
@@ -133,7 +138,8 @@ class SupabaseStudentMonitoringRepository
         // Extract Certificate status
         bool hasCertificate = false;
         String? certStatus;
-        if (map['certificates'] is List && (map['certificates'] as List).isNotEmpty) {
+        if (map['certificates'] is List &&
+            (map['certificates'] as List).isNotEmpty) {
           final cert = (map['certificates'] as List).first as Map;
           final filePath = cert['file_path'] as String?;
           hasCertificate = filePath != null && filePath.trim().isNotEmpty;
@@ -157,7 +163,9 @@ class SupabaseStudentMonitoringRepository
             applicationStatus: status,
             studentEmail: profile['email'] as String?,
             rollNumber: student['roll_number'] as String?,
-            department: student['department'] as String? ?? profile['department'] as String?,
+            department:
+                student['department'] as String? ??
+                profile['department'] as String?,
             batchYear: student['batch_year'] is int
                 ? student['batch_year'] as int
                 : int.tryParse(student['batch_year']?.toString() ?? ''),
@@ -174,7 +182,8 @@ class SupabaseStudentMonitoringRepository
 
       return items;
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access student monitoring data.',
         );
@@ -305,15 +314,20 @@ class SupabaseStudentMonitoringRepository
         // Extract ITR map
         Map<String, dynamic>? itrMap;
         if (map['itrs'] is List && (map['itrs'] as List).isNotEmpty) {
-          itrMap = Map<String, dynamic>.from((map['itrs'] as List).first as Map);
+          itrMap = Map<String, dynamic>.from(
+            (map['itrs'] as List).first as Map,
+          );
         } else if (map['itrs'] is Map) {
           itrMap = Map<String, dynamic>.from(map['itrs'] as Map);
         }
 
         // Extract Certificate map
         Map<String, dynamic>? certMap;
-        if (map['certificates'] is List && (map['certificates'] as List).isNotEmpty) {
-          certMap = Map<String, dynamic>.from((map['certificates'] as List).first as Map);
+        if (map['certificates'] is List &&
+            (map['certificates'] as List).isNotEmpty) {
+          certMap = Map<String, dynamic>.from(
+            (map['certificates'] as List).first as Map,
+          );
         } else if (map['certificates'] is Map) {
           certMap = Map<String, dynamic>.from(map['certificates'] as Map);
         }
@@ -343,12 +357,15 @@ class SupabaseStudentMonitoringRepository
           studentName: profile['full_name'] as String? ?? 'Unknown Student',
           studentEmail: profile['email'] as String? ?? 'N/A',
           rollNumber: student['roll_number'] as String?,
-          department: student['department'] as String? ?? profile['department'] as String?,
+          department:
+              student['department'] as String? ??
+              profile['department'] as String?,
           branch: profile['branch'] as String?,
           batchYear: student['batch_year'] is int
               ? student['batch_year'] as int
               : int.tryParse(student['batch_year']?.toString() ?? ''),
-          phone: profile['phone'] as String? ?? profile['phone_number'] as String?,
+          phone:
+              profile['phone'] as String? ?? profile['phone_number'] as String?,
           address: profile['address'] as String?,
           avatarUrl: profile['avatar_url'] as String?,
           isActive: profile['is_active'] as bool? ?? true,
@@ -359,8 +376,10 @@ class SupabaseStudentMonitoringRepository
               ? DateTime.tryParse(profile['updated_at'].toString())
               : null,
           internshipId: map['id'] as String?,
-          internshipTitle: map['internship_title'] as String? ?? map['title'] as String?,
-          companyName: map['company_name'] as String? ?? industry['name'] as String?,
+          internshipTitle:
+              map['internship_title'] as String? ?? map['title'] as String?,
+          companyName:
+              map['company_name'] as String? ?? industry['name'] as String?,
           internshipMode: map['mode'] as String?,
           startDate: map['start_date'] != null
               ? DateTime.tryParse(map['start_date'].toString())
@@ -369,7 +388,9 @@ class SupabaseStudentMonitoringRepository
               ? DateTime.tryParse(map['end_date'].toString())
               : null,
           internshipStatus: map['status'] as String?,
-          progress: map['progress'] is num ? (map['progress'] as num).toInt() : 0,
+          progress: map['progress'] is num
+              ? (map['progress'] as num).toInt()
+              : 0,
           description: map['description'] as String?,
           industryName: industry['name'] as String?,
           industryAddress: industry['address'] as String?,
@@ -387,13 +408,14 @@ class SupabaseStudentMonitoringRepository
           itrDocumentPath: itrMap?['document_path'] as String?,
           itrProjectZipPath: itrMap?['project_zip_path'] as String?,
           itrProjectPptPath: itrMap?['project_ppt_path'] as String?,
-          itrPresentationPath: itrMap?['project_presentation_path'] as String? ??
+          itrPresentationPath:
+              itrMap?['project_presentation_path'] as String? ??
               itrMap?['presentation_path'] as String?,
           itrSubmittedAt: itrMap?['submitted_at'] != null
               ? DateTime.tryParse(itrMap!['submitted_at'].toString())
               : (itrMap?['created_at'] != null
-                  ? DateTime.tryParse(itrMap!['created_at'].toString())
-                  : null),
+                    ? DateTime.tryParse(itrMap!['created_at'].toString())
+                    : null),
           itrReviewedAt: itrMap?['reviewed_at'] != null
               ? DateTime.tryParse(itrMap!['reviewed_at'].toString())
               : null,
@@ -416,7 +438,9 @@ class SupabaseStudentMonitoringRepository
       }
 
       // If no internship found, fallback to loading student profile directly
-      final studentRes = await client.from('students').select('''
+      final studentRes = await client
+          .from('students')
+          .select('''
         id,
         roll_number,
         department,
@@ -438,7 +462,9 @@ class SupabaseStudentMonitoringRepository
           created_at,
           updated_at
         )
-      ''').eq('id', studentId).maybeSingle();
+      ''')
+          .eq('id', studentId)
+          .maybeSingle();
 
       if (studentRes != null) {
         final sMap = Map<String, dynamic>.from(studentRes);
@@ -452,12 +478,14 @@ class SupabaseStudentMonitoringRepository
           studentName: profile['full_name'] as String? ?? 'Unknown Student',
           studentEmail: profile['email'] as String? ?? 'N/A',
           rollNumber: sMap['roll_number'] as String?,
-          department: sMap['department'] as String? ?? profile['department'] as String?,
+          department:
+              sMap['department'] as String? ?? profile['department'] as String?,
           branch: profile['branch'] as String?,
           batchYear: sMap['batch_year'] is int
               ? sMap['batch_year'] as int
               : int.tryParse(sMap['batch_year']?.toString() ?? ''),
-          phone: profile['phone'] as String? ?? profile['phone_number'] as String?,
+          phone:
+              profile['phone'] as String? ?? profile['phone_number'] as String?,
           address: profile['address'] as String?,
           avatarUrl: profile['avatar_url'] as String?,
           isActive: profile['is_active'] as bool? ?? true,
@@ -472,7 +500,8 @@ class SupabaseStudentMonitoringRepository
 
       return null;
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access student monitoring data.',
         );
@@ -493,7 +522,9 @@ class SupabaseStudentMonitoringRepository
       return path;
     }
     try {
-      final signedUrl = await client.storage.from(bucket).createSignedUrl(path, 3600);
+      final signedUrl = await client.storage
+          .from(bucket)
+          .createSignedUrl(path, 3600);
       return signedUrl;
     } catch (_) {
       try {

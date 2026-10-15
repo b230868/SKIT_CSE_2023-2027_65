@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 class CacheService {
@@ -12,12 +13,17 @@ class CacheService {
 
   static Box get box {
     if (_box == null || !_box!.isOpen) {
-      throw StateError('CacheService has not been initialized. Call init() first.');
+      throw StateError(
+        'CacheService has not been initialized. Call init() first.',
+      );
     }
     return _box!;
   }
 
-  static Future<void> cacheDashboardStats(String key, Map<String, dynamic> stats) async {
+  static Future<void> cacheDashboardStats(
+    String key,
+    Map<String, dynamic> stats,
+  ) async {
     try {
       final payload = {
         'cached_at': DateTime.now().toIso8601String(),
@@ -40,7 +46,9 @@ class CacheService {
     }
   }
 
-  static Future<void> cacheStudentMonitoring(List<Map<String, dynamic>> items) async {
+  static Future<void> cacheStudentMonitoring(
+    List<Map<String, dynamic>> items,
+  ) async {
     try {
       final payload = {
         'cached_at': DateTime.now().toIso8601String(),

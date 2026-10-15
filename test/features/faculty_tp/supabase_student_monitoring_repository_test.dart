@@ -12,9 +12,12 @@ void main() {
       expect(students, isA<List>());
     });
 
-    test('StudentMonitoringRepositoryFactory creates repository instance safely', () {
-      final repository = StudentMonitoringRepositoryFactory.create();
-      expect(repository, isNotNull);
-    });
+    test(
+      'StudentMonitoringRepositoryFactory creates repository instance safely',
+      () {
+        final repository = StudentMonitoringRepositoryFactory.create();
+        expect(repository, isNotNull);
+      },
+    );
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -81,39 +82,46 @@ void main() {
       expect(report.facultyStageCount, greaterThanOrEqualTo(0));
     });
 
-    test('T&P authentication, profile, dashboard, and requests check', () async {
-      await client.auth.signOut();
-      final res = await client.auth.signInWithPassword(
-        email: 'tp@college.com',
-        password: 'Tp@1234',
-      );
+    test(
+      'T&P authentication, profile, dashboard, and requests check',
+      () async {
+        await client.auth.signOut();
+        final res = await client.auth.signInWithPassword(
+          email: 'tp@college.com',
+          password: 'Tp@1234',
+        );
 
-      expect(res.user, isNotNull);
-      expect(res.session, isNotNull);
+        expect(res.user, isNotNull);
+        expect(res.session, isNotNull);
 
-      final authService = AuthService(client: client);
-      final profile = await authService.getCurrentUserProfile();
-      expect(profile, isNotNull);
-      expect(profile!.role, equals(AppRole.tpOfficer));
-      expect(profile.isActive, isTrue);
+        final authService = AuthService(client: client);
+        final profile = await authService.getCurrentUserProfile();
+        expect(profile, isNotNull);
+        expect(profile!.role, equals(AppRole.tpOfficer));
+        expect(profile.isActive, isTrue);
 
-      final dashboardRepo = SupabaseFacultyDashboardRepository(client: client);
-      final stats = await dashboardRepo.getDashboardStatistics();
-      expect(stats.pendingApprovals, greaterThanOrEqualTo(0));
+        final dashboardRepo = SupabaseFacultyDashboardRepository(
+          client: client,
+        );
+        final stats = await dashboardRepo.getDashboardStatistics();
+        expect(stats.pendingApprovals, greaterThanOrEqualTo(0));
 
-      final monitoringRepo = SupabaseStudentMonitoringRepository(client: client);
-      final students = await monitoringRepo.getStudents();
-      expect(students, isNotEmpty);
+        final monitoringRepo = SupabaseStudentMonitoringRepository(
+          client: client,
+        );
+        final students = await monitoringRepo.getStudents();
+        expect(students, isNotEmpty);
 
-      final approvalRepo = SupabaseApprovalRepository(client: client);
-      final requests = await approvalRepo.getApprovalRequests(
-        stage: ApprovalReviewStage.tpAdmin,
-      );
-      expect(requests, isNotNull);
-      final requestsFacultyStage = await approvalRepo.getApprovalRequests(
-        stage: ApprovalReviewStage.faculty,
-      );
-      expect(requestsFacultyStage.length, greaterThanOrEqualTo(1));
-    });
+        final approvalRepo = SupabaseApprovalRepository(client: client);
+        final requests = await approvalRepo.getApprovalRequests(
+          stage: ApprovalReviewStage.tpAdmin,
+        );
+        expect(requests, isNotNull);
+        final requestsFacultyStage = await approvalRepo.getApprovalRequests(
+          stage: ApprovalReviewStage.faculty,
+        );
+        expect(requestsFacultyStage.length, greaterThanOrEqualTo(1));
+      },
+    );
   });
 }

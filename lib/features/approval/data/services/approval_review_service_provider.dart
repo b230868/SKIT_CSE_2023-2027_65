@@ -16,8 +16,6 @@ class ApprovalReviewServiceProvider {
 
   static ApprovalReviewService get instance {
     return _override ??
-        ApprovalReviewService(
-          repository: ApprovalRepositoryProvider.instance,
-        );
+        ApprovalReviewService(repository: ApprovalRepositoryProvider.instance);
   }
-}
+}

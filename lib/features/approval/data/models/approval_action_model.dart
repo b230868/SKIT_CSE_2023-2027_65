@@ -4,8 +4,5 @@ class ApprovalActionModel {
   final ApprovalStatus status;
   final String remarks;
 
-  const ApprovalActionModel({
-    required this.status,
-    required this.remarks,
-  });
+  const ApprovalActionModel({required this.status, required this.remarks});
 }

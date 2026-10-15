@@ -5,14 +5,7 @@ import '../../features/faculty_tp/presentation/screens/faculty_dashboard_screen.
 import '../../features/faculty_tp/presentation/screens/student_dashboard_screen.dart';
 import '../../features/faculty_tp/presentation/screens/tp_dashboard_screen.dart';
 
-
-enum AppRole {
-  student,
-  facultyMentor,
-  tpOfficer,
-  industrySupervisor,
-  admin,
-}
+enum AppRole { student, facultyMentor, tpOfficer, industrySupervisor, admin }
 
 extension AppRoleExtension on AppRole {
   String get value {
@@ -79,8 +72,7 @@ class UserProfile {
 class AuthService {
   final SupabaseClient? _client;
 
-  AuthService({SupabaseClient? client})
-      : _client = client ?? _resolveClient();
+  AuthService({SupabaseClient? client}) : _client = client ?? _resolveClient();
 
   static SupabaseClient? _resolveClient() {
     try {
@@ -121,7 +113,6 @@ class AuthService {
     }
   }
 
-
   // In-flight concurrency lock to prevent accidental double-clicks and concurrent duplicate requests
   static bool _isEmailActionInProgress = false;
 
@@ -149,8 +140,7 @@ class AuthService {
         str.contains('already been registered')) {
       return 'An account with this email address already exists. Please sign in or use password recovery.';
     }
-    if (str.contains('access denied') ||
-        str.contains('only administrators')) {
+    if (str.contains('access denied') || str.contains('only administrators')) {
       return 'Access denied: Only administrators can assign elevated user roles.';
     }
     if (str.contains('target user profile not found')) {
@@ -200,7 +190,9 @@ class AuthService {
 
   /// Sanitizes client-supplied signup metadata by stripping any attempted role elevation parameters.
   /// Public self-signups are strictly prevented from supplying 'role' or 'app_role'.
-  static Map<String, dynamic>? sanitizeSignupMetadata(Map<String, dynamic>? data) {
+  static Map<String, dynamic>? sanitizeSignupMetadata(
+    Map<String, dynamic>? data,
+  ) {
     if (data == null) return null;
     final sanitized = Map<String, dynamic>.from(data);
     sanitized.remove('role');
@@ -226,10 +218,7 @@ class AuthService {
     try {
       await client.rpc(
         'admin_assign_user_role',
-        params: {
-          'target_user_id': trimmedId,
-          'new_role': newRole.name,
-        },
+        params: {'target_user_id': trimmedId, 'new_role': newRole.name},
       );
     } catch (e) {
       throw AuthException(parseAuthErrorMessage(e));
@@ -278,10 +267,7 @@ class AuthService {
     }
     _isEmailActionInProgress = true;
     try {
-      await client.auth.resend(
-        type: type,
-        email: email.trim(),
-      );
+      await client.auth.resend(type: type, email: email.trim());
     } catch (e) {
       throw AuthException(parseAuthErrorMessage(e));
     } finally {
@@ -291,15 +277,12 @@ class AuthService {
 
   /// Updates authenticated user's password (e.g. after following recovery link).
   Future<UserResponse> updateUserPassword({required String newPassword}) async {
-    return await client.auth.updateUser(
-      UserAttributes(password: newPassword),
-    );
+    return await client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
   Future<void> signOut() async {
     await _client?.auth.signOut();
   }
-
 
   static bool get hasActiveSession {
     try {
@@ -415,8 +398,8 @@ class AuthService {
             final title = mode == 1
                 ? 'Create Account'
                 : mode == 2
-                    ? 'Reset Password'
-                    : 'Sign In';
+                ? 'Reset Password'
+                : 'Sign In';
 
             return AlertDialog(
               title: Text(title),
@@ -436,7 +419,9 @@ class AuthService {
                         child: Text(
                           authError!,
                           style: TextStyle(
-                            color: Theme.of(dialogCtx).colorScheme.onErrorContainer,
+                            color: Theme.of(dialogCtx)
+                                .colorScheme
+                                .onErrorContainer,
                             fontSize: 13,
                           ),
                         ),
@@ -533,7 +518,9 @@ class AuthService {
                       Text(
                         'Enter your registered email address to receive password recovery instructions.',
                         style: TextStyle(
-                          color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
+                          color: Theme.of(dialogCtx)
+                              .colorScheme
+                              .onSurfaceVariant,
                           fontSize: 12,
                         ),
                       ),
@@ -651,8 +638,7 @@ class AuthService {
                             }
                             if (password.length < 6) {
                               setDialogState(() {
-                                authError =
-                                    'Password must be at least 6 characters long.';
+                                authError = 'Password must be at least 6 characters long.';
                               });
                               return;
                             }
@@ -678,12 +664,12 @@ class AuthService {
                               // Sign In
                               await Supabase.instance.client.auth
                                   .signInWithPassword(
-                                email: email,
-                                password: password,
-                              );
+                                    email: email,
+                                    password: password,
+                                  );
 
-                              final profile =
-                                  await AuthService().getCurrentUserProfile();
+                              final profile = await AuthService()
+                                  .getCurrentUserProfile();
 
                               if (!dialogCtx.mounted) return;
                               Navigator.pop(dialogCtx);
@@ -693,29 +679,29 @@ class AuthService {
                                   context.mounted &&
                                   profile != null) {
                                 AuthService.navigateForRole(
-                                    context, profile.role);
+                                  context,
+                                  profile.role,
+                                );
                               }
                             } else if (mode == 1) {
                               // Sign Up
                               final fullName = nameController.text.trim();
                               final res = await AuthService()
                                   .signUpWithEmailPassword(
-                                email: email,
-                                password: password,
-                                data: fullName.isNotEmpty
-                                    ? {'full_name': fullName}
-                                    : null,
-                              );
+                                    email: email,
+                                    password: password,
+                                    data: fullName.isNotEmpty
+                                        ? {'full_name': fullName}
+                                        : null,
+                                  );
 
                               if (!dialogCtx.mounted) return;
                               setDialogState(() {
                                 isSubmitting = false;
                                 if (res.session == null) {
-                                  successMessage =
-                                      'Account registration submitted! Please check your email inbox to verify your account before signing in.';
+                                  successMessage = 'Account registration submitted! Please check your email inbox to verify your account before signing in.';
                                 } else {
-                                  successMessage =
-                                      'Account created successfully! You are now signed in.';
+                                  successMessage = 'Account created successfully! You are now signed in.';
                                 }
                               });
 
@@ -723,7 +709,9 @@ class AuthService {
                                 onSessionChanged?.call();
                                 if (routeAfterLogin && context.mounted) {
                                   AuthService.navigateForRole(
-                                      context, AppRole.student);
+                                    context,
+                                    AppRole.student,
+                                  );
                                 }
                               }
                             } else if (mode == 2) {
@@ -734,8 +722,7 @@ class AuthService {
                               if (!dialogCtx.mounted) return;
                               setDialogState(() {
                                 isSubmitting = false;
-                                successMessage =
-                                    'Password reset instructions sent! Please check your email inbox.';
+                                successMessage = 'Password reset instructions sent! Please check your email inbox.';
                               });
                             }
                           } catch (e) {
@@ -750,8 +737,8 @@ class AuthService {
                     mode == 1
                         ? 'Create Account'
                         : mode == 2
-                            ? 'Send Reset Link'
-                            : 'Sign In',
+                        ? 'Send Reset Link'
+                        : 'Sign In',
                   ),
                 ),
               ],
@@ -779,13 +766,11 @@ class AuthService {
         break;
     }
 
-
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => targetScreen),
       (route) => false,
     );
   }
-
 }
 
 class DuplicateRequestException implements Exception {
@@ -821,10 +806,10 @@ class UnauthenticatedException implements Exception {
 class UnauthorizedException implements Exception {
   final String message;
   const UnauthorizedException([
-    this.message = 'Your account does not have permission to access approval data.',
+    this.message =
+        'Your account does not have permission to access approval data.',
   ]);
 
   @override
   String toString() => message;
 }
-

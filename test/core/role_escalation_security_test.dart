@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prashikshan/core/auth/auth_service.dart';
 
@@ -31,12 +32,16 @@ class MockPostgresSecurityContext {
   }) {
     // 1. Authorization check
     if (isCallerDenied()) {
-      throw Exception('Access denied: Only administrators can assign elevated user roles.');
+      throw Exception(
+        'Access denied: Only administrators can assign elevated user roles.',
+      );
     }
 
     // 2. Input validation
     if (targetUserId == null || targetUserId.trim().isEmpty) {
-      throw ArgumentError('Invalid target user: target_user_id cannot be NULL.');
+      throw ArgumentError(
+        'Invalid target user: target_user_id cannot be NULL.',
+      );
     }
 
     const validRoles = [
@@ -48,7 +53,9 @@ class MockPostgresSecurityContext {
     ];
 
     if (newRole == null || !validRoles.contains(newRole.toLowerCase().trim())) {
-      throw ArgumentError('Invalid role: new_role cannot be NULL or unrecognized.');
+      throw ArgumentError(
+        'Invalid role: new_role cannot be NULL or unrecognized.',
+      );
     }
 
     // 3. Ensure target profile exists
@@ -131,14 +138,16 @@ void main() {
       migrationSql = migrationFile.readAsStringSync();
     });
 
-    test('admin_assign_user_role uses IS DISTINCT FROM for caller authorization', () {
-      expect(
-        migrationSql.contains("IS DISTINCT FROM 'admin'::public.app_role"),
-        isTrue,
-        reason:
-            "Authorization check must use IS DISTINCT FROM 'admin'::public.app_role so NULL/missing caller role is denied",
-      );
-    });
+    test(
+      'admin_assign_user_role uses IS DISTINCT FROM for caller authorization',
+      () {
+        expect(
+          migrationSql.contains("IS DISTINCT FROM 'admin'::public.app_role"),
+          isTrue,
+          reason: "Authorization check must use IS DISTINCT FROM 'admin'::public.app_role so NULL/missing caller role is denied",
+        );
+      },
+    );
 
     test('admin_assign_user_role does NOT use vulnerable != comparison for caller authorization', () {
       // In PostgreSQL, NULL != 'admin' evaluates to NULL (UNKNOWN), which evaluates to FALSE in IF conditions, bypassing checks!
@@ -149,27 +158,38 @@ void main() {
       );
     });
 
-    test('admin_assign_user_role explicitly revokes EXECUTE from PUBLIC and anon', () {
-      expect(
-        migrationSql.contains('REVOKE ALL ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) FROM PUBLIC;'),
-        isTrue,
-        reason: 'Must revoke execute on admin_assign_user_role from PUBLIC',
-      );
-      expect(
-        migrationSql.contains('REVOKE ALL ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) FROM anon;'),
-        isTrue,
-        reason: 'Must revoke execute on admin_assign_user_role from anon',
-      );
-    });
+    test(
+      'admin_assign_user_role explicitly revokes EXECUTE from PUBLIC and anon',
+      () {
+        expect(
+          migrationSql.contains(
+            'REVOKE ALL ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) FROM PUBLIC;',
+          ),
+          isTrue,
+          reason: 'Must revoke execute on admin_assign_user_role from PUBLIC',
+        );
+        expect(
+          migrationSql.contains(
+            'REVOKE ALL ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) FROM anon;',
+          ),
+          isTrue,
+          reason: 'Must revoke execute on admin_assign_user_role from anon',
+        );
+      },
+    );
 
     test('admin_assign_user_role grants EXECUTE strictly to minimum required roles', () {
       expect(
-        migrationSql.contains('GRANT EXECUTE ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) TO authenticated;'),
+        migrationSql.contains(
+          'GRANT EXECUTE ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) TO authenticated;',
+        ),
         isTrue,
         reason: 'Must grant execute to authenticated role with internal check retained',
       );
       expect(
-        migrationSql.contains('GRANT EXECUTE ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) TO service_role;'),
+        migrationSql.contains(
+          'GRANT EXECUTE ON FUNCTION public.admin_assign_user_role(uuid, public.app_role) TO service_role;',
+        ),
         isTrue,
         reason: 'Must grant execute to service_role',
       );
@@ -177,20 +197,28 @@ void main() {
 
     test('handle_new_user explicitly revokes EXECUTE from PUBLIC and anon', () {
       expect(
-        migrationSql.contains('REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC;'),
+        migrationSql.contains(
+          'REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC;',
+        ),
         isTrue,
-        reason: 'Must revoke direct execute on handle_new_user trigger from PUBLIC',
+        reason:
+            'Must revoke direct execute on handle_new_user trigger from PUBLIC',
       );
       expect(
-        migrationSql.contains('REVOKE ALL ON FUNCTION public.handle_new_user() FROM anon;'),
+        migrationSql.contains(
+          'REVOKE ALL ON FUNCTION public.handle_new_user() FROM anon;',
+        ),
         isTrue,
-        reason: 'Must revoke direct execute on handle_new_user trigger from anon',
+        reason:
+            'Must revoke direct execute on handle_new_user trigger from anon',
       );
     });
 
     test('handle_new_user grants EXECUTE to supabase_auth_admin to ensure trigger functionality', () {
       expect(
-        migrationSql.contains('GRANT EXECUTE ON FUNCTION public.handle_new_user() TO supabase_auth_admin;'),
+        migrationSql.contains(
+          'GRANT EXECUTE ON FUNCTION public.handle_new_user() TO supabase_auth_admin;',
+        ),
         isTrue,
         reason: 'Must grant execute to supabase_auth_admin so GoTrue auth trigger functions without permission denial',
       );
@@ -262,8 +290,11 @@ void main() {
           newRole: 'admin',
         ),
         throwsA(
-          predicate((e) =>
-              e.toString().contains('Access denied: Only administrators can assign elevated user roles.')),
+          predicate(
+            (e) => e.toString().contains(
+              'Access denied: Only administrators can assign elevated user roles.',
+            ),
+          ),
         ),
       );
 
@@ -281,8 +312,11 @@ void main() {
           newRole: 'faculty_mentor',
         ),
         throwsA(
-          predicate((e) =>
-              e.toString().contains('Access denied: Only administrators can assign elevated user roles.')),
+          predicate(
+            (e) => e.toString().contains(
+              'Access denied: Only administrators can assign elevated user roles.',
+            ),
+          ),
         ),
       );
 
@@ -312,24 +346,33 @@ void main() {
       );
     });
 
-    test('Admin calls succeed in assigning elevated roles to existing users', () {
-      // Caller has verified 'admin' role
-      context.currentUserRole = 'admin';
+    test(
+      'Admin calls succeed in assigning elevated roles to existing users',
+      () {
+        // Caller has verified 'admin' role
+        context.currentUserRole = 'admin';
 
-      // Promote student to faculty_mentor
-      context.adminAssignUserRole(
-        targetUserId: 'user-student-1',
-        newRole: 'faculty_mentor',
-      );
-      expect(context.profiles['user-student-1']!['role'], equals('faculty_mentor'));
+        // Promote student to faculty_mentor
+        context.adminAssignUserRole(
+          targetUserId: 'user-student-1',
+          newRole: 'faculty_mentor',
+        );
+        expect(
+          context.profiles['user-student-1']!['role'],
+          equals('faculty_mentor'),
+        );
 
-      // Promote faculty to tp_officer
-      context.adminAssignUserRole(
-        targetUserId: 'user-student-1',
-        newRole: 'tp_officer',
-      );
-      expect(context.profiles['user-student-1']!['role'], equals('tp_officer'));
-    });
+        // Promote faculty to tp_officer
+        context.adminAssignUserRole(
+          targetUserId: 'user-student-1',
+          newRole: 'tp_officer',
+        );
+        expect(
+          context.profiles['user-student-1']!['role'],
+          equals('tp_officer'),
+        );
+      },
+    );
 
     test('Invalid roles are rejected with validation error', () {
       context.currentUserRole = 'admin';
@@ -360,10 +403,8 @@ void main() {
       );
 
       expect(
-        () => context.adminAssignUserRole(
-          targetUserId: null,
-          newRole: 'student',
-        ),
+        () =>
+            context.adminAssignUserRole(targetUserId: null, newRole: 'student'),
         throwsA(isA<ArgumentError>()),
       );
 
@@ -371,20 +412,23 @@ void main() {
       expect(context.profiles['user-student-1']!['role'], equals('student'));
     });
 
-    test('Attempts by non-admin to self-assign elevated roles via RPC are blocked', () {
-      // Student targets their own user ID
-      context.currentUserRole = 'student';
+    test(
+      'Attempts by non-admin to self-assign elevated roles via RPC are blocked',
+      () {
+        // Student targets their own user ID
+        context.currentUserRole = 'student';
 
-      expect(
-        () => context.adminAssignUserRole(
-          targetUserId: 'user-student-1',
-          newRole: 'admin',
-        ),
-        throwsA(predicate((e) => e.toString().contains('Access denied'))),
-      );
+        expect(
+          () => context.adminAssignUserRole(
+            targetUserId: 'user-student-1',
+            newRole: 'admin',
+          ),
+          throwsA(predicate((e) => e.toString().contains('Access denied'))),
+        );
 
-      expect(context.profiles['user-student-1']!['role'], equals('student'));
-    });
+        expect(context.profiles['user-student-1']!['role'], equals('student'));
+      },
+    );
 
     test('Attempts by self-signup to pass role in user metadata are ignored and default to student', () {
       // 1. Client-side sanitization strips role, app_role, roles, is_admin
@@ -428,7 +472,10 @@ void main() {
         rawAppMetaData: {'role': 'faculty_mentor'},
       );
 
-      expect(context.profiles['user-new-faculty']!['role'], equals('faculty_mentor'));
+      expect(
+        context.profiles['user-new-faculty']!['role'],
+        equals('faculty_mentor'),
+      );
 
       context.handleNewUser(
         userId: 'user-new-tp',
@@ -440,20 +487,23 @@ void main() {
       expect(context.profiles['user-new-tp']!['role'], equals('tp_officer'));
     });
 
-    test('Subsequent user profile updates never escalate role via ON CONFLICT', () {
-      // Existing student user
-      expect(context.profiles['user-student-1']!['role'], equals('student'));
+    test(
+      'Subsequent user profile updates never escalate role via ON CONFLICT',
+      () {
+        // Existing student user
+        expect(context.profiles['user-student-1']!['role'], equals('student'));
 
-      // User triggers auth update with attempted role in metadata
-      context.handleNewUser(
-        userId: 'user-student-1',
-        email: 'student1@example.com',
-        rawUserMetaData: {'role': 'admin', 'full_name': 'Updated Name'},
-        rawAppMetaData: null,
-      );
+        // User triggers auth update with attempted role in metadata
+        context.handleNewUser(
+          userId: 'user-student-1',
+          email: 'student1@example.com',
+          rawUserMetaData: {'role': 'admin', 'full_name': 'Updated Name'},
+          rawAppMetaData: null,
+        );
 
-      // Role must still be 'student'
-      expect(context.profiles['user-student-1']!['role'], equals('student'));
-    });
+        // Role must still be 'student'
+        expect(context.profiles['user-student-1']!['role'], equals('student'));
+      },
+    );
   });
 }

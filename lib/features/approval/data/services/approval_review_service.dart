@@ -11,10 +11,8 @@ class ApprovalReviewService {
   final ApprovalRepository repository;
   final SupabaseClient? _providedClient;
 
-  ApprovalReviewService({
-    required this.repository,
-    SupabaseClient? client,
-  }) : _providedClient = client;
+  ApprovalReviewService({required this.repository, SupabaseClient? client})
+    : _providedClient = client;
 
   SupabaseClient? get client {
     if (_providedClient != null) return _providedClient;
@@ -33,7 +31,9 @@ class ApprovalReviewService {
   }) async {
     if (status == ApprovalStatus.rejected &&
         (remarks == null || remarks.trim().isEmpty)) {
-      throw ArgumentError('Remarks are required when rejecting an application.');
+      throw ArgumentError(
+        'Remarks are required when rejecting an application.',
+      );
     }
 
     if (repository is MockApprovalRepository &&
@@ -47,13 +47,12 @@ class ApprovalReviewService {
       );
     }
 
-    final authenticatedClient =
-        await AuthService.requireAuthenticatedClient(client: client);
+    final authenticatedClient = await AuthService.requireAuthenticatedClient(
+      client: client,
+    );
     final user = authenticatedClient.auth.currentUser;
     if (user == null) {
-      throw const UnauthenticatedException(
-        'Please sign in to submit reviews.',
-      );
+      throw const UnauthenticatedException('Please sign in to submit reviews.');
     }
 
     return repository.createReview(
@@ -64,4 +63,4 @@ class ApprovalReviewService {
       remarks: remarks,
     );
   }
-}
+}

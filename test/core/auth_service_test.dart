@@ -4,7 +4,9 @@ import 'package:prashikshan/core/auth/auth_service.dart';
 void main() {
   group('AuthService In-Flight Protection and Error Translation Tests', () {
     test('parseAuthErrorMessage translates over_email_send_rate_limit to friendly actionable message', () {
-      final error = Exception('AuthException: over_email_send_rate_limit, code: 429');
+      final error = Exception(
+        'AuthException: over_email_send_rate_limit, code: 429',
+      );
       final message = AuthService.parseAuthErrorMessage(error);
       expect(message, contains('Email delivery rate limit reached'));
       expect(message, contains('2-4 emails/hr'));
@@ -35,13 +37,21 @@ void main() {
       expect(message, contains('Network connection error'));
     });
 
-    test('DuplicateRequestException formats default and custom message properly', () {
-      const defaultException = DuplicateRequestException();
-      expect(defaultException.toString(), contains('request is currently in progress'));
+    test(
+      'DuplicateRequestException formats default and custom message properly',
+      () {
+        const defaultException = DuplicateRequestException();
+        expect(
+          defaultException.toString(),
+          contains('request is currently in progress'),
+        );
 
-      const customException = DuplicateRequestException('Concurrent action blocked');
-      expect(customException.toString(), equals('Concurrent action blocked'));
-    });
+        const customException = DuplicateRequestException(
+          'Concurrent action blocked',
+        );
+        expect(customException.toString(), equals('Concurrent action blocked'));
+      },
+    );
 
     test('In-flight lock is reset after execution allows immediate retry without arbitrary 60s cooldown', () async {
       // Confirm that no arbitrary countdown lock remains active
@@ -49,13 +59,22 @@ void main() {
     });
 
     test('parseAuthErrorMessage translates access denied role escalation error', () {
-      final error = Exception('PostgrestException: Access denied: Only administrators can assign elevated user roles.');
+      final error = Exception(
+        'PostgrestException: Access denied: Only administrators can assign elevated user roles.',
+      );
       final message = AuthService.parseAuthErrorMessage(error);
-      expect(message, contains('Access denied: Only administrators can assign elevated user roles.'));
+      expect(
+        message,
+        contains(
+          'Access denied: Only administrators can assign elevated user roles.',
+        ),
+      );
     });
 
     test('parseAuthErrorMessage translates target user profile not found', () {
-      final error = Exception('PostgrestException: Target user profile not found.');
+      final error = Exception(
+        'PostgrestException: Target user profile not found.',
+      );
       final message = AuthService.parseAuthErrorMessage(error);
       expect(message, contains('Target user profile not found.'));
     });

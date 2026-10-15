@@ -6,13 +6,11 @@ import '../../domain/entities/dashboard_statistics.dart';
 import '../models/mock_dashboard_data.dart';
 import 'faculty_dashboard_repository.dart';
 
-class SupabaseFacultyDashboardRepository
-    implements FacultyDashboardRepository {
+class SupabaseFacultyDashboardRepository implements FacultyDashboardRepository {
   final SupabaseClient? _providedClient;
 
-  SupabaseFacultyDashboardRepository({
-    SupabaseClient? client,
-  }) : _providedClient = client;
+  SupabaseFacultyDashboardRepository({SupabaseClient? client})
+    : _providedClient = client;
 
   SupabaseClient? get _client {
     if (_providedClient != null) return _providedClient;
@@ -37,8 +35,8 @@ class SupabaseFacultyDashboardRepository
     try {
       ApprovalReviewStage? effectiveStage = stage;
       if (effectiveStage == null) {
-        final profile =
-            await AuthService(client: client).getCurrentUserProfile();
+        final profile = await AuthService(client: client)
+            .getCurrentUserProfile();
         if (profile?.role == AppRole.tpOfficer) {
           effectiveStage = ApprovalReviewStage.tpAdmin;
         } else {
@@ -70,8 +68,11 @@ class SupabaseFacultyDashboardRepository
             .map((r) => Map<String, dynamic>.from(r as Map))
             .toList();
 
-        reviews.sort((a, b) => DateTime.parse(b['created_at'] as String)
-            .compareTo(DateTime.parse(a['created_at'] as String)));
+        reviews.sort(
+          (a, b) =>
+              DateTime.parse(b['created_at'] as String)
+                  .compareTo(DateTime.parse(a['created_at'] as String)),
+        );
 
         if (effectiveStage == ApprovalReviewStage.faculty) {
           final hasTpReview = reviews.any(
@@ -150,7 +151,8 @@ class SupabaseFacultyDashboardRepository
         studentsRequiringReview: studentsNeedingReview.length,
       );
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access dashboard data.',
         );

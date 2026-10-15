@@ -5,9 +5,7 @@ import '../../domain/entities/dashboard_statistics.dart';
 class FacultyDashboardService {
   final FacultyDashboardRepository repository;
 
-  FacultyDashboardService({
-    required this.repository,
-  });
+  FacultyDashboardService({required this.repository});
 
   Future<DashboardStatistics> loadStatistics({
     ApprovalReviewStage? stage,

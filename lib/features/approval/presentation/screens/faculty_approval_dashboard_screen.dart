@@ -19,8 +19,7 @@ class FacultyApprovalDashboardScreen extends StatefulWidget {
 
 class _FacultyApprovalDashboardScreenState
     extends State<FacultyApprovalDashboardScreen> {
-  final ApprovalRepository _repository =
-      ApprovalRepositoryProvider.instance;
+  final ApprovalRepository _repository = ApprovalRepositoryProvider.instance;
 
   int _pending = 0;
   int _underReview = 0;
@@ -42,30 +41,17 @@ class _FacultyApprovalDashboardScreenState
     });
 
     try {
-      final requests =
-          await _repository.getApprovalRequests(
+      final requests = await _repository.getApprovalRequests(
         stage: ApprovalReviewStage.faculty,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _pending = _count(
-          requests,
-          ApprovalStatus.pending,
-        );
-        _underReview = _count(
-          requests,
-          ApprovalStatus.underReview,
-        );
-        _approved = _count(
-          requests,
-          ApprovalStatus.approved,
-        );
-        _rejected = _count(
-          requests,
-          ApprovalStatus.rejected,
-        );
+        _pending = _count(requests, ApprovalStatus.pending);
+        _underReview = _count(requests, ApprovalStatus.underReview);
+        _approved = _count(requests, ApprovalStatus.approved);
+        _rejected = _count(requests, ApprovalStatus.rejected);
         _isLoading = false;
       });
     } catch (error) {
@@ -77,7 +63,8 @@ class _FacultyApprovalDashboardScreenState
       } else if (error is UnauthorizedException ||
           (error is PostgrestException && error.code == '42501') ||
           error.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access approval data.';
+        message =
+            'Your account does not have permission to access approval data.';
       } else {
         message = 'Unable to load approval data: $error';
       }
@@ -87,23 +74,13 @@ class _FacultyApprovalDashboardScreenState
         _errorMessage = message;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
-  int _count(
-    List<ApprovalRequestModel> requests,
-    ApprovalStatus status,
-  ) {
-    return requests
-        .where(
-          (request) => request.approvalStatus == status,
-        )
-        .length;
+  int _count(List<ApprovalRequestModel> requests, ApprovalStatus status) {
+    return requests.where((request) => request.approvalStatus == status).length;
   }
 
   Widget _statCard(
@@ -118,10 +95,7 @@ class _FacultyApprovalDashboardScreenState
         title: Text(title),
         trailing: Text(
           '$value',
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         onTap: onTap,
       ),
@@ -145,9 +119,7 @@ class _FacultyApprovalDashboardScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Faculty Approval Dashboard',
-        ),
+        title: const Text('Faculty Approval Dashboard'),
         actions: [
           IconButton(
             onPressed: () => AuthService.showAuthDialog(
@@ -164,51 +136,46 @@ class _FacultyApprovalDashboardScreenState
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadStatistics,
-                          child: const Text('Retry'),
-                        ),
-                        if (_errorMessage!.contains('sign in')) ...[
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: () => AuthService.showAuthDialog(
-                              context,
-                              onSessionChanged: _loadStatistics,
-                            ),
-                            child: const Text('Sign In'),
-                          ),
-                        ],
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                  ),
-                )
-              : RefreshIndicator(
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadStatistics,
+                      child: const Text('Retry'),
+                    ),
+                    if (_errorMessage!.contains('sign in')) ...[
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => AuthService.showAuthDialog(
+                          context,
+                          onSessionChanged: _loadStatistics,
+                        ),
+                        child: const Text('Sign In'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   const Text(
                     'Approval Overview',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   _statCard(
@@ -239,9 +206,7 @@ class _FacultyApprovalDashboardScreenState
                   FilledButton.icon(
                     onPressed: _openApprovalList,
                     icon: const Icon(Icons.list),
-                    label: const Text(
-                      'View Approval Requests',
-                    ),
+                    label: const Text('View Approval Requests'),
                   ),
                 ],
               ),

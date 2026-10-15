@@ -9,22 +9,16 @@ import '../../domain/entities/approval_status.dart';
 class FacultyReviewScreen extends StatefulWidget {
   final ApprovalRequestModel request;
 
-  const FacultyReviewScreen({
-    super.key,
-    required this.request,
-  });
+  const FacultyReviewScreen({super.key, required this.request});
 
   @override
-  State<FacultyReviewScreen> createState() =>
-      _FacultyReviewScreenState();
+  State<FacultyReviewScreen> createState() => _FacultyReviewScreenState();
 }
 
-class _FacultyReviewScreenState
-    extends State<FacultyReviewScreen> {
+class _FacultyReviewScreenState extends State<FacultyReviewScreen> {
   final _remarksController = TextEditingController();
 
-  ApprovalStatus _selectedStatus =
-      ApprovalStatus.underReview;
+  ApprovalStatus _selectedStatus = ApprovalStatus.underReview;
 
   bool _isSubmitting = false;
 
@@ -37,14 +31,9 @@ class _FacultyReviewScreenState
   Future<void> _submitReview() async {
     final remarks = _remarksController.text.trim();
 
-    if (_selectedStatus == ApprovalStatus.rejected &&
-        remarks.isEmpty) {
+    if (_selectedStatus == ApprovalStatus.rejected && remarks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please enter remarks for rejection.',
-          ),
-        ),
+        const SnackBar(content: Text('Please enter remarks for rejection.')),
       );
       return;
     }
@@ -76,11 +65,8 @@ class _FacultyReviewScreenState
         message = 'Unable to submit faculty review: $error';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
 
       setState(() {
         _isSubmitting = false;
@@ -93,28 +79,20 @@ class _FacultyReviewScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Faculty Review'),
-      ),
+      appBar: AppBar(title: const Text('Faculty Review')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
             widget.request.studentName,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(widget.request.rollNumber),
           const SizedBox(height: 20),
           Text(
             widget.request.internshipTitle,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(widget.request.industryName),
@@ -125,18 +103,17 @@ class _FacultyReviewScreenState
               labelText: 'Review Status',
               border: OutlineInputBorder(),
             ),
-            items: [
-              ApprovalStatus.underReview,
-              ApprovalStatus.approved,
-              ApprovalStatus.rejected,
-            ].map(
-              (status) {
-                return DropdownMenuItem(
-                  value: status,
-                  child: Text(_statusLabel(status)),
-                );
-              },
-            ).toList(),
+            items:
+                [
+                  ApprovalStatus.underReview,
+                  ApprovalStatus.approved,
+                  ApprovalStatus.rejected,
+                ].map((status) {
+                  return DropdownMenuItem(
+                    value: status,
+                    child: Text(_statusLabel(status)),
+                  );
+                }).toList(),
             onChanged: _isSubmitting
                 ? null
                 : (status) {
@@ -165,15 +142,11 @@ class _FacultyReviewScreenState
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check),
             label: Text(
-              _isSubmitting
-                  ? 'Submitting...'
-                  : 'Submit Faculty Review',
+              _isSubmitting ? 'Submitting...' : 'Submit Faculty Review',
             ),
           ),
         ],

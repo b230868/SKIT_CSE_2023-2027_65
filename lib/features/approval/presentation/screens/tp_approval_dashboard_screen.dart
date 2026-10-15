@@ -17,10 +17,8 @@ class TpApprovalDashboardScreen extends StatefulWidget {
       _TpApprovalDashboardScreenState();
 }
 
-class _TpApprovalDashboardScreenState
-    extends State<TpApprovalDashboardScreen> {
-  final ApprovalRepository _repository =
-      ApprovalRepositoryProvider.instance;
+class _TpApprovalDashboardScreenState extends State<TpApprovalDashboardScreen> {
+  final ApprovalRepository _repository = ApprovalRepositoryProvider.instance;
 
   int _pending = 0;
   int _underReview = 0;
@@ -42,8 +40,7 @@ class _TpApprovalDashboardScreenState
     });
 
     try {
-      final requests =
-          await _repository.getApprovalRequests(
+      final requests = await _repository.getApprovalRequests(
         stage: ApprovalReviewStage.tpAdmin,
       );
 
@@ -56,20 +53,11 @@ class _TpApprovalDashboardScreenState
       setState(() {
         _pending = requests.length;
 
-        _underReview = _count(
-          reviews,
-          ApprovalStatus.underReview,
-        );
+        _underReview = _count(reviews, ApprovalStatus.underReview);
 
-        _approved = _count(
-          reviews,
-          ApprovalStatus.approved,
-        );
+        _approved = _count(reviews, ApprovalStatus.approved);
 
-        _rejected = _count(
-          reviews,
-          ApprovalStatus.rejected,
-        );
+        _rejected = _count(reviews, ApprovalStatus.rejected);
 
         _isLoading = false;
       });
@@ -82,7 +70,8 @@ class _TpApprovalDashboardScreenState
       } else if (error is UnauthorizedException ||
           (error is PostgrestException && error.code == '42501') ||
           error.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access approval data.';
+        message =
+            'Your account does not have permission to access approval data.';
       } else {
         message = 'Unable to load T&P data: $error';
       }
@@ -92,23 +81,13 @@ class _TpApprovalDashboardScreenState
         _errorMessage = message;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
-  int _count(
-    List<ApprovalReviewModel> reviews,
-    ApprovalStatus status,
-  ) {
-    return reviews
-        .where(
-          (review) => review.status == status,
-        )
-        .length;
+  int _count(List<ApprovalReviewModel> reviews, ApprovalStatus status) {
+    return reviews.where((review) => review.status == status).length;
   }
 
   Widget _statCard(
@@ -123,10 +102,7 @@ class _TpApprovalDashboardScreenState
         title: Text(title),
         trailing: Text(
           '$value',
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         onTap: onTap,
       ),
@@ -150,9 +126,7 @@ class _TpApprovalDashboardScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'T&P Approval Dashboard',
-        ),
+        title: const Text('T&P Approval Dashboard'),
         actions: [
           IconButton(
             onPressed: () => AuthService.showAuthDialog(
@@ -169,51 +143,46 @@ class _TpApprovalDashboardScreenState
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadStatistics,
-                          child: const Text('Retry'),
-                        ),
-                        if (_errorMessage!.contains('sign in')) ...[
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: () => AuthService.showAuthDialog(
-                              context,
-                              onSessionChanged: _loadStatistics,
-                            ),
-                            child: const Text('Sign In'),
-                          ),
-                        ],
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                  ),
-                )
-              : RefreshIndicator(
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadStatistics,
+                      child: const Text('Retry'),
+                    ),
+                    if (_errorMessage!.contains('sign in')) ...[
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => AuthService.showAuthDialog(
+                          context,
+                          onSessionChanged: _loadStatistics,
+                        ),
+                        child: const Text('Sign In'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   const Text(
                     'T&P Approval Overview',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   _statCard(
@@ -244,9 +213,7 @@ class _TpApprovalDashboardScreenState
                   FilledButton.icon(
                     onPressed: _openApprovalList,
                     icon: const Icon(Icons.list),
-                    label: const Text(
-                      'View T&P Approval Requests',
-                    ),
+                    label: const Text('View T&P Approval Requests'),
                   ),
                 ],
               ),

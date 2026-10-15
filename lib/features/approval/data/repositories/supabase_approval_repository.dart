@@ -10,9 +10,8 @@ import 'approval_repository.dart';
 class SupabaseApprovalRepository implements ApprovalRepository {
   final SupabaseClient? _providedClient;
 
-  SupabaseApprovalRepository({
-    SupabaseClient? client,
-  }) : _providedClient = client;
+  SupabaseApprovalRepository({SupabaseClient? client})
+    : _providedClient = client;
 
   SupabaseClient? get _client {
     if (_providedClient != null) return _providedClient;
@@ -44,10 +43,7 @@ class SupabaseApprovalRepository implements ApprovalRepository {
         query = query.eq('review_stage', stage.value);
       }
 
-      final response = await query.order(
-        'created_at',
-        ascending: false,
-      );
+      final response = await query.order('created_at', ascending: false);
 
       return (response as List)
           .map(
@@ -57,7 +53,8 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           )
           .toList();
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access approval data.',
         );
@@ -90,7 +87,8 @@ class SupabaseApprovalRepository implements ApprovalRepository {
 
       return ApprovalReviewModel.fromMap(response);
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access approval data.',
         );
@@ -109,17 +107,15 @@ class SupabaseApprovalRepository implements ApprovalRepository {
     try {
       final response = await client
           .from('approval_reviews')
-          .update({
-            'status': status.value,
-            'remarks': remarks,
-          })
+          .update({'status': status.value, 'remarks': remarks})
           .eq('id', reviewId)
           .select()
           .single();
 
       return ApprovalReviewModel.fromMap(response);
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access approval data.',
         );
@@ -168,111 +164,89 @@ class SupabaseApprovalRepository implements ApprovalRepository {
 
       final requests = <ApprovalRequestModel>[];
 
-    for (final item in response as List) {
-      final map = Map<String, dynamic>.from(item as Map);
+      for (final item in response as List) {
+        final map = Map<String, dynamic>.from(item as Map);
 
-      final reviews = (map['approval_reviews'] as List? ?? [])
-          .map(
-            (review) => Map<String, dynamic>.from(
-              review as Map,
-            ),
-          )
-          .toList();
+        final reviews = (map['approval_reviews'] as List? ?? [])
+            .map((review) => Map<String, dynamic>.from(review as Map))
+            .toList();
 
-      reviews.sort(
-        (a, b) => DateTime.parse(
-          b['created_at'] as String,
-        ).compareTo(
-          DateTime.parse(
-            a['created_at'] as String,
+        reviews.sort(
+          (a, b) =>
+              DateTime.parse(b['created_at'] as String)
+                  .compareTo(DateTime.parse(a['created_at'] as String)),
+        );
+
+        ApprovalStatus latestStatus = ApprovalStatus.pending;
+
+        if (reviews.isNotEmpty) {
+          latestStatus = ApprovalStatus.values.firstWhere(
+            (value) => value.value == reviews.first['status'],
+            orElse: () => ApprovalStatus.pending,
+          );
+        }
+
+        if (stage == ApprovalReviewStage.faculty) {
+          final hasTpReview = reviews.any(
+            (review) => review['review_stage'] == 'tp_admin',
+          );
+
+          if (hasTpReview) {
+            continue;
+          }
+        }
+
+        if (stage == ApprovalReviewStage.tpAdmin) {
+          final facultyApproved = reviews.any(
+            (review) =>
+                review['review_stage'] == 'faculty' &&
+                review['status'] == 'approved',
+          );
+
+          final hasTpReview = reviews.any(
+            (review) => review['review_stage'] == 'tp_admin',
+          );
+
+          if (!facultyApproved || hasTpReview) {
+            continue;
+          }
+        }
+
+        if (status != null && latestStatus != status) {
+          continue;
+        }
+
+        final student = map['students'] is Map
+            ? Map<String, dynamic>.from(map['students'] as Map)
+            : <String, dynamic>{};
+
+        final profile = student['profiles'] is Map
+            ? Map<String, dynamic>.from(student['profiles'] as Map)
+            : <String, dynamic>{};
+
+        final industry = map['industries'] is Map
+            ? Map<String, dynamic>.from(map['industries'] as Map)
+            : <String, dynamic>{};
+
+        requests.add(
+          ApprovalRequestModel(
+            internshipId: map['id'] as String,
+            studentId: map['student_id'] as String,
+            studentName: profile['full_name'] as String? ?? 'Unknown Student',
+            rollNumber: student['roll_number'] as String? ?? '',
+            internshipTitle:
+                map['internship_title'] as String? ?? 'Untitled Internship',
+            industryId: map['industry_id'] as String,
+            industryName: industry['name'] as String? ?? 'Unknown Industry',
+            internshipStatus: map['status'] as String? ?? 'unknown',
+            approvalStatus: latestStatus,
           ),
-        ),
-      );
-
-      ApprovalStatus latestStatus = ApprovalStatus.pending;
-
-      if (reviews.isNotEmpty) {
-        latestStatus = ApprovalStatus.values.firstWhere(
-          (value) => value.value == reviews.first['status'],
-          orElse: () => ApprovalStatus.pending,
         );
       }
-
-      if (stage == ApprovalReviewStage.faculty) {
-        final hasTpReview = reviews.any(
-          (review) =>
-              review['review_stage'] == 'tp_admin',
-        );
-
-        if (hasTpReview) {
-          continue;
-        }
-      }
-
-      if (stage == ApprovalReviewStage.tpAdmin) {
-        final facultyApproved = reviews.any(
-          (review) =>
-              review['review_stage'] == 'faculty' &&
-              review['status'] == 'approved',
-        );
-
-        final hasTpReview = reviews.any(
-          (review) =>
-              review['review_stage'] == 'tp_admin',
-        );
-
-        if (!facultyApproved || hasTpReview) {
-          continue;
-        }
-      }
-
-      if (status != null && latestStatus != status) {
-        continue;
-      }
-
-      final student = map['students'] is Map
-          ? Map<String, dynamic>.from(
-              map['students'] as Map,
-            )
-          : <String, dynamic>{};
-
-      final profile = student['profiles'] is Map
-          ? Map<String, dynamic>.from(
-              student['profiles'] as Map,
-            )
-          : <String, dynamic>{};
-
-      final industry = map['industries'] is Map
-          ? Map<String, dynamic>.from(
-              map['industries'] as Map,
-            )
-          : <String, dynamic>{};
-
-      requests.add(
-        ApprovalRequestModel(
-          internshipId: map['id'] as String,
-          studentId: map['student_id'] as String,
-          studentName:
-              profile['full_name'] as String? ??
-                  'Unknown Student',
-          rollNumber:
-              student['roll_number'] as String? ?? '',
-          internshipTitle:
-              map['internship_title'] as String? ??
-                  'Untitled Internship',
-          industryId: map['industry_id'] as String,
-          industryName:
-              industry['name'] as String? ??
-                  'Unknown Industry',
-          internshipStatus:
-              map['status'] as String? ?? 'unknown',
-          approvalStatus: latestStatus,
-        ),
-      );
-    }
       return requests;
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access approval data.',
         );

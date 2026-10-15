@@ -15,7 +15,9 @@ void main() {
     ApprovalRepositoryProvider.reset();
   });
 
-  testWidgets('ApprovalListScreen displays requests and search bar', (tester) async {
+  testWidgets('ApprovalListScreen displays requests and search bar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: ApprovalListScreen(
@@ -51,7 +53,9 @@ void main() {
     expect(find.widgetWithText(ListTile, 'Demo Student 1'), findsNothing);
   });
 
-  testWidgets('ApprovalListScreen respects initialStatus filter', (tester) async {
+  testWidgets('ApprovalListScreen respects initialStatus filter', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: ApprovalListScreen(

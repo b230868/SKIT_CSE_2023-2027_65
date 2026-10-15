@@ -15,22 +15,28 @@ void main() {
       expect(stats.studentsRequiringReview, greaterThanOrEqualTo(0));
     });
 
-    test('SupabaseFacultyDashboardRepository accepts stage parameters safely', () async {
-      final repository = SupabaseFacultyDashboardRepository();
-      final facultyStats = await repository.getDashboardStatistics(
-        stage: ApprovalReviewStage.faculty,
-      );
-      expect(facultyStats.pendingApprovals, greaterThanOrEqualTo(0));
+    test(
+      'SupabaseFacultyDashboardRepository accepts stage parameters safely',
+      () async {
+        final repository = SupabaseFacultyDashboardRepository();
+        final facultyStats = await repository.getDashboardStatistics(
+          stage: ApprovalReviewStage.faculty,
+        );
+        expect(facultyStats.pendingApprovals, greaterThanOrEqualTo(0));
 
-      final tpStats = await repository.getDashboardStatistics(
-        stage: ApprovalReviewStage.tpAdmin,
-      );
-      expect(tpStats.pendingApprovals, greaterThanOrEqualTo(0));
-    });
+        final tpStats = await repository.getDashboardStatistics(
+          stage: ApprovalReviewStage.tpAdmin,
+        );
+        expect(tpStats.pendingApprovals, greaterThanOrEqualTo(0));
+      },
+    );
 
-    test('FacultyDashboardRepositoryFactory creates repository instance safely', () {
-      final repository = FacultyDashboardRepositoryFactory.create();
-      expect(repository, isNotNull);
-    });
+    test(
+      'FacultyDashboardRepositoryFactory creates repository instance safely',
+      () {
+        final repository = FacultyDashboardRepositoryFactory.create();
+        expect(repository, isNotNull);
+      },
+    );
   });
 }

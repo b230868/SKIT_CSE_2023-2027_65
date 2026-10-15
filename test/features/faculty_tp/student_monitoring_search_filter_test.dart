@@ -104,37 +104,40 @@ void main() {
     StudentMonitoringRepositoryFactory.reset();
   });
 
-  testWidgets('StudentMonitoringScreen displays student card with rich details', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 1200);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets(
+    'StudentMonitoringScreen displays student card with rich details',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1400, 1200);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        const MaterialApp(home: StudentMonitoringScreen()),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Student Monitoring'), findsOneWidget);
-    expect(find.text('Aarav Patel'), findsOneWidget);
-    expect(find.text('Bhavna Sen'), findsOneWidget);
+      expect(find.text('Student Monitoring'), findsOneWidget);
+      expect(find.text('Aarav Patel'), findsOneWidget);
+      expect(find.text('Bhavna Sen'), findsOneWidget);
 
-    expect(find.text('Chirag Rao'), findsOneWidget);
+      expect(find.text('Chirag Rao'), findsOneWidget);
 
-    expect(find.textContaining('23CS101'), findsOneWidget);
-    expect(find.textContaining('aarav@college.edu'), findsOneWidget);
-    expect(find.textContaining('Tech Innovations'), findsOneWidget);
-    expect(find.text('80%'), findsOneWidget);
-    expect(find.text('ITR: SUBMITTED'), findsOneWidget);
-    expect(find.text('Cert: Uploaded'), findsWidgets);
-  });
+      expect(find.textContaining('23CS101'), findsOneWidget);
+      expect(find.textContaining('aarav@college.edu'), findsOneWidget);
+      expect(find.textContaining('Tech Innovations'), findsOneWidget);
+      expect(find.text('80%'), findsOneWidget);
+      expect(find.text('ITR: SUBMITTED'), findsOneWidget);
+      expect(find.text('Cert: Uploaded'), findsWidgets);
+    },
+  );
 
-  testWidgets('Searching by student name filters results correctly', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
+  testWidgets('Searching by student name filters results correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: StudentMonitoringScreen()));
     await tester.pumpAndSettle();
 
     // Search for Bhavna
@@ -146,10 +149,10 @@ void main() {
     expect(find.text('Chirag Rao'), findsNothing);
   });
 
-  testWidgets('Searching by roll number filters results correctly', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
+  testWidgets('Searching by roll number filters results correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: StudentMonitoringScreen()));
     await tester.pumpAndSettle();
 
     // Search for 23EE303
@@ -161,7 +164,34 @@ void main() {
     expect(find.text('Bhavna Sen'), findsNothing);
   });
 
-  testWidgets('Filtering by Pending Approvals only displays students awaiting review', (tester) async {
+  testWidgets(
+    'Filtering by Pending Approvals only displays students awaiting review',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1400, 1200);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(home: StudentMonitoringScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Pending Approvals filter chip
+      await tester.tap(find.widgetWithText(FilterChip, 'Pending Approvals'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bhavna Sen'), findsOneWidget);
+      expect(find.text('Aarav Patel'), findsNothing);
+      expect(find.text('Chirag Rao'), findsNothing);
+    },
+  );
+
+  testWidgets('No search match shows empty filter state and reset button', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1400, 1200);
     addTearDown(() {
@@ -169,39 +199,17 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
+    await tester.pumpWidget(const MaterialApp(home: StudentMonitoringScreen()));
     await tester.pumpAndSettle();
-
-    // Tap Pending Approvals filter chip
-    await tester.tap(find.widgetWithText(FilterChip, 'Pending Approvals'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Bhavna Sen'), findsOneWidget);
-    expect(find.text('Aarav Patel'), findsNothing);
-    expect(find.text('Chirag Rao'), findsNothing);
-  });
-
-  testWidgets('No search match shows empty filter state and reset button', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 1200);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
-    await tester.pumpAndSettle();
-
 
     // Search for non-existent student
     await tester.enterText(find.byType(TextField), 'NonExistentStudent');
     await tester.pumpAndSettle();
 
-    expect(find.text('No students match your filter criteria.'), findsOneWidget);
+    expect(
+      find.text('No students match your filter criteria.'),
+      findsOneWidget,
+    );
     expect(find.text('Reset All Filters'), findsOneWidget);
 
     // Tap Reset All Filters
@@ -213,10 +221,10 @@ void main() {
     expect(find.text('Chirag Rao'), findsOneWidget);
   });
 
-  testWidgets('Tapping a student card opens the StudentDetailScreen', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: StudentMonitoringScreen()),
-    );
+  testWidgets('Tapping a student card opens the StudentDetailScreen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: StudentMonitoringScreen()));
     await tester.pumpAndSettle();
 
     // Tap Aarav Patel card

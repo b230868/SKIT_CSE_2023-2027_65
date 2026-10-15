@@ -8,9 +8,8 @@ import 'faculty_report_repository.dart';
 class SupabaseFacultyReportRepository implements FacultyReportRepository {
   final SupabaseClient? _providedClient;
 
-  SupabaseFacultyReportRepository({
-    SupabaseClient? client,
-  }) : _providedClient = client;
+  SupabaseFacultyReportRepository({SupabaseClient? client})
+    : _providedClient = client;
 
   SupabaseClient? get _client {
     if (_providedClient != null) return _providedClient;
@@ -69,8 +68,11 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
             .map((r) => Map<String, dynamic>.from(r as Map))
             .toList();
 
-        reviews.sort((a, b) => DateTime.parse(b['created_at'] as String)
-            .compareTo(DateTime.parse(a['created_at'] as String)));
+        reviews.sort(
+          (a, b) =>
+              DateTime.parse(b['created_at'] as String)
+                  .compareTo(DateTime.parse(a['created_at'] as String)),
+        );
 
         if (reviews.isNotEmpty) {
           final latest = reviews.first;
@@ -106,7 +108,8 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
         departmentSummary: deptMap,
       );
     } on PostgrestException catch (e) {
-      if (e.code == '42501' || e.message.toLowerCase().contains('permission denied')) {
+      if (e.code == '42501' ||
+          e.message.toLowerCase().contains('permission denied')) {
         throw const UnauthorizedException(
           'Your account does not have permission to access report data.',
         );

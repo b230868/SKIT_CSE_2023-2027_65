@@ -1,9 +1,4 @@
-enum ApprovalStatus {
-  pending,
-  underReview,
-  approved,
-  rejected,
-}
+enum ApprovalStatus { pending, underReview, approved, rejected }
 
 extension ApprovalStatusExtension on ApprovalStatus {
   String get value {

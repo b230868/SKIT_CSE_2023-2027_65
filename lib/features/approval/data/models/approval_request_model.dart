@@ -33,8 +33,7 @@ class ApprovalRequestModel {
           map['internship_title'] as String? ?? 'Untitled Internship',
       industryId: map['industry_id'] as String,
       industryName: map['industry_name'] as String? ?? 'Unknown Industry',
-      internshipStatus:
-          map['internship_status'] as String? ?? 'unknown',
+      internshipStatus: map['internship_status'] as String? ?? 'unknown',
       approvalStatus: ApprovalStatus.values.firstWhere(
         (status) => status.value == map['approval_status'],
         orElse: () => ApprovalStatus.pending,

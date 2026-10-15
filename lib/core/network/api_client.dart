@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../config/backend_config.dart';
 
 class ApiException implements Exception {
@@ -24,10 +26,8 @@ class ApiClient {
   final http.Client _httpClient;
   final String? baseUrlOverride;
 
-  ApiClient({
-    http.Client? httpClient,
-    this.baseUrlOverride,
-  }) : _httpClient = httpClient ?? http.Client();
+  ApiClient({http.Client? httpClient, this.baseUrlOverride})
+    : _httpClient = httpClient ?? http.Client();
 
   String get baseUrl => baseUrlOverride ?? BackendConfig.baseUrl;
 
@@ -35,7 +35,9 @@ class ApiClient {
   String? get _authToken {
     try {
       final session = Supabase.instance.client.auth.currentSession;
-      if (session != null && !session.isExpired && session.accessToken.isNotEmpty) {
+      if (session != null &&
+          !session.isExpired &&
+          session.accessToken.isNotEmpty) {
         return session.accessToken;
       }
     } catch (_) {
@@ -156,10 +158,7 @@ class ApiClient {
         details: e.toString(),
       );
     } on TimeoutException {
-      throw const ApiException(
-        statusCode: 408,
-        message: 'Request timed out.',
-      );
+      throw const ApiException(statusCode: 408, message: 'Request timed out.');
     }
   }
 
@@ -176,7 +175,8 @@ class ApiClient {
     }
 
     final message = jsonBody is Map
-        ? (jsonBody['message'] as String? ?? 'Request failed with status ${response.statusCode}')
+        ? (jsonBody['message'] as String? ??
+              'Request failed with status ${response.statusCode}')
         : 'Request failed with status ${response.statusCode}';
 
     final errors = jsonBody is Map ? jsonBody['errors'] : null;

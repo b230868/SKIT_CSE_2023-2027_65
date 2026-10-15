@@ -20,14 +20,11 @@ class ApprovalDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<ApprovalDetailsScreen> createState() =>
-      _ApprovalDetailsScreenState();
+  State<ApprovalDetailsScreen> createState() => _ApprovalDetailsScreenState();
 }
 
-class _ApprovalDetailsScreenState
-    extends State<ApprovalDetailsScreen> {
-  final ApprovalRepository _repository =
-      ApprovalRepositoryProvider.instance;
+class _ApprovalDetailsScreenState extends State<ApprovalDetailsScreen> {
+  final ApprovalRepository _repository = ApprovalRepositoryProvider.instance;
 
   List<ApprovalReviewModel> _reviews = [];
   bool _isLoadingReviews = true;
@@ -49,9 +46,7 @@ class _ApprovalDetailsScreenState
       setState(() {
         _reviews = reviews
             .where(
-              (review) =>
-                  review.internshipId ==
-                  widget.request.internshipId,
+              (review) => review.internshipId == widget.request.internshipId,
             )
             .toList();
         _reviewError = null;
@@ -73,12 +68,7 @@ class _ApprovalDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(value),
         ],
@@ -105,10 +95,8 @@ class _ApprovalDetailsScreenState
 
   bool get _canReview {
     if (widget.stage == ApprovalReviewStage.faculty) {
-      return widget.request.approvalStatus ==
-              ApprovalStatus.pending ||
-          widget.request.approvalStatus ==
-              ApprovalStatus.underReview;
+      return widget.request.approvalStatus == ApprovalStatus.pending ||
+          widget.request.approvalStatus == ApprovalStatus.underReview;
     }
 
     return widget.stage == ApprovalReviewStage.tpAdmin &&
@@ -123,18 +111,14 @@ class _ApprovalDetailsScreenState
       updated = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => FacultyReviewScreen(
-            request: widget.request,
-          ),
+          builder: (_) => FacultyReviewScreen(request: widget.request),
         ),
       );
     } else {
       updated = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => TpReviewScreen(
-            request: widget.request,
-          ),
+          builder: (_) => TpReviewScreen(request: widget.request),
         ),
       );
     }
@@ -179,14 +163,10 @@ class _ApprovalDetailsScreenState
     }
 
     final reviews = [..._reviews]
-      ..sort(
-        (a, b) => b.createdAt.compareTo(a.createdAt),
-      );
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (reviews.isEmpty) {
-      return const Text(
-        'No previous reviews found.',
-      );
+      return const Text('No previous reviews found.');
     }
 
     return Column(
@@ -212,81 +192,47 @@ class _ApprovalDetailsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Approval Details'),
-      ),
+      appBar: AppBar(title: const Text('Approval Details')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
             '${_stageLabel()} Approval',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
 
           const Text(
             'Student Information',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
-          _detailRow(
-            'Student Name',
-            widget.request.studentName,
-          ),
-          _detailRow(
-            'Roll Number',
-            widget.request.rollNumber,
-          ),
+          _detailRow('Student Name', widget.request.studentName),
+          _detailRow('Roll Number', widget.request.rollNumber),
 
           const SizedBox(height: 10),
 
           const Text(
             'Internship Information',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
-          _detailRow(
-            'Internship Title',
-            widget.request.internshipTitle,
-          ),
-          _detailRow(
-            'Industry',
-            widget.request.industryName,
-          ),
-          _detailRow(
-            'Internship Status',
-            widget.request.internshipStatus,
-          ),
+          _detailRow('Internship Title', widget.request.internshipTitle),
+          _detailRow('Industry', widget.request.industryName),
+          _detailRow('Internship Status', widget.request.internshipStatus),
           _detailRow(
             'Approval Status',
-            _statusLabel(
-              widget.request.approvalStatus,
-            ),
+            _statusLabel(widget.request.approvalStatus),
           ),
-          _detailRow(
-            'Internship ID',
-            widget.request.internshipId,
-          ),
+          _detailRow('Internship ID', widget.request.internshipId),
 
           const SizedBox(height: 20),
 
           const Text(
             'Previous Reviews',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
