@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/data/auth_service.dart';
 import '../auth/models/app_user.dart';
+import '../industry/presentation/screens/industry_shell.dart';
 import '../student/student_shell.dart';
 import 'coming_soon_screen.dart';
 
@@ -66,8 +67,7 @@ class _RoleHomeState extends State<RoleHome> {
             // TODO (Vineet): return FacultyShell(user: user);
             return ComingSoonScreen(user: user);
           case 'industry':
-            // TODO (Yashi): return IndustryShell(user: user);
-            return ComingSoonScreen(user: user);
+            return IndustryShell(user: user);
           default:
             return ComingSoonScreen(user: user);
         }
