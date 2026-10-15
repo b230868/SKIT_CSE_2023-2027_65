@@ -1,5 +1,5 @@
 name: prashikshan
-description: "A new Flutter project."
+description: "Prashikshan internship tracking app."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -31,14 +31,30 @@ dependencies:
   flutter:
     sdk: flutter
 
+  hive_flutter: ^1.1.0
+  fl_chart: ^1.2.0
+  file_picker: ^13.1.0
+<<<<<<< HEAD
+=======
+  flutter_dotenv: ^6.0.1
+>>>>>>> f5707ce ( Hive offline cache)
+  geolocator: ^14.0.2
+  intl: ^0.20.3
+  url_launcher: ^6.3.2
+  uuid: ^4.5.1
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.17.2
+<<<<<<< HEAD
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_dotenv: ^6.0.1
   http: ^1.2.0
+=======
+  http: ^1.6.0
+>>>>>>> origin/main
 
 dev_dependencies:
   flutter_test:
@@ -61,8 +77,17 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+<<<<<<< HEAD
   assets:
   - .env
+=======
+<<<<<<< HEAD
+=======
+  assets:
+    - .env
+
+>>>>>>> f5707ce ( Hive offline cache)
+>>>>>>> origin/main
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+<<<<<<< HEAD
 import 'package:prashikshan/features/faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
 
 void main() {
@@ -19,5 +20,16 @@ void main() {
     expect(find.text('Rejected Applications'), findsOneWidget);
 
     expect(find.text('Students Requiring Review'), findsOneWidget);
+=======
+import 'package:prashikshan/main.dart';
+
+void main() {
+  testWidgets('Prashikshan app uses the configured home', (tester) async {
+    await tester.pumpWidget(
+      const PrashikshanApp(home: Scaffold(body: Text('Test home'))),
+    );
+
+    expect(find.text('Test home'), findsOneWidget);
+>>>>>>> origin/main
   });
 }
