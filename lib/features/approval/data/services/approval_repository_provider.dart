@@ -26,4 +26,4 @@ class ApprovalRepositoryProvider {
       return MockApprovalRepository();
     }
   }
-}
+}

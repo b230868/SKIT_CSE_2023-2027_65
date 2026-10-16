@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/auth/auth_service.dart';
 import '../../domain/entities/approval_review_stage.dart';
 import '../../domain/entities/approval_status.dart';
 import '../models/approval_request_model.dart';
@@ -7,25 +8,35 @@ import '../models/approval_review_model.dart';
 import 'approval_repository.dart';
 
 class SupabaseApprovalRepository implements ApprovalRepository {
-  final SupabaseClient _client;
+  final SupabaseClient? _providedClient;
 
   SupabaseApprovalRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _providedClient = client;
 
-  String get _currentUserId {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw const AuthException('Sign in to review internship applications.');
+  Future<T> _withAuthenticatedClient<T>(
+    Future<T> Function(SupabaseClient client) action,
+  ) async {
+    final client = await AuthService.requireAuthenticatedClient(
+      client: _providedClient,
+    );
+
+    try {
+      return await action(client);
+    } on PostgrestException catch (error) {
+      if (error.code == '42501' ||
+          error.message.toLowerCase().contains('permission denied')) {
+        throw const UnauthorizedException();
+      }
+      rethrow;
     }
-    return user.id;
   }
 
   @override
   Future<List<ApprovalReviewModel>> getReviews({
     ApprovalStatus? status,
     ApprovalReviewStage? stage,
-  }) async {
-    var query = _client.from('approval_reviews').select();
+  }) => _withAuthenticatedClient((client) async {
+    var query = client.from('approval_reviews').select();
     if (status != null) query = query.eq('status', status.value);
     if (stage != null) query = query.eq('review_stage', stage.value);
     final rows = await query.order('created_at', ascending: false);
@@ -36,7 +47,7 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           ),
         )
         .toList();
-  }
+  });
 
   @override
   Future<ApprovalReviewModel> createReview({
@@ -45,12 +56,16 @@ class SupabaseApprovalRepository implements ApprovalRepository {
     required ApprovalReviewStage stage,
     required ApprovalStatus status,
     String? remarks,
-  }) async {
-    if (reviewerId != _currentUserId) {
+  }) => _withAuthenticatedClient((client) async {
+    final currentUserId = client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      throw const UnauthenticatedException();
+    }
+    if (reviewerId != currentUserId) {
       throw const AuthException('You can only submit a review for yourself.');
     }
 
-    final row = await _client
+    final row = await client
         .from('approval_reviews')
         .insert({
           'internship_id': internshipId,
@@ -64,29 +79,34 @@ class SupabaseApprovalRepository implements ApprovalRepository {
 
     if (status == ApprovalStatus.approved ||
         status == ApprovalStatus.rejected) {
-      await _client
+      await client
           .from('internships')
           .update({'status': status.value})
           .eq('id', internshipId);
     }
 
     return ApprovalReviewModel.fromMap(Map<String, dynamic>.from(row));
-  }
+  });
 
   @override
   Future<ApprovalReviewModel> updateReview({
     required String reviewId,
     required ApprovalStatus status,
     String? remarks,
-  }) async {
-    final row = await _client
+  }) => _withAuthenticatedClient((client) async {
+    final currentUserId = client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      throw const UnauthenticatedException();
+    }
+
+    final row = await client
         .from('approval_reviews')
         .update({
           'status': status.value,
           'remarks': remarks,
         })
         .eq('id', reviewId)
-        .eq('reviewer_id', _currentUserId)
+        .eq('reviewer_id', currentUserId)
         .select()
         .single();
 
@@ -95,20 +115,20 @@ class SupabaseApprovalRepository implements ApprovalRepository {
     );
     if (status == ApprovalStatus.approved ||
         status == ApprovalStatus.rejected) {
-      await _client
+      await client
           .from('internships')
           .update({'status': status.value})
           .eq('id', review.internshipId);
     }
     return review;
-  }
+  });
 
   @override
   Future<List<ApprovalRequestModel>> getApprovalRequests({
     ApprovalStatus? status,
     ApprovalReviewStage? stage,
-  }) async {
-    final internships = await _client
+  }) => _withAuthenticatedClient((client) async {
+    final internships = await client
         .from('internships')
         .select('id, student_id, title, company_name, status')
         .order('created_at', ascending: false);
@@ -126,7 +146,7 @@ class SupabaseApprovalRepository implements ApprovalRepository {
         .toSet()
         .toList();
 
-    final profiles = await _client
+    final profiles = await client
         .from('profiles')
         .select('id, full_name, enrollment_no')
         .inFilter('id', studentIds);
@@ -135,7 +155,7 @@ class SupabaseApprovalRepository implements ApprovalRepository {
         profile['id'] as String: Map<String, dynamic>.from(profile),
     };
 
-    final reviewRows = await _client
+    final reviewRows = await client
         .from('approval_reviews')
         .select()
         .inFilter('internship_id', internshipIds)
@@ -167,13 +187,11 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           : facultyReviews;
       final stageStatus = stageReviews.isNotEmpty
           ? stageReviews.first.status
-          : stage == ApprovalReviewStage.tpAdmin
-              ? (facultyReviews.isNotEmpty &&
-                      facultyReviews.first.status == ApprovalStatus.approved
-                  ? ApprovalStatus.approved
-                  : ApprovalStatus.pending)
-              : ApprovalStatus.pending;
+          : ApprovalStatus.pending;
 
+      if (stage == ApprovalReviewStage.faculty && tpReviews.isNotEmpty) {
+        continue;
+      }
       if (stage == ApprovalReviewStage.tpAdmin &&
           (facultyReviews.isEmpty ||
               facultyReviews.first.status != ApprovalStatus.approved)) {
@@ -195,14 +213,15 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           rollNumber: profile['enrollment_no'] as String? ?? '',
           internshipTitle: internship['title'] as String? ?? 'Internship',
           industryId: '',
-          industryName: internship['company_name'] as String? ?? 'Unknown Company',
+          industryName:
+              internship['company_name'] as String? ?? 'Unknown Company',
           internshipStatus: internship['status'] as String? ?? 'pending',
           approvalStatus: stageStatus,
         ),
       );
     }
     return requests;
-  }
+  });
 
   @override
   Future<ApprovalRequestModel?> getApprovalRequestDetails(

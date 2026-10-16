@@ -30,7 +30,9 @@ void main() {
     ApprovalRepositoryProvider.reset();
   });
 
-  testWidgets('ApprovalDetailsScreen displays student and internship details', (tester) async {
+  testWidgets('ApprovalDetailsScreen displays student and internship details', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: ApprovalDetailsScreen(
@@ -51,41 +53,38 @@ void main() {
     expect(find.text('Open Faculty Review'), findsOneWidget);
   });
 
-  testWidgets('FacultyReviewScreen displays form and blocks rejection without remarks', (tester) async {
+  testWidgets(
+    'FacultyReviewScreen displays form and blocks rejection without remarks',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: FacultyReviewScreen(request: sampleRequest)),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Faculty Review'), findsOneWidget);
+      expect(find.text('Submit Faculty Review'), findsOneWidget);
+
+      // Select Rejected from dropdown
+      await tester.tap(find.byType(DropdownButtonFormField<ApprovalStatus>));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rejected').last);
+      await tester.pumpAndSettle();
+
+      // Tap submit without remarks
+      await tester.tap(find.text('Submit Faculty Review'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Please enter remarks for rejection.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('TpReviewScreen displays form and requires rejection remarks', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: FacultyReviewScreen(
-          request: sampleRequest,
-        ),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Faculty Review'), findsOneWidget);
-    expect(find.text('Submit Faculty Review'), findsOneWidget);
-
-    // Select Rejected from dropdown
-    await tester.tap(find.byType(DropdownButtonFormField<ApprovalStatus>));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Rejected').last);
-    await tester.pumpAndSettle();
-
-    // Tap submit without remarks
-    await tester.tap(find.text('Submit Faculty Review'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Please enter remarks for rejection.'), findsOneWidget);
-  });
-
-  testWidgets('TpReviewScreen displays form and requires rejection remarks', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: TpReviewScreen(
-          request: sampleRequest,
-        ),
-      ),
+      const MaterialApp(home: TpReviewScreen(request: sampleRequest)),
     );
 
     await tester.pumpAndSettle();

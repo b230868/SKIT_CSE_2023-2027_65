@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/auth_gate.dart';
+import 'core/config/supabase_config.dart';
 import 'core/theme.dart';
 import 'features/geo_progress/services/geo_progress_queue.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
   await Hive.openBox<Map>(GeoProgressQueue.boxName);
-  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  const supabaseKey = String.fromEnvironment(
-    'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
-  );
+
+  final supabaseUrl = SupabaseConfig.url;
+  final supabaseKey = SupabaseConfig.publishableKey;
   if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
     throw StateError(
       'Provide SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (or the legacy '
-      'SUPABASE_ANON_KEY) with '
-      '--dart-define-from-file=.env.json before starting the app.',
+      'SUPABASE_ANON_KEY) in the local .env file.',
     );
   }
+
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
   runApp(const PrashikshanApp());
 }

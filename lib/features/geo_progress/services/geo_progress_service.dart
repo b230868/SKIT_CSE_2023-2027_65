@@ -42,7 +42,7 @@ class GeoProgressService {
   final SupabaseClient _db;
   final GeoProgressQueue _queue;
   static const _uuid = Uuid();
-  static const _table = 'geo_progress_logs';
+  static const _table = 'progress_updates';
 
   /// Max GPS error (metres) we accept for a log.
   static const double maxAccuracyM = 100;
@@ -123,7 +123,7 @@ class GeoProgressService {
 
     await _queue.enqueue(log, ownerId: ownerId);
     try {
-      final savedLog = await _send(log);
+      final savedLog = await _send(log, ownerId: ownerId);
       await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
       return savedLog;
     } on PostgrestException catch (e) {
@@ -138,11 +138,19 @@ class GeoProgressService {
     }
   }
 
-  Future<GeoProgressLog> _send(GeoProgressLog log) async {
+  Future<GeoProgressLog> _send(
+    GeoProgressLog log, {
+    required String ownerId,
+  }) async {
+    if (_db.auth.currentUser?.id != ownerId) {
+      throw GeoProgressException(
+        'Your signed-in account changed. Sign in as the account that created this update before syncing.',
+      );
+    }
     final row = await _db
         .from(_table)
         .upsert(
-          log.toInsertJson(),
+          {...log.toInsertJson(), 'student_id': ownerId},
           onConflict: 'client_ref',
           ignoreDuplicates: true,
         )
@@ -162,9 +170,7 @@ class GeoProgressService {
   /// Returns this signed-in user's queued logs, newest first.
   List<GeoProgressLog> getPendingProgress({String? internshipId}) {
     final ownerId = _db.auth.currentUser?.id;
-    if (ownerId == null) {
-      throw GeoProgressException('Sign in before viewing cached progress.');
-    }
+    if (ownerId == null) return const [];
     return _queue.pending(ownerId: ownerId, internshipId: internshipId);
   }
 
@@ -179,7 +185,7 @@ class GeoProgressService {
     final failures = <String, String>{};
     for (final log in _queue.pending(ownerId: ownerId)) {
       try {
-        await _send(log);
+        await _send(log, ownerId: ownerId);
         await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
         syncedCount++;
       } on Exception catch (e) {
@@ -216,6 +222,7 @@ class GeoProgressService {
         ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
       return logs;
     } on PostgrestException catch (e) {
+      if (pending.isNotEmpty) return pending;
       throw GeoProgressException(e.message);
     } on Exception catch (e) {
       if (!_isNetworkError(e)) {
@@ -240,9 +247,11 @@ class GeoProgressService {
   Future<GeoProgressLog?> fetchLatest(String internshipId) async {
     try {
       final row = await _db
-          .from('geo_progress_latest')
+          .from(_table)
           .select()
           .eq('internship_id', internshipId)
+          .order('captured_at', ascending: false)
+          .limit(1)
           .maybeSingle();
       return row == null ? null : GeoProgressLog.fromJson(row);
     } on PostgrestException catch (e) {

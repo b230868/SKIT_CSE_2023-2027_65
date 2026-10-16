@@ -110,10 +110,15 @@ create policy "internships review" on public.internships for update to authentic
 -- ---------- PROGRESS UPDATES ----------
 create table if not exists public.progress_updates (
   id            uuid primary key default gen_random_uuid(),
+  client_ref    uuid not null unique default gen_random_uuid(),
   internship_id uuid not null references public.internships(id) on delete cascade,
   student_id    uuid not null references public.profiles(id) on delete cascade,
   note          text not null,
   percent       int  not null check (percent between 0 and 100),
+  latitude      double precision,
+  longitude     double precision,
+  accuracy_m    double precision,
+  captured_at   timestamptz not null default now(),
   created_at    timestamptz not null default now()
 );
 
@@ -128,7 +133,8 @@ create policy "progress insert own" on public.progress_updates for insert to aut
   with check (
     student_id = auth.uid()
     and exists (select 1 from public.internships i
-                where i.id = internship_id and i.student_id = auth.uid())
+                where i.id = internship_id and i.student_id = auth.uid()
+                  and i.status = 'approved')
   );
 
 -- keep internships.progress in sync with the latest update

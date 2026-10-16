@@ -24,4 +24,4 @@ class FacultyDashboardRepositoryFactory {
       return MockFacultyDashboardRepository();
     }
   }
-}
+}

@@ -1,9 +1,4 @@
-enum ApprovalStatus {
-  pending,
-  underReview,
-  approved,
-  rejected,
-}
+enum ApprovalStatus { pending, underReview, approved, rejected }
 
 extension ApprovalStatusExtension on ApprovalStatus {
   String get value {
@@ -16,6 +11,19 @@ extension ApprovalStatusExtension on ApprovalStatus {
         return 'approved';
       case ApprovalStatus.rejected:
         return 'rejected';
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case ApprovalStatus.pending:
+        return 'Pending';
+      case ApprovalStatus.underReview:
+        return 'Under Review';
+      case ApprovalStatus.approved:
+        return 'Approved';
+      case ApprovalStatus.rejected:
+        return 'Rejected';
     }
   }
 }

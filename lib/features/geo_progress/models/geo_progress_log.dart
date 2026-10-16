@@ -4,8 +4,8 @@ class GeoProgressLog {
   final String internshipId;
   final int progressPercent;
   final String taskSummary;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final double? accuracyM;
   final DateTime capturedAt;
   final double? distanceFromSiteM;
@@ -31,23 +31,24 @@ class GeoProgressLog {
     id: j['id'] as String?,
     clientRef: j['client_ref'] as String,
     internshipId: j['internship_id'] as String,
-    progressPercent: j['progress_percent'] as int,
-    taskSummary: j['task_summary'] as String,
-    latitude: (j['latitude'] as num).toDouble(),
-    longitude: (j['longitude'] as num).toDouble(),
+    progressPercent: (j['progress_percent'] ?? j['percent']) as int,
+    taskSummary: (j['task_summary'] ?? j['note']) as String,
+    latitude: (j['latitude'] as num?)?.toDouble(),
+    longitude: (j['longitude'] as num?)?.toDouble(),
     accuracyM: (j['accuracy_m'] as num?)?.toDouble(),
-    capturedAt: DateTime.parse(j['captured_at'] as String),
+    capturedAt: DateTime.parse((j['captured_at'] ?? j['created_at']) as String),
     distanceFromSiteM: (j['distance_from_site_m'] as num?)?.toDouble(),
     withinGeofence: j['within_geofence'] as bool?,
     isPendingSync: j['is_pending_sync'] as bool? ?? false,
   );
 
-  /// Only client-owned fields; server computes geofence + student_id.
+  /// Uses the existing progress_updates table; student_id is added by the
+  /// service from the authenticated session, never from cached input.
   Map<String, dynamic> toInsertJson() => {
     'client_ref': clientRef,
     'internship_id': internshipId,
-    'progress_percent': progressPercent,
-    'task_summary': taskSummary,
+    'percent': progressPercent,
+    'note': taskSummary,
     'latitude': latitude,
     'longitude': longitude,
     'accuracy_m': accuracyM,

@@ -17,25 +17,15 @@ class IndustryInternshipModel {
     required this.evaluationStatus,
   });
 
-  factory IndustryInternshipModel.fromMap(
-    Map<String, dynamic> map,
-  ) {
+  factory IndustryInternshipModel.fromMap(Map<String, dynamic> map) {
     return IndustryInternshipModel(
       id: map['id']?.toString() ?? '',
-      studentName:
-          map['student_name']?.toString() ?? 'Student',
-      internshipTitle:
-          map['internship_title']?.toString() ??
-              'Internship',
-      status:
-          map['status']?.toString() ?? 'planned',
-      progress:
-          (map['progress'] as num?)?.toDouble() ?? 0,
-      itrStatus:
-          map['itr_status']?.toString() ?? 'draft',
-      evaluationStatus:
-          map['evaluation_status']?.toString() ??
-              'pending',
+      studentName: map['student_name']?.toString() ?? 'Student',
+      internshipTitle: map['internship_title']?.toString() ?? 'Internship',
+      status: map['status']?.toString() ?? 'planned',
+      progress: (map['progress'] as num?)?.toDouble() ?? 0,
+      itrStatus: map['itr_status']?.toString() ?? 'draft',
+      evaluationStatus: map['evaluation_status']?.toString() ?? 'pending',
     );
   }
 }

@@ -1,11 +1,12 @@
+
 import 'package:flutter/material.dart';
 
 import '../auth/data/auth_service.dart';
 import '../auth/models/app_user.dart';
 import '../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
 import '../faculty_tp/presentation/screens/tp_dashboard_screen.dart';
-import '../industry/presentation/screens/industry_dashboard_screen.dart';
-import '../../screens/student/student_shell.dart';
+import '../industry/presentation/screens/industry_shell.dart';
+import '../student/student_shell.dart';
 import 'coming_soon_screen.dart';
 
 /// Routes signed-in users to the dashboard for their role.
@@ -37,8 +38,11 @@ class _RoleHomeState extends State<RoleHome> {
       future: _future,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
+
         if (snap.hasError || !snap.hasData) {
           return Scaffold(
             body: Center(
@@ -49,7 +53,10 @@ class _RoleHomeState extends State<RoleHome> {
                   children: [
                     const Text('We could not load your profile.'),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: _retry, child: const Text('Try again')),
+                    FilledButton(
+                      onPressed: _retry,
+                      child: const Text('Try again'),
+                    ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () => AuthService().signOut(),
@@ -63,6 +70,7 @@ class _RoleHomeState extends State<RoleHome> {
         }
 
         final user = snap.data!;
+
         switch (user.role) {
           case 'student':
             return StudentShell(user: user);
@@ -71,7 +79,7 @@ class _RoleHomeState extends State<RoleHome> {
           case 'tnp':
             return const TpDashboardScreen();
           case 'industry':
-            return const IndustryDashboardScreen();
+            return IndustryShell(user: user);
           default:
             return ComingSoonScreen(user: user);
         }

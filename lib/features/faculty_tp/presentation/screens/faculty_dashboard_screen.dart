@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-import 'dashboard_feature_placeholder.dart';
+import '../../../approval/domain/entities/approval_review_stage.dart';
+import '../../../approval/presentation/screens/faculty_approval_dashboard_screen.dart';
+import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
+import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -46,7 +49,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
     }
 
     try {
-      final statistics = await _service.loadStatistics();
+      final statistics = await _service.loadStatistics(
+        stage: ApprovalReviewStage.faculty,
+      );
 
       if (!mounted) return;
 
@@ -98,11 +103,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const DashboardFeaturePlaceholder(
-                    title: 'Reports & Analytics',
-                  ),
-                ),
+                MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -279,15 +280,26 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     child: DashboardActionButton(
                       label: 'View Approvals',
                       icon: Icons.assignment_outlined,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const DashboardFeaturePlaceholder(
-                              title: 'Approvals',
+                      onPressed: () async {
+                        final profile = await AuthService()
+                            .getCurrentUserProfile();
+                        if (!context.mounted) return;
+                        if (profile?.role == AppRole.tpOfficer) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TpApprovalDashboardScreen(),
                             ),
-                          ),
-                        );
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const FacultyApprovalDashboardScreen(),
+                            ),
+                          );
+                        }
                       },
                     ),
                   ),
@@ -319,9 +331,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DashboardFeaturePlaceholder(
-                        title: 'Reports & Analytics',
-                      ),
+                      builder: (_) => const FacultyReportsScreen(),
                     ),
                   );
                 },

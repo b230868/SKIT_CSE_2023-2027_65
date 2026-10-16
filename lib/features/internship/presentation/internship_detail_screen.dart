@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/status_chip.dart';
+import '../../geo_progress/models/geo_progress_log.dart';
+import '../../geo_progress/services/geo_progress_service.dart';
 import '../data/internship_service.dart';
 import '../models/internship.dart';
 import 'internship_form_screen.dart';
@@ -20,13 +22,23 @@ class InternshipDetailScreen extends StatefulWidget {
 
 class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   final _service = InternshipService();
+  final _geoProgressService = GeoProgressService();
 
   Internship? _internship;
-  List<ProgressUpdate> _updates = [];
+  List<GeoProgressLog> _updates = [];
   List<InternshipDocument> _docs = [];
   bool _loading = true;
   bool _uploading = false;
+  bool _syncingProgress = false;
+  bool _submittingProgress = false;
   String? _error;
+  String? _progressError;
+
+  int get _currentProgress => _updates.fold<int>(
+    _internship?.progress ?? 0,
+    (current, update) =>
+        current > update.progressPercent ? current : update.progressPercent,
+  );
 
   @override
   void initState() {
@@ -36,9 +48,27 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
 
   Future<void> _load() async {
     try {
-      final internship = await _service.fetchOne(widget.internshipId);
-      final updates = await _service.fetchProgress(widget.internshipId);
-      final docs = await _service.fetchDocuments(widget.internshipId);
+      Internship internship;
+      try {
+        internship = await _service.fetchOne(widget.internshipId);
+      } catch (_) {
+        if (_internship == null) rethrow;
+        internship = _internship!;
+      }
+      List<InternshipDocument> docs;
+      try {
+        docs = await _service.fetchDocuments(widget.internshipId);
+      } catch (_) {
+        docs = _docs;
+      }
+      List<GeoProgressLog> updates;
+      String? progressError;
+      try {
+        updates = await _geoProgressService.fetchHistory(widget.internshipId);
+      } catch (error) {
+        updates = _updates;
+        progressError = error.toString();
+      }
       if (!mounted) return;
       setState(() {
         _internship = internship;
@@ -46,13 +76,40 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
         _docs = docs;
         _loading = false;
         _error = null;
+        _progressError = progressError;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not load this internship.';
+        if (_internship == null) _error = 'Could not load this internship.';
       });
+    }
+  }
+
+  Future<void> _syncProgress() async {
+    if (_syncingProgress) return;
+    setState(() => _syncingProgress = true);
+    try {
+      final result = await _geoProgressService.syncPendingProgress();
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      final firstFailure = result.failures.isEmpty
+          ? null
+          : result.failures.values.first;
+      setState(() {
+        _progressError = result.remainingCount == 0
+            ? null
+            : 'Synced ${result.syncedCount} update(s); '
+                  '${result.remainingCount} still waiting. '
+                  '${firstFailure ?? ''}';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _progressError = 'Could not sync progress: $error');
+    } finally {
+      if (mounted) setState(() => _syncingProgress = false);
     }
   }
 
@@ -88,7 +145,9 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     if (ok != true) return;
     try {
       await _service.delete(widget.internshipId);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (_) {
       if (mounted) {
         showSnack(context, 'Could not delete the application', error: true);
@@ -97,21 +156,30 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
+    if (_internship?.status != 'approved' || _submittingProgress) return;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _ProgressDialog(initial: _internship?.progress ?? 0),
+      builder: (_) => _ProgressDialog(initial: _currentProgress),
     );
-    if (result == null) return;
+    if (!mounted || result == null) return;
+    if ((result['percent'] as int) < _currentProgress) {
+      showSnack(
+        context,
+        'Progress cannot go below $_currentProgress%.',
+        error: true,
+      );
+      return;
+    }
+    setState(() => _submittingProgress = true);
     try {
       await _service.addProgress(
-        widget.internshipId,
-        result['note'] as String,
-        result['percent'] as int,
-      );
+          widget.internshipId, result['note'] as String, result['percent'] as int);
       if (mounted) showSnack(context, 'Progress updated');
       _load();
     } catch (_) {
       if (mounted) showSnack(context, 'Could not save the update', error: true);
+    } finally {
+      if (mounted) setState(() => _submittingProgress = false);
     }
   }
 
@@ -209,160 +277,161 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null || i == null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_error ?? 'Not found'),
-                  TextButton(onPressed: _load, child: const Text('Try again')),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-                children: [
-                  Row(
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          i.title,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.ink,
-                          ),
-                        ),
-                      ),
-                      StatusChip(status: i.status),
+                      Text(_error ?? 'Not found'),
+                      TextButton(onPressed: _load, child: const Text('Try again')),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    i.companyName,
-                    style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _InfoRow(
-                          'Duration',
-                          '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}',
-                        ),
-                        _InfoRow(
-                          'Work mode',
-                          i.mode[0].toUpperCase() + i.mode.substring(1),
-                        ),
-                        if (i.description != null && i.description!.isNotEmpty)
-                          _InfoRow('About', i.description!),
-                      ],
-                    ),
-                  ),
-                  _sectionHeader(
-                    'Progress',
-                    action: TextButton.icon(
-                      onPressed: _addProgress,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add update'),
-                    ),
-                  ),
-                  Row(
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
                     children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: i.progress / 100,
-                            minHeight: 10,
-                            backgroundColor: Colors.grey.shade200,
-                            color: AppTheme.saffron,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(i.title,
+                                style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.ink)),
                           ),
+                          StatusChip(status: i.status),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(i.companyName,
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _InfoRow('Duration',
+                                '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}'),
+                            _InfoRow('Work mode',
+                                i.mode[0].toUpperCase() + i.mode.substring(1)),
+                            if (i.description != null && i.description!.isNotEmpty)
+                              _InfoRow('About', i.description!),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${i.progress}%',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                      _sectionHeader(
+                        'Progress',
+                        action: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_updates.any((update) => update.isPendingSync))
+                              TextButton.icon(
+                                onPressed:
+                                    _syncingProgress ? null : _syncProgress,
+                                icon: _syncingProgress
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.sync),
+                                label: const Text('Sync'),
+                              ),
+                            TextButton.icon(
+                              onPressed:
+                                  _submittingProgress ? null : _addProgress,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add update'),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_updates.isEmpty)
-                    Text(
-                      'No updates yet. Add one when you finish a milestone.',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    )
-                  else
-                    ..._updates.map(
-                      (u) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: AppTheme.ink,
-                          child: Text(
-                            '${u.percent}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: i.progress / 100,
+                                minHeight: 10,
+                                backgroundColor: Colors.grey.shade200,
+                                color: AppTheme.saffron,
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(u.note),
-                        subtitle: Text(fmtDate(u.createdAt)),
+                          const SizedBox(width: 12),
+                          Text('${i.progress}%',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w800)),
+                        ],
                       ),
-                    ),
-                  _sectionHeader(
-                    'Documents',
-                    action: TextButton.icon(
-                      onPressed: _uploading ? null : _upload,
-                      icon: _uploading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.upload_file),
-                      label: Text(_uploading ? 'Uploading' : 'Upload'),
-                    ),
+                      const SizedBox(height: 12),
+                      if (_progressError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            _progressError!,
+                            style: TextStyle(color: Colors.red.shade700),
+                          ),
+                        ),
+                      if (_updates.isEmpty)
+                        Text('No updates yet. Add one when you finish a milestone.',
+                            style: TextStyle(color: Colors.grey.shade700))
+                      else
+                        ..._updates.map((u) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: AppTheme.ink,
+                                child: Text('${u.progressPercent}%',
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 12)),
+                              ),
+                              title: Text(u.taskSummary),
+                              subtitle: Text(
+                                '${fmtDate(u.capturedAt)}'
+                                '${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                              ),
+                            )),
+                      _sectionHeader('Documents',
+                          action: TextButton.icon(
+                            onPressed: _uploading ? null : _upload,
+                            icon: _uploading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.upload_file),
+                            label: Text(_uploading ? 'Uploading' : 'Upload'),
+                          )),
+                      if (_docs.isEmpty)
+                        Text('Upload your offer letter, certificate or reports here.',
+                            style: TextStyle(color: Colors.grey.shade700))
+                      else
+                        ..._docs.map((d) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.insert_drive_file_outlined),
+                              title: Text(d.fileName,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                              subtitle: Text('Added ${fmtDate(d.createdAt)}'),
+                              onTap: () => _openDoc(d),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _deleteDoc(d),
+                              ),
+                            )),
+                    ],
                   ),
-                  if (_docs.isEmpty)
-                    Text(
-                      'Upload your offer letter, certificate or reports here.',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    )
-                  else
-                    ..._docs.map(
-                      (d) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.insert_drive_file_outlined),
-                        title: Text(
-                          d.fileName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text('Added ${fmtDate(d.createdAt)}'),
-                        onTap: () => _openDoc(d),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _deleteDoc(d),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 }
@@ -439,6 +508,7 @@ class _ProgressDialogState extends State<_ProgressDialog> {
             TextField(
               controller: _note,
               maxLines: 3,
+              maxLength: 500,
               decoration: InputDecoration(
                 labelText: 'What did you complete?',
                 errorText: _error,
@@ -455,12 +525,16 @@ class _ProgressDialogState extends State<_ProgressDialog> {
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
           onPressed: () {
-            if (_note.text.trim().isEmpty) {
-              setState(() => _error = 'Describe what you completed');
+            final summary = _note.text.trim();
+            if (summary.length < 3 || summary.length > 500) {
+              setState(
+                () =>
+                    _error = 'Describe 3 to 500 characters of completed work.',
+              );
               return;
             }
             Navigator.pop(context, {
-              'note': _note.text.trim(),
+              'note': summary,
               'percent': _percent.round(),
             });
           },

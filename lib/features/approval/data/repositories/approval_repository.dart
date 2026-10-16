@@ -28,7 +28,5 @@ abstract class ApprovalRepository {
     ApprovalReviewStage? stage,
   });
 
-  Future<ApprovalRequestModel?> getApprovalRequestDetails(
-    String internshipId,
-  );
+  Future<ApprovalRequestModel?> getApprovalRequestDetails(String internshipId);
 }

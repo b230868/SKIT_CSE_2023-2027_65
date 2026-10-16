@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:prashikshan/features/approval/data/repositories/mock_approval_repository.dart';
 import 'package:prashikshan/features/approval/data/services/approval_repository_provider.dart';
 import 'package:prashikshan/features/approval/domain/entities/approval_review_stage.dart';
+import 'package:prashikshan/features/approval/domain/entities/approval_status.dart';
 import 'package:prashikshan/features/approval/presentation/screens/approval_list_screen.dart';
 
 void main() {
@@ -14,7 +15,9 @@ void main() {
     ApprovalRepositoryProvider.reset();
   });
 
-  testWidgets('ApprovalListScreen displays requests and search bar', (tester) async {
+  testWidgets('ApprovalListScreen displays requests and search bar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: ApprovalListScreen(
@@ -48,5 +51,25 @@ void main() {
 
     expect(find.widgetWithText(ListTile, 'Demo Student 2'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'Demo Student 1'), findsNothing);
+  });
+
+  testWidgets('ApprovalListScreen respects initialStatus filter', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ApprovalListScreen(
+          title: 'Faculty Approval Requests',
+          stage: ApprovalReviewStage.faculty,
+          initialStatus: ApprovalStatus.pending,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ListTile, 'Demo Student 1'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Demo Student 2'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Demo Student 3'), findsNothing);
   });
 }
