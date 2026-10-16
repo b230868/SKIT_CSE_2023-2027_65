@@ -87,6 +87,32 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     }
   }
 
+  Future<void> _syncProgress() async {
+    if (_syncingProgress) return;
+    setState(() => _syncingProgress = true);
+    try {
+      final result = await _geoProgressService.syncPendingProgress();
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      final firstFailure = result.failures.isEmpty
+          ? null
+          : result.failures.values.first;
+      setState(() {
+        _progressError = result.remainingCount == 0
+            ? null
+            : 'Synced ${result.syncedCount} update(s); '
+                  '${result.remainingCount} still waiting. '
+                  '${firstFailure ?? ''}';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _progressError = 'Could not sync progress: $error');
+    } finally {
+      if (mounted) setState(() => _syncingProgress = false);
+    }
+  }
+
   Future<void> _edit() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -152,6 +178,8 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       _load();
     } catch (_) {
       if (mounted) showSnack(context, 'Could not save the update', error: true);
+    } finally {
+      if (mounted) setState(() => _submittingProgress = false);
     }
   }
 
@@ -299,12 +327,35 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                           ],
                         ),
                       ),
-                      _sectionHeader('Progress',
-                          action: TextButton.icon(
-                            onPressed: _addProgress,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add update'),
-                          )),
+                      _sectionHeader(
+                        'Progress',
+                        action: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_updates.any((update) => update.isPendingSync))
+                              TextButton.icon(
+                                onPressed:
+                                    _syncingProgress ? null : _syncProgress,
+                                icon: _syncingProgress
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.sync),
+                                label: const Text('Sync'),
+                              ),
+                            TextButton.icon(
+                              onPressed:
+                                  _submittingProgress ? null : _addProgress,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add update'),
+                            ),
+                          ],
+                        ),
+                      ),
                       Row(
                         children: [
                           Expanded(
@@ -325,6 +376,14 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
+                      if (_progressError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            _progressError!,
+                            style: TextStyle(color: Colors.red.shade700),
+                          ),
+                        ),
                       if (_updates.isEmpty)
                         Text('No updates yet. Add one when you finish a milestone.',
                             style: TextStyle(color: Colors.grey.shade700))
@@ -333,12 +392,15 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                               contentPadding: EdgeInsets.zero,
                               leading: CircleAvatar(
                                 backgroundColor: AppTheme.ink,
-                                child: Text('${u.percent}',
+                                child: Text('${u.progressPercent}%',
                                     style: const TextStyle(
                                         color: Colors.white, fontSize: 12)),
                               ),
-                              title: Text(u.note),
-                              subtitle: Text(fmtDate(u.createdAt)),
+                              title: Text(u.taskSummary),
+                              subtitle: Text(
+                                '${fmtDate(u.capturedAt)}'
+                                '${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                              ),
                             )),
                       _sectionHeader('Documents',
                           action: TextButton.icon(

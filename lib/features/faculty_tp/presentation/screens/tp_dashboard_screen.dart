@@ -1,15 +1,10 @@
-<<<<<<< HEAD
-import '../../../approval/domain/entities/approval_review_stage.dart';
-import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
-import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
-
-=======
->>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-import 'dashboard_feature_placeholder.dart';
+import '../../../approval/domain/entities/approval_review_stage.dart';
+import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
+import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'faculty_dashboard_screen.dart';
 import 'student_monitoring_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -107,15 +102,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-<<<<<<< HEAD
                 MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
-=======
-                MaterialPageRoute(
-                  builder: (_) => const DashboardFeaturePlaceholder(
-                    title: 'Reports & Analytics',
-                  ),
-                ),
->>>>>>> origin/main
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -277,9 +264,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DashboardFeaturePlaceholder(
-                              title: 'Approvals',
-                            ),
+                            builder: (_) => const TpApprovalDashboardScreen(),
                           ),
                         );
                       },
@@ -313,9 +298,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DashboardFeaturePlaceholder(
-                        title: 'Reports & Analytics',
-                      ),
+                      builder: (_) => const FacultyReportsScreen(),
                     ),
                   );
                 },

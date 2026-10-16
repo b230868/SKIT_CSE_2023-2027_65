@@ -4,14 +4,14 @@ import '../models/notification_models.dart';
 
 abstract interface class NotificationDataSource {
   Future<List<AppNotification>> list();
-  Future<int> unreadCount();
+  Stream<List<AppNotification>> watch();
   Future<void> markRead(String id);
   Future<void> markAllRead();
 }
 
-/// UI-facing reads for this week's design pass.
-/// Automatic notification creation (on approval, new document, etc.)
-/// is wired up in the next milestone, once the interfaces are approved.
+/// Reads are the same as last week. New this week: a live stream so the
+/// bell badge and list update the moment a trigger inserts a row, with no
+/// manual refresh needed.
 class NotificationService implements NotificationDataSource {
   final SupabaseClient _db = Supabase.instance.client;
   String get _uid => _db.auth.currentUser!.id;
@@ -28,14 +28,16 @@ class NotificationService implements NotificationDataSource {
         .toList();
   }
 
+  /// Live list, newest first. Used by both the Notifications screen and
+  /// the bell badge so they never go stale.
   @override
-  Future<int> unreadCount() async {
-    final rows = await _db
+  Stream<List<AppNotification>> watch() {
+    return _db
         .from('notifications')
-        .select('id')
+        .stream(primaryKey: ['id'])
         .eq('user_id', _uid)
-        .eq('is_read', false);
-    return rows.length;
+        .order('created_at', ascending: false)
+        .map((rows) => rows.map((r) => AppNotification.fromMap(r)).toList());
   }
 
   @override

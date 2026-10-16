@@ -1,5 +1,3 @@
-import '../../../itr/data/repositories/itr_repository.dart';
-import '../../../itr/data/repositories/itr_repository_provider.dart';
 import '../models/industry_dashboard_data.dart';
 import '../models/industry_evaluation_model.dart';
 import '../models/industry_internship_model.dart';
@@ -8,15 +6,9 @@ import '../repositories/industry_repository_provider.dart';
 
 class IndustryService {
   final IndustryRepository _repository;
-  final ItrRepository? itrRepository;
 
-  IndustryService({
-    IndustryRepository? repository,
-    this.itrRepository,
-  }) : _repository = repository ?? industryRepository;
-
-  ItrRepository get _effectiveItrRepo =>
-      itrRepository ?? ItrRepositoryProvider.instance;
+  IndustryService({IndustryRepository? repository})
+    : _repository = repository ?? industryRepository;
 
   Future<List<IndustryInternshipModel>> getIndustryInternships() {
     return _repository.getIndustryInternships();
@@ -58,40 +50,6 @@ class IndustryService {
         .length;
 
     // 3. Compute real evaluation score average and grade distribution from available ITR records
-    double averageScore = 0.0;
-    final gradeDistribution = <String, int>{
-      'A+': 0,
-      'A': 0,
-      'B': 0,
-      'C': 0,
-      'D': 0,
-      'F': 0,
-    };
-    int evaluatedCount = 0;
-    double totalScoreSum = 0.0;
-
-    try {
-      final itrs = await _effectiveItrRepo.getIndustryItrs();
-      for (final itr in itrs) {
-        if (itr.evaluationScore != null && itr.evaluationScore! > 0) {
-          totalScoreSum += itr.evaluationScore!;
-          evaluatedCount++;
-        }
-        final grade = itr.evaluationGrade?.toUpperCase();
-        if (grade != null && gradeDistribution.containsKey(grade)) {
-          gradeDistribution[grade] = (gradeDistribution[grade] ?? 0) + 1;
-        }
-      }
-    } catch (_) {
-      // In case ITR service/repository is unreachable, leave evaluatedCount at 0
-    }
-
-    if (evaluatedCount > 0) {
-      averageScore = double.parse(
-        (totalScoreSum / evaluatedCount).toStringAsFixed(1),
-      );
-    }
-
     return IndustryAnalyticsData(
       industryName: dashboard.industryName,
       totalInterns: dashboard.totalInterns,
@@ -102,8 +60,8 @@ class IndustryService {
       approvedItrs: approvedItrs,
       pendingEvaluations: dashboard.pendingEvaluations,
       completedEvaluations: dashboard.completedEvaluations,
-      averageScore: averageScore,
-      gradeDistribution: gradeDistribution,
+      averageScore: null,
+      gradeDistribution: const {},
       progressBands: progressBands,
     );
   }
