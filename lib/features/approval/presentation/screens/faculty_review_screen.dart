@@ -34,6 +34,13 @@ class _FacultyReviewScreenState extends State<FacultyReviewScreen> {
 
     final remarks = _remarksController.text.trim();
 
+    if (_selectedStatus == ApprovalStatus.rejected && remarks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter remarks for rejection.')),
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -54,23 +61,40 @@ class _FacultyReviewScreenState extends State<FacultyReviewScreen> {
 
       final String message;
       if (error is UnauthenticatedException) {
-        message = 'Please sign in to submit reviews.';
+        message = 'Please sign in to submit a review.';
       } else if (error is UnauthorizedException) {
-        message = 'Your account does not have permission to submit reviews.';
+        message = 'You do not have permission to submit faculty reviews.';
       } else {
-        message = 'Unable to submit faculty review: $error';
+        message = 'Failed to submit review. Please try again.';
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-
-      setState(() {
-        _isSubmitting = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
-  String _statusLabel(ApprovalStatus status) => status.displayName;
+  String _statusLabel(ApprovalStatus status) {
+    switch (status) {
+      case ApprovalStatus.approved:
+        return 'Approved';
+      case ApprovalStatus.rejected:
+        return 'Rejected';
+      case ApprovalStatus.underReview:
+        return 'Under Review';
+      case ApprovalStatus.pending:
+        return 'Pending';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +156,9 @@ class _FacultyReviewScreenState extends State<FacultyReviewScreen> {
               ),
               validator: (value) =>
                   _selectedStatus == ApprovalStatus.rejected &&
-                      (value == null || value.trim().isEmpty)
-                  ? 'Please enter remarks for rejection.'
-                  : null,
+                          (value == null || value.trim().isEmpty)
+                      ? 'Please enter remarks for rejection.'
+                      : null,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

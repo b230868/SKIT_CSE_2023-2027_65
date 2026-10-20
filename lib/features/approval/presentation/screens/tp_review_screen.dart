@@ -34,6 +34,13 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
 
     final remarks = _remarksController.text.trim();
 
+    if (_selectedStatus == ApprovalStatus.rejected && remarks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter rejection remarks.')),
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -54,19 +61,25 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
 
       final String message;
       if (error is UnauthenticatedException) {
-        message = 'Please sign in to submit reviews.';
+        message = 'Please sign in to submit a decision.';
       } else if (error is UnauthorizedException) {
-        message = 'Your account does not have permission to submit reviews.';
+        message = 'You do not have permission to submit T&P decisions.';
       } else {
-        message = 'Unable to submit T&P decision: $error';
+        message = 'Failed to submit decision. Please try again.';
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-
-      setState(() {
-        _isSubmitting = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -135,9 +148,9 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
               ),
               validator: (value) =>
                   _selectedStatus == ApprovalStatus.rejected &&
-                      (value == null || value.trim().isEmpty)
-                  ? 'Please enter rejection remarks.'
-                  : null,
+                          (value == null || value.trim().isEmpty)
+                      ? 'Please enter rejection remarks.'
+                      : null,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../auth/data/auth_service.dart';
@@ -75,10 +74,15 @@ class _RoleHomeState extends State<RoleHome> {
           case 'student':
             return StudentShell(user: user);
           case 'faculty':
+          case 'faculty_mentor':
             return const FacultyDashboardScreen();
           case 'tnp':
+          case 'tp_officer':
             return const TpDashboardScreen();
+          case 'admin':
+            return ComingSoonScreen(user: user);
           case 'industry':
+          case 'industry_supervisor':
             return IndustryShell(user: user);
           default:
             return ComingSoonScreen(user: user);

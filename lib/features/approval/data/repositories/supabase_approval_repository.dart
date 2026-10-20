@@ -11,7 +11,7 @@ class SupabaseApprovalRepository implements ApprovalRepository {
   final SupabaseClient? _providedClient;
 
   SupabaseApprovalRepository({SupabaseClient? client})
-    : _providedClient = client;
+      : _providedClient = client;
 
   Future<T> _withAuthenticatedClient<T>(
     Future<T> Function(SupabaseClient client) action,
@@ -120,6 +120,23 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           .update({'status': status.value})
           .eq('id', review.internshipId);
     }
+
+    // Sync with ITR table if an ITR exists for this internship
+    try {
+      await client
+          .from('itrs')
+          .update({
+            'status':
+                status == ApprovalStatus.approved ? 'approved' : 'rejected',
+            'reviewed_at': DateTime.now().toIso8601String(),
+            'reviewer_id': currentUserId,
+            if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+          })
+          .eq('internship_id', review.internshipId);
+    } catch (_) {
+      // Non-blocking if ITR row does not exist for this internship
+    }
+
     return review;
   });
 
@@ -130,13 +147,13 @@ class SupabaseApprovalRepository implements ApprovalRepository {
   }) => _withAuthenticatedClient((client) async {
     final internships = await client
         .from('internships')
-        .select('id, student_id, title, company_name, status')
+        .select('id, student_id, title, internship_title, company_name, status')
         .order('created_at', ascending: false);
-    if (internships.isEmpty) return [];
+    if ((internships as List).isEmpty) return [];
 
     final internshipRows = internships
         .map<Map<String, dynamic>>(
-          (row) => Map<String, dynamic>.from(row),
+          (row) => Map<String, dynamic>.from(row as Map),
         )
         .toList();
     final internshipIds =
@@ -151,8 +168,8 @@ class SupabaseApprovalRepository implements ApprovalRepository {
         .select('id, full_name, enrollment_no')
         .inFilter('id', studentIds);
     final profileById = {
-      for (final profile in profiles)
-        profile['id'] as String: Map<String, dynamic>.from(profile),
+      for (final profile in profiles as List)
+        (profile as Map)['id'] as String: Map<String, dynamic>.from(profile),
     };
 
     final reviewRows = await client
@@ -161,9 +178,9 @@ class SupabaseApprovalRepository implements ApprovalRepository {
         .inFilter('internship_id', internshipIds)
         .order('created_at', ascending: false);
     final reviewsByInternship = <String, List<ApprovalReviewModel>>{};
-    for (final row in reviewRows) {
+    for (final row in reviewRows as List) {
       final review = ApprovalReviewModel.fromMap(
-        Map<String, dynamic>.from(row),
+        Map<String, dynamic>.from(row as Map),
       );
       reviewsByInternship
           .putIfAbsent(review.internshipId, () => [])
@@ -205,13 +222,19 @@ class SupabaseApprovalRepository implements ApprovalRepository {
       }
       if (status != null && stageStatus != status) continue;
 
+      final rawTitle = internship['internship_title'] ?? internship['title'];
+      final displayTitle =
+          (rawTitle != null && rawTitle.toString().trim().isNotEmpty)
+              ? rawTitle.toString().trim()
+              : 'Internship';
+
       requests.add(
         ApprovalRequestModel(
           internshipId: id,
           studentId: studentId,
           studentName: profile['full_name'] as String? ?? 'Unknown Student',
           rollNumber: profile['enrollment_no'] as String? ?? '',
-          internshipTitle: internship['title'] as String? ?? 'Internship',
+          internshipTitle: displayTitle,
           industryId: '',
           industryName:
               internship['company_name'] as String? ?? 'Unknown Company',

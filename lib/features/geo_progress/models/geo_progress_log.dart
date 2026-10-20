@@ -12,6 +12,10 @@ class GeoProgressLog {
   final bool? withinGeofence;
   final bool isPendingSync;
 
+  int get percent => progressPercent;
+  String get note => taskSummary;
+  DateTime get createdAt => capturedAt;
+
   const GeoProgressLog({
     this.id,
     required this.clientRef,

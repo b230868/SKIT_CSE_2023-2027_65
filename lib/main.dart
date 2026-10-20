@@ -10,16 +10,25 @@ import 'features/geo_progress/services/geo_progress_queue.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
   await Hive.openBox<Map>(GeoProgressQueue.boxName);
 
-  final supabaseUrl = SupabaseConfig.url;
-  final supabaseKey = SupabaseConfig.publishableKey;
+  await dotenv.load(fileName: '.env');
+
+  final supabaseUrl = SupabaseConfig.url.isNotEmpty
+      ? SupabaseConfig.url
+      : const String.fromEnvironment('SUPABASE_URL');
+  final supabaseKey = SupabaseConfig.publishableKey.isNotEmpty
+      ? SupabaseConfig.publishableKey
+      : const String.fromEnvironment(
+          'SUPABASE_PUBLISHABLE_KEY',
+          defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
+        );
+
   if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
     throw StateError(
-      'Provide SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (or the legacy '
-      'SUPABASE_ANON_KEY) in the local .env file.',
+      'Provide SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in .env file '
+      'or via --dart-define-from-file=.env.json before starting the app.',
     );
   }
 

@@ -7,7 +7,7 @@ void main() {
     await tester.pumpWidget(
       const PrashikshanApp(home: Scaffold(body: Text('Test home'))),
     );
-    expect(find.text('Test home'), findsOneWidget);
+
     expect(find.text('Test home'), findsOneWidget);
   });
 }
