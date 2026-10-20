@@ -341,7 +341,7 @@ class AuthService {
 
   static void showAuthDialog(
     BuildContext context, {
-    VoidCallback? onSessionChanged,
+    Future<void> Function()? onSessionChanged,
     bool routeAfterLogin = true,
   }) {
     final user = currentAuthUser;
@@ -370,7 +370,7 @@ class AuthService {
                 try {
                   await Supabase.instance.client.auth.signOut();
                 } catch (_) {}
-                onSessionChanged?.call();
+                await onSessionChanged?.call();
               },
               child: const Text('Sign Out'),
             ),
@@ -673,7 +673,7 @@ class AuthService {
 
                               if (!dialogCtx.mounted) return;
                               Navigator.pop(dialogCtx);
-                              onSessionChanged?.call();
+                              await onSessionChanged?.call();
 
                               if (routeAfterLogin &&
                                   context.mounted &&
@@ -706,7 +706,7 @@ class AuthService {
                               });
 
                               if (res.session != null) {
-                                onSessionChanged?.call();
+                                await onSessionChanged?.call();
                                 if (routeAfterLogin && context.mounted) {
                                   AuthService.navigateForRole(
                                     context,

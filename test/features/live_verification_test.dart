@@ -14,12 +14,15 @@ import 'package:prashikshan/features/faculty_tp/data/repositories/supabase_stude
 class TestHttpOverrides extends HttpOverrides {}
 
 void main() {
+  final runLiveTests = Platform.environment['RUN_LIVE_SUPABASE_TESTS'] == 'true';
+
   setUpAll(() async {
+    if (!runLiveTests) return;
     HttpOverrides.global = TestHttpOverrides();
     await dotenv.load(fileName: '.env');
   });
 
-  group('Live Supabase Backend Verification', () {
+  group('Live Supabase Backend Verification', skip: !runLiveTests, () {
     late final SupabaseClient client;
 
     setUpAll(() {

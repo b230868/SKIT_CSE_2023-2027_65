@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../models/notification_models.dart';
 import '../../services/report_service.dart';
 
-/// Interface design for the student's internship report.
-/// Export to PDF and date-range filters are planned once this layout
-/// is reviewed by the team.
+/// Implemented this week: the PDF export promised last week now works,
+/// using the same ReportSummary that draws the on-screen cards.
 class ReportsScreen extends StatefulWidget {
   final ReportDataSource? service;
-  const ReportsScreen({super.key, this.service});
+  final ReportPdfExporter? pdfExporter;
+  const ReportsScreen({super.key, this.service, this.pdfExporter});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -16,20 +16,41 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   late final ReportDataSource _service;
+  late final ReportPdfExporter _pdfExporter;
   late Future<ReportSummary> _future;
+  bool _exporting = false;
 
   @override
   void initState() {
     super.initState();
     _service = widget.service ?? ReportService();
+    _pdfExporter = widget.pdfExporter ?? PrintingReportPdfExporter();
     _future = _service.studentSummary();
   }
 
   Future<void> _refresh() async {
+    final future = _service.studentSummary();
     setState(() {
-      _future = _service.studentSummary();
+      _future = future;
     });
-    await _future.catchError((_) => ReportSummary.empty());
+    await future.then<void>((_) {}, onError: (Object _) {});
+  }
+
+  Future<void> _exportPdf(ReportSummary r) async {
+    setState(() => _exporting = true);
+    try {
+      await _pdfExporter.export(r);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not generate the PDF. Try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   @override
@@ -62,7 +83,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               );
             }
-            final r = s.data!;
+            final r = s.data ?? ReportSummary.empty();
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -122,16 +143,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'PDF export is coming once this layout is approved.',
-                      ),
-                    ),
+                FilledButton.icon(
+                  onPressed: _exporting ? null : () => _exportPdf(r),
+                  icon: _exporting
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined),
+                  label: Text(
+                    _exporting ? 'Preparing PDF...' : 'Export as PDF',
                   ),
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Export as PDF'),
                 ),
               ],
             );

@@ -16,6 +16,7 @@ class TpReviewScreen extends StatefulWidget {
 }
 
 class _TpReviewScreenState extends State<TpReviewScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _remarksController = TextEditingController();
 
   ApprovalStatus _selectedStatus = ApprovalStatus.approved;
@@ -29,6 +30,8 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
   }
 
   Future<void> _submitReview() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final remarks = _remarksController.text.trim();
 
     if (_selectedStatus == ApprovalStatus.rejected && remarks.isEmpty) {
@@ -58,19 +61,25 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
 
       final String message;
       if (error is UnauthenticatedException) {
-        message = 'Please sign in to submit reviews.';
+        message = 'Please sign in to submit a decision.';
       } else if (error is UnauthorizedException) {
-        message = 'Your account does not have permission to submit reviews.';
+        message = 'You do not have permission to submit T&P decisions.';
       } else {
-        message = 'Unable to submit T&P decision: $error';
+        message = 'Failed to submit decision. Please try again.';
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-
-      setState(() {
-        _isSubmitting = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -78,80 +87,87 @@ class _TpReviewScreenState extends State<TpReviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('T&P Review')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Faculty Approved Application',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            widget.request.studentName,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Text(widget.request.rollNumber),
-          const SizedBox(height: 20),
-          Text(
-            widget.request.internshipTitle,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          Text(widget.request.industryName),
-          const SizedBox(height: 24),
-          DropdownButtonFormField<ApprovalStatus>(
-            initialValue: _selectedStatus,
-            decoration: const InputDecoration(
-              labelText: 'T&P Decision',
-              border: OutlineInputBorder(),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              'Faculty Approved Application',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            items: const [
-              DropdownMenuItem(
-                value: ApprovalStatus.approved,
-                child: Text('Approved'),
+            const SizedBox(height: 20),
+            Text(
+              widget.request.studentName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(widget.request.rollNumber),
+            const SizedBox(height: 20),
+            Text(
+              widget.request.internshipTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Text(widget.request.industryName),
+            const SizedBox(height: 24),
+            DropdownButtonFormField<ApprovalStatus>(
+              initialValue: _selectedStatus,
+              decoration: const InputDecoration(
+                labelText: 'T&P Decision',
+                border: OutlineInputBorder(),
               ),
-              DropdownMenuItem(
-                value: ApprovalStatus.rejected,
-                child: Text('Rejected'),
+              items: const [
+                DropdownMenuItem(
+                  value: ApprovalStatus.approved,
+                  child: Text('Approved'),
+                ),
+                DropdownMenuItem(
+                  value: ApprovalStatus.rejected,
+                  child: Text('Rejected'),
+                ),
+              ],
+              onChanged: _isSubmitting
+                  ? null
+                  : (status) {
+                      if (status == null) return;
+                      setState(() {
+                        _selectedStatus = status;
+                      });
+                    },
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _remarksController,
+              maxLines: 5,
+              enabled: !_isSubmitting,
+              decoration: const InputDecoration(
+                labelText: 'Remarks',
+                hintText: 'Enter T&P remarks',
+                border: OutlineInputBorder(),
               ),
-            ],
-            onChanged: _isSubmitting
-                ? null
-                : (status) {
-                    if (status == null) return;
-
-                    setState(() {
-                      _selectedStatus = status;
-                    });
-                  },
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _remarksController,
-            maxLines: 5,
-            enabled: !_isSubmitting,
-            decoration: const InputDecoration(
-              labelText: 'Remarks',
-              hintText: 'Enter T&P remarks',
-              border: OutlineInputBorder(),
+              validator: (value) =>
+                  _selectedStatus == ApprovalStatus.rejected &&
+                          (value == null || value.trim().isEmpty)
+                      ? 'Please enter rejection remarks.'
+                      : null,
             ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _isSubmitting ? null : _submitReview,
-            icon: _isSubmitting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_circle),
-            label: Text(
-              _isSubmitting ? 'Submitting...' : 'Submit T&P Decision',
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _isSubmitting ? null : _submitReview,
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle),
+              label: Text(
+                _isSubmitting ? 'Submitting...' : 'Submit T&P Decision',
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
