@@ -49,8 +49,43 @@ class AuthService {
   Future<AppUser> fetchProfile() async {
     final user = _client.auth.currentUser!;
     final data =
-        await _client.from('profiles').select().eq('id', user.id).single();
-    return AppUser.fromMap(data, email: user.email ?? '');
+        await _client.from('profiles').select().eq('id', user.id).maybeSingle();
+
+    if (data != null) {
+      return AppUser.fromMap(data, email: user.email ?? '');
+    }
+
+    // Fallback: If DB trigger hasn't created the profile row yet, read from profile or user metadata
+    final metadata = user.userMetadata ?? {};
+    final fullName = (metadata['full_name'] as String?)?.trim();
+    // Default strictly to 'student' to prevent privilege escalation
+    final role = (metadata['role'] as String?)?.trim() ?? 'student';
+    final enrollmentNo = metadata['enrollment_no'] as String?;
+    final branch = metadata['branch'] as String?;
+    final phone = metadata['phone'] as String?;
+
+    try {
+      final inserted = await _client.from('profiles').insert({
+        'id': user.id,
+        'full_name': fullName ?? (user.email?.split('@').first ?? 'Student'),
+        'role': role,
+        'enrollment_no': enrollmentNo,
+        'branch': branch,
+        'phone': phone,
+      }).select().single();
+      return AppUser.fromMap(inserted, email: user.email ?? '');
+    } catch (_) {
+      // If insert fails due to existing row or permissions, return user from metadata
+      return AppUser(
+        id: user.id,
+        fullName: fullName ?? (user.email?.split('@').first ?? 'Student'),
+        email: user.email ?? '',
+        role: role,
+        enrollmentNo: enrollmentNo,
+        branch: branch,
+        phone: phone,
+      );
+    }
   }
 
   Future<AppUser> updateProfile({

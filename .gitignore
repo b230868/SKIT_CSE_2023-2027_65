@@ -1,4 +1,3 @@
-
 # Miscellaneous
 *.class
 *.log
@@ -15,13 +14,11 @@ migrate_working_dir/
 
 # Environment secrets
 .env
-<<<<<<< HEAD
 .env.*
 !.env.example
-
-=======
 .env.json
->>>>>>> origin/main
+!.env.json.example
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -54,16 +51,12 @@ app.*.map.json
 
 # Widget Preview
 .widget_preview/
-<<<<<<< HEAD
 
 # Local Supabase CLI metadata
 /supabase/.temp/
 
 # Existing project-specific exclusion
 prashikshan/
-=======
-prashikshan/
-.env
 
 # Flutter generated files
 linux/flutter/generated_plugin_registrant.cc
@@ -73,4 +66,3 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 windows/flutter/generated_plugin_registrant.cc
 windows/flutter/generated_plugin_registrant.h
 windows/flutter/generated_plugins.cmake
->>>>>>> origin/main
