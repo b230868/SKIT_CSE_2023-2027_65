@@ -20,10 +20,11 @@ void main() {
 
   const testUser = AppUser(
     id: 'industry-user-1',
-    fullName: 'Acme Corp Mentor',
-    email: 'mentor@acmewidgets.com',
+    fullName: 'Acme Corp Supervisor',
+    email: 'supervisor@acmewidgets.com',
     role: 'industry',
     phone: '+91 9876543210',
+    designation: 'Internship Coordinator',
   );
 
   group('IndustryShell System & Navigation E2E Tests', () {
@@ -55,10 +56,10 @@ void main() {
         expect(find.text('Internship Management'), findsOneWidget);
         expect(find.byType(TextField), findsOneWidget); // Search field
 
-        // Tap 'ITR Reviews' tab via destination icon
-        await tester.tap(find.byIcon(Icons.assignment_outlined));
+        // Tap 'Attendance' tab via destination icon
+        await tester.tap(find.byIcon(Icons.fact_check_outlined));
         await tester.pumpAndSettle();
-        expect(find.byType(ListView), findsWidgets);
+        expect(find.text('Attendance Management'), findsOneWidget);
 
         // Tap 'Reports' tab via destination icon
         await tester.tap(find.byIcon(Icons.bar_chart_outlined));
@@ -69,13 +70,17 @@ void main() {
         // Tap 'Profile' tab via destination icon
         await tester.tap(find.byIcon(Icons.person_outline));
         await tester.pumpAndSettle();
-        expect(find.text('mentor@acmewidgets.com'), findsOneWidget);
+        expect(find.text('supervisor@acmewidgets.com'), findsOneWidget);
+        expect(
+          find.text('Internship Coordinator'),
+          findsWidgets,
+        ); // Header & text field
         expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'quick action shortcuts on dashboard switch to the corresponding tabs',
+      'attendance shortcut on dashboard and bottom navigation switch to corresponding tabs',
       (tester) async {
         tester.view.physicalSize = const Size(800, 1400);
         tester.view.devicePixelRatio = 1.0;
@@ -88,39 +93,33 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        // On Dashboard, tap 'Review Student ITRs' quick action card
-        final reviewAction = find.widgetWithText(
-          ListTile,
-          'Review Student ITRs',
-        );
-        expect(reviewAction, findsOneWidget);
-        await tester.tap(reviewAction);
+        // On Dashboard, tap 'Attendance Pending' KPI card
+        final attendanceKpi = find.text('Attendance Pending');
+        expect(attendanceKpi, findsOneWidget);
+        await tester.tap(attendanceKpi);
         await tester.pumpAndSettle();
 
-        // Verify destination is now selected index 2 (ITR Reviews)
+        // Verify destination is now selected index 2 (Attendance)
         final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
         expect(navBar.selectedIndex, 2);
+        expect(find.text('Attendance Management'), findsOneWidget);
 
         // Switch back to Dashboard (index 0)
         await tester.tap(find.byIcon(Icons.dashboard_outlined));
         await tester.pumpAndSettle();
         expect(find.text('Industry Dashboard'), findsOneWidget);
 
-        // Tap 'View Reports & Analytics' quick action card
-        final reportsAction = find.widgetWithText(
-          ListTile,
-          'View Reports & Analytics',
+        // Tap 'Attendance' directly on bottom navigation bar
+        await tester.tap(
+          find.widgetWithText(NavigationDestination, 'Attendance'),
         );
-        expect(reportsAction, findsOneWidget);
-        await tester.tap(reportsAction);
         await tester.pumpAndSettle();
 
-        // Verify destination is now selected index 3 (Reports)
-        final navBarReports = tester.widget<NavigationBar>(
+        final navBarAttendance = tester.widget<NavigationBar>(
           find.byType(NavigationBar),
         );
-        expect(navBarReports.selectedIndex, 3);
-        expect(find.text('Internship Status Distribution'), findsOneWidget);
+        expect(navBarAttendance.selectedIndex, 2);
+        expect(find.text('Attendance Management'), findsOneWidget);
       },
     );
   });
