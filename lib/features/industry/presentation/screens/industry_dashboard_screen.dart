@@ -4,9 +4,8 @@ import 'package:prashikshan/features/industry/data/models/industry_dashboard_dat
 import 'package:prashikshan/features/industry/data/models/industry_internship_model.dart';
 import 'package:prashikshan/features/industry/data/services/industry_service.dart';
 
+import 'industry_attendance_screen.dart';
 import 'industry_internship_details_screen.dart';
-import 'industry_itr_list_screen.dart';
-import 'industry_reports_screen.dart';
 import 'internship_management_screen.dart';
 
 class IndustryDashboardScreen extends StatefulWidget {
@@ -166,7 +165,7 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Internship Partner Portal',
+                          'Company Supervisor Portal',
                           style: TextStyle(fontSize: 13, color: Colors.white70),
                         ),
                       ],
@@ -177,26 +176,91 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
             ),
           ),
 
+          if (data.industryName.isEmpty ||
+              data.industryName.toLowerCase().contains('unassigned') ||
+              data.industryName.toLowerCase().contains('unverified')) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade400),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.amber.shade900,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Company Assignment Pending',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'No verified company association is linked to your supervisor account. Intern records, attendance tracking, and evaluations remain restricted until an administrator assigns your company.',
+                          style: TextStyle(
+                            color: Colors.amber.shade900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
 
-          // Stat Cards Grid
+          // Primary KPI Stat Cards Row 1: Total Interns & Active Interns
           Row(
             children: [
+              Expanded(
+                child: _DashboardCard(
+                  title: 'Total Assigned',
+                  value: data.totalInterns.toString(),
+                  icon: Icons.groups_outlined,
+                  color: Colors.blueGrey,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InternshipManagementScreen(
+                        service: _service,
+                        initialFilter: 'all',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: _DashboardCard(
                   title: 'Active Interns',
                   value: data.activeInterns.toString(),
                   icon: Icons.people,
                   color: Colors.teal,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DashboardCard(
-                  title: 'ITR Pending',
-                  value: data.pendingItrs.toString(),
-                  icon: Icons.description,
-                  color: Colors.orange,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InternshipManagementScreen(
+                        service: _service,
+                        initialFilter: 'active',
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -204,14 +268,62 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
 
           const SizedBox(height: 12),
 
+          // KPI Stat Cards Row 2: Attendance Pending & Evaluations Due
           Row(
             children: [
+              Expanded(
+                child: _DashboardCard(
+                  title: 'Attendance Pending',
+                  value: data.pendingAttendance.toString(),
+                  icon: Icons.fact_check_outlined,
+                  color: Colors.orange,
+                  onTap: () => _navigateToTabOrScreen(
+                    2,
+                    IndustryAttendanceScreen(service: _service),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: _DashboardCard(
                   title: 'Evaluations Due',
                   value: data.pendingEvaluations.toString(),
                   icon: Icons.assignment_turned_in,
                   color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InternshipManagementScreen(
+                        service: _service,
+                        initialFilter: 'pending_eval',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // KPI Stat Cards Row 3: Certificates Pending & Completed
+          Row(
+            children: [
+              Expanded(
+                child: _DashboardCard(
+                  title: 'Certificates Pending',
+                  value: data.pendingCertificates.toString(),
+                  icon: Icons.workspace_premium_outlined,
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InternshipManagementScreen(
+                        service: _service,
+                        initialFilter: 'completed',
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -221,83 +333,34 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                   value: data.completedInternships.toString(),
                   icon: Icons.check_circle,
                   color: Colors.green,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InternshipManagementScreen(
+                        service: _service,
+                        initialFilter: 'completed',
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
-
-          // Quick Action Cards
-          const Text(
-            'Quick Actions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 12),
-
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0x1A14213D),
-                child: Icon(Icons.business_center, color: Color(0xFF14213D)),
-              ),
-              title: const Text('Manage Internships'),
-              subtitle: const Text('View and monitor all enrolled students'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () =>
-                  _navigateToTabOrScreen(1, const InternshipManagementScreen()),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0x1AE09F1F),
-                child: Icon(Icons.assignment, color: Color(0xFFE09F1F)),
-              ),
-              title: const Text('Review Student ITRs'),
-              subtitle: const Text('Inspect reports, ZIP projects & slides'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () =>
-                  _navigateToTabOrScreen(2, const IndustryItrListScreen()),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0x1A4CAF50),
-                child: Icon(Icons.bar_chart, color: Colors.green),
-              ),
-              title: const Text('View Reports & Analytics'),
-              subtitle: const Text(
-                'Performance metrics, charts & summary export',
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () =>
-                  _navigateToTabOrScreen(3, const IndustryReportsScreen()),
-            ),
-          ),
-
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Recent Interns Section
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Recent Interns',
+                'Assigned Interns',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               TextButton(
                 onPressed: () => _navigateToTabOrScreen(
                   1,
-                  const InternshipManagementScreen(),
+                  InternshipManagementScreen(service: _service),
                 ),
                 child: const Text('View All'),
               ),
@@ -341,6 +404,7 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                           MaterialPageRoute(
                             builder: (_) => IndustryInternshipDetailsScreen(
                               internship: internship,
+                              industryService: _service,
                             ),
                           ),
                         );
@@ -359,41 +423,51 @@ class _DashboardCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _DashboardCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withAlpha(25),
-                shape: BoxShape.circle,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: color),
               ),
-              child: Icon(icon, size: 28, color: color),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
         ),
       ),
     );
