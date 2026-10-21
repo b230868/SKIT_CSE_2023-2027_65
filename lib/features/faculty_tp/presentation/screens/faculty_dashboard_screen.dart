@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-<<<<<<< HEAD
 import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../../approval/presentation/screens/faculty_approval_dashboard_screen.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
-=======
-import 'dashboard_feature_placeholder.dart';
->>>>>>> origin/main
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -107,15 +103,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-<<<<<<< HEAD
                 MaterialPageRoute(builder: (_) => const FacultyReportsScreen()),
-=======
-                MaterialPageRoute(
-                  builder: (_) => const DashboardFeaturePlaceholder(
-                    title: 'Reports & Analytics',
-                  ),
-                ),
->>>>>>> origin/main
               );
             },
             icon: const Icon(Icons.bar_chart),
@@ -292,7 +280,6 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     child: DashboardActionButton(
                       label: 'View Approvals',
                       icon: Icons.assignment_outlined,
-<<<<<<< HEAD
                       onPressed: () async {
                         final profile = await AuthService()
                             .getCurrentUserProfile();
@@ -313,17 +300,6 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                             ),
                           );
                         }
-=======
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const DashboardFeaturePlaceholder(
-                              title: 'Approvals',
-                            ),
-                          ),
-                        );
->>>>>>> origin/main
                       },
                     ),
                   ),
@@ -355,9 +331,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DashboardFeaturePlaceholder(
-                        title: 'Reports & Analytics',
-                      ),
+                      builder: (_) => const FacultyReportsScreen(),
                     ),
                   );
                 },
