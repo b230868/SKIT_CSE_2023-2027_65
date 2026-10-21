@@ -145,7 +145,10 @@ class _IndustryItrListScreenState extends State<IndustryItrListScreen> {
                   Center(
                     child: Text(
                       'No student ITR submissions found.',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   SizedBox(height: 8),
@@ -237,7 +240,8 @@ class _IndustryItrListScreenState extends State<IndustryItrListScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          if (itr.content != null && itr.content!.trim().isNotEmpty)
+                          if (itr.content != null &&
+                              itr.content!.trim().isNotEmpty)
                             Text(
                               itr.content!,
                               maxLines: 2,

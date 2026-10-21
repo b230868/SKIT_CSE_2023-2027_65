@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../../../itr/data/models/itr_model.dart';
-import '../../../itr/data/services/itr_service.dart';
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
+import 'package:prashikshan/features/itr/data/models/itr_model.dart';
+import 'package:prashikshan/features/itr/data/services/itr_service.dart';
 
 class IndustryItrReviewScreen extends StatefulWidget {
   final ItrModel itr;
@@ -27,15 +27,44 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
   bool _submitting = false;
   late ItrModel _currentItr;
 
+  // Evaluation criteria scores (each out of 25, total out of 100)
+  double _technicalScore = 20.0;
+  double _workQualityScore = 20.0;
+  double _punctualityScore = 20.0;
+  double _presentationScore = 20.0;
+
+  String _certificateStatus = 'pending';
+
   @override
   void initState() {
     super.initState();
     _itrService = widget.itrService ?? ItrService();
     _currentItr = widget.itr;
-    _remarksController =
-        TextEditingController(text: widget.itr.remarks ?? '');
-    _reviewerNameController =
-        TextEditingController(text: widget.itr.reviewerName ?? 'Industry Supervisor');
+    _remarksController = TextEditingController(text: widget.itr.remarks ?? '');
+    _reviewerNameController = TextEditingController(
+      text: widget.itr.reviewerName ?? 'Industry Supervisor',
+    );
+    _certificateStatus = widget.itr.certificateStatus ?? 'pending';
+
+    _loadExistingEvaluation();
+  }
+
+  Future<void> _loadExistingEvaluation() async {
+    try {
+      final existing = await _itrService.getEvaluationByItrId(widget.itr.id);
+      if (existing != null && mounted) {
+        setState(() {
+          _technicalScore = existing.technicalScore;
+          _workQualityScore = existing.workQualityScore;
+          _punctualityScore = existing.punctualityScore;
+          _presentationScore = existing.presentationScore;
+          _certificateStatus = existing.certificateStatus;
+          if (existing.remarks.isNotEmpty && _remarksController.text.isEmpty) {
+            _remarksController.text = existing.remarks;
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -43,6 +72,23 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     _remarksController.dispose();
     _reviewerNameController.dispose();
     super.dispose();
+  }
+
+  double get _totalScore =>
+      (_technicalScore +
+              _workQualityScore +
+              _punctualityScore +
+              _presentationScore)
+          .clamp(0.0, 100.0);
+
+  String get _calculatedGrade {
+    final score = _totalScore;
+    if (score >= 90) return 'A+';
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'B';
+    if (score >= 60) return 'C';
+    if (score >= 50) return 'D';
+    return 'F';
   }
 
   String _formatStatus(String status) {
@@ -78,9 +124,8 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
 
   Future<void> _handleFileAction(String? filePath, String fileLabel) async {
     if (filePath == null || filePath.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No $fileLabel was uploaded.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('No $fileLabel was uploaded.')));
       return;
     }
 
@@ -105,17 +150,16 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Storage Path:\n$filePath',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                'Storage Path:\n$filePath',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               const SizedBox(height: 12),
               const Text('Secure signed URL generated (valid for 1 hour):'),
               const SizedBox(height: 8),
               SelectableText(
                 url,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.blue),
               ),
             ],
           ),
@@ -140,9 +184,8 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error accessing file: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error accessing file: $e')));
     }
   }
 
@@ -153,7 +196,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     if ((newStatus == 'rejected' || newStatus == 'changes_requested') &&
         remarks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Please provide remarks explaining why changes are requested or rejected.',
           ),
@@ -165,6 +208,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     setState(() => _submitting = true);
 
     try {
+      // 1. Submit review status & remarks
       await _itrService.reviewItr(
         itrId: _currentItr.id,
         status: newStatus,
@@ -172,34 +216,48 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
         reviewerName: reviewerName.isNotEmpty ? reviewerName : null,
       );
 
+      // 2. Persist formal evaluation rubrics & certificate verification
+      final evaluation = EvaluationModel(
+        id: 'eval-${_currentItr.id}',
+        itrId: _currentItr.id,
+        internshipId: _currentItr.internshipId,
+        studentId: _currentItr.studentId,
+        evaluatorId: '',
+        evaluatorName: reviewerName.isNotEmpty
+            ? reviewerName
+            : 'Industry Supervisor',
+        technicalScore: _technicalScore,
+        workQualityScore: _workQualityScore,
+        punctualityScore: _punctualityScore,
+        presentationScore: _presentationScore,
+        remarks: remarks,
+        certificateStatus: _certificateStatus,
+        certificateVerifiedAt: _certificateStatus == 'verified'
+            ? DateTime.now()
+            : null,
+        evaluatedAt: DateTime.now(),
+      );
+
+      await _itrService.saveEvaluation(evaluation);
+
       if (!mounted) return;
 
       setState(() {
-        _currentItr = ItrModel(
-          id: _currentItr.id,
-          internshipId: _currentItr.internshipId,
-          studentId: _currentItr.studentId,
-          studentName: _currentItr.studentName,
-          internshipTitle: _currentItr.internshipTitle,
-          companyName: _currentItr.companyName,
+        _currentItr = _currentItr.copyWith(
           status: newStatus,
-          content: _currentItr.content,
-          workDone: _currentItr.workDone,
-          technologiesUsed: _currentItr.technologiesUsed,
-          keyLearnings: _currentItr.keyLearnings,
-          challengesFaced: _currentItr.challengesFaced,
-          documentPath: _currentItr.documentPath,
-          projectZipPath: _currentItr.projectZipPath,
-          presentationPath: _currentItr.presentationPath,
-          submittedAt: _currentItr.submittedAt,
-          reviewerName: reviewerName,
           remarks: remarks,
+          reviewerName: reviewerName,
+          evaluationScore: _totalScore,
+          evaluationGrade: _calculatedGrade,
+          certificateStatus: _certificateStatus,
         );
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ITR review saved: ${_formatStatus(newStatus)}'),
+          content: Text(
+            'ITR evaluation saved: ${_formatStatus(newStatus)} (Grade: $_calculatedGrade)',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -207,9 +265,8 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update review: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Unable to update review: $e')));
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -222,7 +279,10 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     required String title,
     required String? value,
   }) {
-    final display = value == null || value.trim().isEmpty ? 'Not provided' : value;
+    final displayValue = value == null || value.trim().isEmpty
+        ? 'Not specified'
+        : value;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -230,7 +290,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
+            Icon(icon, color: const Color(0xFF14213D)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -244,7 +304,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(display, style: const TextStyle(fontSize: 14)),
+                  Text(displayValue, style: const TextStyle(fontSize: 14)),
                 ],
               ),
             ),
@@ -254,50 +314,73 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     );
   }
 
-  Widget _fileCard({
-    required IconData icon,
-    required String title,
-    required String? filePath,
+  Widget _buildCriterionSlider({
+    required String label,
+    required String description,
+    required double value,
+    required ValueChanged<double> onChanged,
   }) {
-    final hasFile = filePath != null && filePath.trim().isNotEmpty;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: Icon(icon, color: hasFile ? Colors.blue : Colors.grey),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-          hasFile ? filePath : 'No file uploaded by student',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: hasFile
-            ? TextButton.icon(
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Get Link'),
-                onPressed: () => _handleFileAction(filePath, title),
-              )
-            : const Chip(
-                label: Text('Missing', style: TextStyle(fontSize: 11)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
-      ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14213D).withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${value.toInt()} / 25',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          description,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        Slider(
+          value: value,
+          min: 0,
+          max: 25,
+          divisions: 25,
+          label: '${value.toInt()}',
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review Student ITR'),
-      ),
+      appBar: AppBar(title: const Text('Review Student ITR')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Student & Internship Header Card
             Card(
-              elevation: 2,
+              color: const Color(0xFF14213D),
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -305,11 +388,16 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                       children: [
                         CircleAvatar(
                           radius: 24,
+                          backgroundColor: const Color(0xFFE09F1F),
                           child: Text(
                             _currentItr.studentName.isNotEmpty
                                 ? _currentItr.studentName[0].toUpperCase()
                                 : 'S',
-                            style: const TextStyle(fontSize: 20),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -320,15 +408,17 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                               Text(
                                 _currentItr.studentName,
                                 style: const TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 19,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
+                              const SizedBox(height: 2),
                               Text(
                                 _currentItr.internshipTitle,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade700,
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
@@ -347,21 +437,23 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                         ),
                       ],
                     ),
-                    const Divider(height: 24),
+                    const Divider(color: Colors.white24, height: 28),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Company: ${_currentItr.companyName}',
-                            style: const TextStyle(fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          'Company: ${_currentItr.companyName}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Text(
                           'Submitted: ${_formatDate(_currentItr.submittedAt)}',
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -372,56 +464,96 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
 
             const SizedBox(height: 20),
 
+            // Attached Deliverables Section
             const Text(
-              'Student Deliverables & Documentation',
+              'Attached Deliverables',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 
-            _fileCard(
-              icon: Icons.folder_zip,
-              title: 'Project Source Code ZIP',
-              filePath: _currentItr.projectZipPath,
-            ),
-
-            _fileCard(
-              icon: Icons.slideshow,
-              title: 'Project Presentation (PPT)',
-              filePath: _currentItr.presentationPath,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x1A14213D),
+                        child: Icon(Icons.folder_zip, color: Color(0xFF14213D)),
+                      ),
+                      title: const Text('Project Source Code (ZIP)'),
+                      subtitle: Text(
+                        _currentItr.projectZipPath ?? 'No ZIP file attached',
+                      ),
+                      trailing: _currentItr.projectZipPath != null
+                          ? IconButton(
+                              icon: const Icon(Icons.download),
+                              tooltip: 'Get Download Link',
+                              onPressed: () => _handleFileAction(
+                                _currentItr.projectZipPath,
+                                'Project ZIP',
+                              ),
+                            )
+                          : null,
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x1AE09F1F),
+                        child: Icon(Icons.slideshow, color: Color(0xFFE09F1F)),
+                      ),
+                      title: const Text('Project Presentation (PPT)'),
+                      subtitle: Text(
+                        _currentItr.presentationPath ??
+                            'No presentation attached',
+                      ),
+                      trailing: _currentItr.presentationPath != null
+                          ? IconButton(
+                              icon: const Icon(Icons.download),
+                              tooltip: 'Get Download Link',
+                              onPressed: () => _handleFileAction(
+                                _currentItr.presentationPath,
+                                'Presentation',
+                              ),
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             const SizedBox(height: 20),
 
+            // Student ITR Work Details
             const Text(
-              'Internship Work & Learning Details',
+              'Student Submission Content',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 
             _infoCard(
-              icon: Icons.description,
-              title: 'Report Summary',
+              icon: Icons.article_outlined,
+              title: 'Work Summary',
               value: _currentItr.content,
             ),
-
-            _infoCard(
-              icon: Icons.work,
-              title: 'Work Completed',
-              value: _currentItr.workDone,
-            ),
-
+            if (_currentItr.workDone != null &&
+                _currentItr.workDone!.isNotEmpty)
+              _infoCard(
+                icon: Icons.assignment_turned_in_outlined,
+                title: 'Work Completed',
+                value: _currentItr.workDone,
+              ),
             _infoCard(
               icon: Icons.code,
               title: 'Technologies & Tools Used',
               value: _currentItr.technologiesUsed,
             ),
-
             _infoCard(
               icon: Icons.school,
               title: 'Key Learnings',
               value: _currentItr.keyLearnings,
             ),
-
             _infoCard(
               icon: Icons.psychology,
               title: 'Challenges Faced & Solutions',
@@ -430,11 +562,172 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
 
             const SizedBox(height: 24),
 
+            // User Story 3: Evaluation Criteria Rubric
             const Text(
-              'Supervisor Review & Evaluation Decision',
+              'Mentor Evaluation Rubric (100 Marks)',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Live Total Marks Header
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14213D).withAlpha(15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Total Evaluation Score',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                '${_totalScore.toInt()} / 100',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF14213D),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE09F1F),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Grade $_calculatedGrade',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    _buildCriterionSlider(
+                      label: '1. Technical Competency (25)',
+                      description: 'Domain mastery, engineering quality, architectural reasoning',
+                      value: _technicalScore,
+                      onChanged: (v) => setState(() => _technicalScore = v),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    _buildCriterionSlider(
+                      label: '2. Work Quality & Deliverables (25)',
+                      description: 'Adherence to specifications, completeness, bug-free delivery',
+                      value: _workQualityScore,
+                      onChanged: (v) => setState(() => _workQualityScore = v),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    _buildCriterionSlider(
+                      label: '3. Punctuality & Communication (25)',
+                      description: 'Timeliness, attendance, team collaboration, progress logging',
+                      value: _punctualityScore,
+                      onChanged: (v) => setState(() => _punctualityScore = v),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    _buildCriterionSlider(
+                      label: '4. Project Viva & Presentation (25)',
+                      description: 'Viva answers, presentation deck clarity, defense of project',
+                      value: _presentationScore,
+                      onChanged: (v) => setState(() => _presentationScore = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Certificate Verification Section
+            const Text(
+              'Certificate Verification',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified, color: Colors.teal),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Text(
+                        'Certificate Status:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                    DropdownButton<String>(
+                      value: _certificateStatus,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'pending',
+                          child: Text('Pending Audit'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'verified',
+                          child: Text('Verified & Signed'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'rejected',
+                          child: Text('Rejected / Incomplete'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _certificateStatus = v);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Supervisor Review Remarks & Submit Decision
+            const Text(
+              'Supervisor Decision & Remarks',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
 
             Card(
               elevation: 2,
@@ -446,7 +739,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                     TextField(
                       controller: _reviewerNameController,
                       decoration: const InputDecoration(
-                        labelText: 'Reviewer Name',
+                        labelText: 'Supervisor / Mentor Name',
                         prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
@@ -457,8 +750,7 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                       maxLines: 4,
                       decoration: const InputDecoration(
                         labelText: 'Review Remarks & Feedback',
-                        hintText:
-                            'Enter your evaluation remarks, feedback, or requested changes...',
+                        hintText: 'Enter your evaluation remarks, feedback, or requested changes...',
                         border: OutlineInputBorder(),
                         alignLabelWithHint: true,
                       ),
@@ -475,20 +767,37 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          InkWell(
+                            onTap: () => _submitReview('approved'),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                'Approve ITR',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.transparent,
+                                ),
+                              ),
+                            ),
+                          ),
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: Colors.green.shade700,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             icon: const Icon(Icons.check_circle),
-                            label: const Text('Approve ITR'),
+                            label: Text(
+                              'Approve & Evaluate (${_totalScore.toInt()}/100 - Grade $_calculatedGrade)',
+                            ),
                             onPressed: () => _submitReview('approved'),
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.deepOrange.shade800,
-                              side: BorderSide(color: Colors.deepOrange.shade600),
+                              side: BorderSide(
+                                color: Colors.deepOrange.shade600,
+                              ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             icon: const Icon(Icons.edit_note),
