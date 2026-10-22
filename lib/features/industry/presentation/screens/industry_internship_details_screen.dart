@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models/industry_internship_model.dart';
+import '../../data/services/industry_service.dart';
 
 class IndustryInternshipDetailsScreen extends StatelessWidget {
   final IndustryInternshipModel internship;
+  final IndustryService? industryService;
 
-  const IndustryInternshipDetailsScreen({super.key, required this.internship});
+  const IndustryInternshipDetailsScreen({
+    super.key,
+    required this.internship,
+    this.industryService,
+  });
 
   String _formatStatus(String value) {
     return value.replaceAll('_', ' ').toUpperCase();

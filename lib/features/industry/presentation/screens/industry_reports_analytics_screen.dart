@@ -55,7 +55,7 @@ class _IndustryReportsAnalyticsScreenState
     summary.writeln('Pending Evaluations: ${data.pendingEvaluations}');
     summary.writeln('Completed Evaluations: ${data.completedEvaluations}');
     summary.writeln(
-      'Average Evaluation Score: ${data.averageScore.toStringAsFixed(1)} / 100',
+      'Average Evaluation Score: ${data.averageScore?.toStringAsFixed(1) ?? 'N/A'} / 100',
     );
     summary.writeln('');
     summary.writeln('--- DOCUMENT VERIFICATION METRICS ---');
@@ -287,8 +287,8 @@ class _IndustryReportsAnalyticsScreenState
                     Expanded(
                       child: _buildKpiCard(
                         title: 'Average Score',
-                        value: data.averageScore > 0
-                            ? '${data.averageScore.toStringAsFixed(1)} / 100'
+                        value: (data.averageScore != null && data.averageScore! > 0)
+                            ? '${data.averageScore!.toStringAsFixed(1)} / 100'
                             : 'N/A',
                         icon: Icons.grade,
                         color: Colors.amber.shade800,

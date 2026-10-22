@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import '../models/itr_model.dart';
 import '../repositories/itr_repository.dart';
 import '../repositories/itr_repository_provider.dart';
@@ -77,5 +78,13 @@ class ItrService {
       remarks: remarks,
       reviewerName: reviewerName,
     );
+  }
+
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId) {
+    return repository.getEvaluationByItrId(itrId);
+  }
+
+  Future<void> saveEvaluation(EvaluationModel evaluation) {
+    return repository.saveEvaluation(evaluation);
   }
 }

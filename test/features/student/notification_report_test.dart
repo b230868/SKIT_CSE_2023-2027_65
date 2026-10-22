@@ -1,3 +1,4 @@
+import 'package:prashikshan/models/student_models.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -301,6 +302,15 @@ class _FakeNotificationService implements NotificationDataSource {
         .toList();
     _updates.add(notifications);
   }
+
+  @override
+  Future<void> delete(String id) async {
+    notifications.removeWhere((n) => n.id == id);
+    _updates.add(notifications);
+  }
+
+  @override
+  Future<Application?> applicationFor(String applicationId) async => null;
 }
 
 class _FakeReportService implements ReportDataSource {

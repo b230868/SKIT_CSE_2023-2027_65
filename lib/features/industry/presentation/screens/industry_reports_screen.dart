@@ -11,26 +11,19 @@ import 'industry_reports_analytics_screen.dart';
 
 class IndustryReportsScreen extends StatefulWidget {
   final IndustryService? industryService;
-
-  const IndustryReportsScreen({super.key, this.industryService});
-
-import 'package:flutter/material.dart';
-
-import '../../data/models/industry_evaluation_model.dart';
-import '../../data/services/industry_service.dart';
-
-class IndustryReportsScreen extends StatefulWidget {
   final IndustryService? service;
 
-  const IndustryReportsScreen({super.key, this.service});
-
+  const IndustryReportsScreen({
+    super.key,
+    this.industryService,
+    this.service,
+  });
 
   @override
   State<IndustryReportsScreen> createState() => _IndustryReportsScreenState();
 }
 
 class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
-
   late final IndustryService _industryService;
 
   bool _loading = true;
@@ -41,33 +34,19 @@ class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
 
   String _selectedStatusFilter = 'all';
 
-  late final IndustryService _service;
-  IndustryAnalyticsData? _data;
-  String? _error;
-  bool _loading = true;
-
-
   @override
   void initState() {
     super.initState();
-
-    _industryService = widget.industryService ?? IndustryService();
+    _industryService =
+        widget.industryService ?? widget.service ?? IndustryService();
     _loadReportData();
   }
 
   Future<void> _loadReportData() async {
-
-    _service = widget.service ?? IndustryService();
-    _load();
-  }
-
-  Future<void> _load() async {
-
     setState(() {
       _loading = true;
       _error = null;
     });
-
 
     try {
       final results = await Future.wait([
@@ -86,19 +65,6 @@ class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
-
-    try {
-      final data = await _service.getAnalyticsData();
-      if (!mounted) return;
-      setState(() {
-        _data = data;
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error.toString();
-
         _loading = false;
       });
     }

@@ -1,3 +1,4 @@
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import 'dart:typed_data';
 
 import '../models/itr_model.dart';
@@ -178,5 +179,29 @@ class MockItrRepository implements ItrRepository {
       reviewerName: reviewerName ?? existing.reviewerName ?? 'Industry Supervisor',
       remarks: remarks,
     );
+  }
+
+  final Map<String, EvaluationModel> _evaluations = {};
+
+  @override
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId) async {
+    return _evaluations[itrId];
+  }
+
+  @override
+  Future<void> saveEvaluation(EvaluationModel evaluation) async {
+    _evaluations[evaluation.itrId] = evaluation;
+    final index = _itrs.indexWhere((itr) => itr.id == evaluation.itrId);
+    if (index != -1) {
+      final existing = _itrs[index];
+      _itrs[index] = existing.copyWith(
+        status: 'approved',
+        evaluationScore: evaluation.totalScore,
+        evaluationGrade: evaluation.grade,
+        certificateStatus: evaluation.certificateStatus,
+        remarks: evaluation.remarks,
+        reviewerName: evaluation.evaluatorName,
+      );
+    }
   }
 }
