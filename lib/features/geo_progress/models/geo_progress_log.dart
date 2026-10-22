@@ -12,6 +12,10 @@ class GeoProgressLog {
   final bool? withinGeofence;
   final bool isPendingSync;
 
+  int get percent => progressPercent;
+  String get note => taskSummary;
+  DateTime get createdAt => capturedAt;
+
   const GeoProgressLog({
     this.id,
     required this.clientRef,
@@ -53,5 +57,12 @@ class GeoProgressLog {
     'longitude': longitude,
     'accuracy_m': accuracyM,
     'captured_at': capturedAt.toUtc().toIso8601String(),
+  };
+
+  Map<String, dynamic> toJson() => {
+    ...toInsertJson(),
+    'id': id,
+    'client_ref': clientRef,
+    'is_pending_sync': isPendingSync,
   };
 }

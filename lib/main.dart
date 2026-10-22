@@ -5,14 +5,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/auth_gate.dart';
 import 'core/config/supabase_config.dart';
+import 'core/storage/cache_service.dart';
 import 'core/theme.dart';
 import 'features/geo_progress/services/geo_progress_queue.dart';
+import 'features/geo_progress/services/offline_sync_coordinator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
   await Hive.openBox<Map>(GeoProgressQueue.boxName);
+  await CacheService.init();
 
   final supabaseUrl = SupabaseConfig.url;
   final supabaseKey = SupabaseConfig.publishableKey;
@@ -24,6 +27,7 @@ Future<void> main() async {
   }
 
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
+  OfflineSyncCoordinator().start();
   runApp(const PrashikshanApp());
 }
 
