@@ -6,8 +6,13 @@ import 'industry_internship_details_screen.dart';
 
 class InternshipManagementScreen extends StatefulWidget {
   final IndustryService? service;
+  final String? initialFilter;
 
-  const InternshipManagementScreen({super.key, this.service});
+  const InternshipManagementScreen({
+    super.key,
+    this.service,
+    this.initialFilter,
+  });
 
   @override
   State<InternshipManagementScreen> createState() =>
@@ -28,6 +33,9 @@ class _InternshipManagementScreenState
   @override
   void initState() {
     super.initState();
+    if (widget.initialFilter != null) {
+      _selectedFilter = widget.initialFilter!;
+    }
     _industryService = widget.service ?? IndustryService();
     _searchController = TextEditingController();
     _loadInternships();

@@ -1,3 +1,4 @@
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -450,5 +451,35 @@ class SupabaseItrRepository implements ItrRepository {
         .eq('id', itrId)
         .select('id')
         .single();
+  }
+
+  @override
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId) async {
+    try {
+      final res = await _client
+          .from('evaluations')
+          .select()
+          .eq('itr_id', itrId)
+          .maybeSingle();
+      if (res == null) return null;
+      return EvaluationModel.fromMap(res);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveEvaluation(EvaluationModel evaluation) async {
+    try {
+      await _client.from('evaluations').upsert(evaluation.toMap());
+      await _client.from('itrs').update({
+        'status': 'approved',
+        'remarks': evaluation.remarks,
+        'reviewer_name': evaluation.evaluatorName,
+        'evaluation_score': evaluation.totalScore,
+        'evaluation_grade': evaluation.grade,
+        'certificate_status': evaluation.certificateStatus,
+      }).eq('id', evaluation.itrId);
+    } catch (_) {}
   }
 }

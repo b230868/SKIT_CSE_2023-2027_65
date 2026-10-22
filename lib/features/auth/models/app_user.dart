@@ -6,6 +6,7 @@ class AppUser {
   final String? enrollmentNo;
   final String? branch;
   final String? phone;
+  final String? designation;
 
   const AppUser({
     required this.id,
@@ -15,6 +16,7 @@ class AppUser {
     this.enrollmentNo,
     this.branch,
     this.phone,
+    this.designation,
   });
 
   factory AppUser.fromMap(Map<String, dynamic> map, {required String email}) {
@@ -26,6 +28,7 @@ class AppUser {
       enrollmentNo: map['enrollment_no'] as String?,
       branch: map['branch'] as String?,
       phone: map['phone'] as String?,
+      designation: map['designation'] as String?,
     );
   }
 
