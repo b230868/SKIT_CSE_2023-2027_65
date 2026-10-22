@@ -172,12 +172,24 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     }
     setState(() => _submittingProgress = true);
     try {
-      await _service.addProgress(
-          widget.internshipId, result['note'] as String, result['percent'] as int);
-      if (mounted) showSnack(context, 'Progress updated');
-      _load();
-    } catch (_) {
-      if (mounted) showSnack(context, 'Could not save the update', error: true);
+      final update = await _geoProgressService.submitProgress(
+        internshipId: widget.internshipId,
+        taskSummary: result['note'] as String,
+        progressPercent: result['percent'] as int,
+      );
+      await _load();
+      if (mounted) {
+        showSnack(
+          context,
+          update.isPendingSync
+              ? 'Progress saved on this device and waiting to sync'
+              : 'Progress updated',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        showSnack(context, 'Could not save the update: $error', error: true);
+      }
     } finally {
       if (mounted) setState(() => _submittingProgress = false);
     }
@@ -228,7 +240,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
 
   Future<void> _deleteDoc(InternshipDocument doc) async {
     try {
-      await _service.deleteDocument(doc);
+      await _service.deleteDocument(doc, internshipId: widget.internshipId);
       _load();
     } catch (_) {
       if (mounted) {
@@ -277,161 +289,190 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null || i == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error ?? 'Not found'),
+                  TextButton(onPressed: _load, child: const Text('Try again')),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+                children: [
+                  Row(
                     children: [
-                      Text(_error ?? 'Not found'),
-                      TextButton(onPressed: _load, child: const Text('Try again')),
+                      Expanded(
+                        child: Text(
+                          i.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                      ),
+                      StatusChip(status: i.status),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(i.title,
-                                style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.ink)),
-                          ),
-                          StatusChip(status: i.status),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(i.companyName,
-                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                  const SizedBox(height: 4),
+                  Text(
+                    i.companyName,
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _InfoRow(
+                          'Duration',
+                          '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}',
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _InfoRow('Duration',
-                                '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}'),
-                            _InfoRow('Work mode',
-                                i.mode[0].toUpperCase() + i.mode.substring(1)),
-                            if (i.description != null && i.description!.isNotEmpty)
-                              _InfoRow('About', i.description!),
-                          ],
+                        _InfoRow(
+                          'Work mode',
+                          i.mode[0].toUpperCase() + i.mode.substring(1),
                         ),
-                      ),
-                      _sectionHeader(
-                        'Progress',
-                        action: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_updates.any((update) => update.isPendingSync))
-                              TextButton.icon(
-                                onPressed:
-                                    _syncingProgress ? null : _syncProgress,
-                                icon: _syncingProgress
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.sync),
-                                label: const Text('Sync'),
-                              ),
-                            TextButton.icon(
-                              onPressed:
-                                  _submittingProgress ? null : _addProgress,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add update'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: i.progress / 100,
-                                minHeight: 10,
-                                backgroundColor: Colors.grey.shade200,
-                                color: AppTheme.saffron,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text('${i.progress}%',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (_progressError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            _progressError!,
-                            style: TextStyle(color: Colors.red.shade700),
-                          ),
-                        ),
-                      if (_updates.isEmpty)
-                        Text('No updates yet. Add one when you finish a milestone.',
-                            style: TextStyle(color: Colors.grey.shade700))
-                      else
-                        ..._updates.map((u) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                backgroundColor: AppTheme.ink,
-                                child: Text('${u.progressPercent}%',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 12)),
-                              ),
-                              title: Text(u.taskSummary),
-                              subtitle: Text(
-                                '${fmtDate(u.capturedAt)}'
-                                '${u.isPendingSync ? ' • Waiting to sync' : ''}',
-                              ),
-                            )),
-                      _sectionHeader('Documents',
-                          action: TextButton.icon(
-                            onPressed: _uploading ? null : _upload,
-                            icon: _uploading
+                        if (i.description != null && i.description!.isNotEmpty)
+                          _InfoRow('About', i.description!),
+                      ],
+                    ),
+                  ),
+                  _sectionHeader(
+                    'Progress',
+                    action: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_updates.any((update) => update.isPendingSync))
+                          TextButton.icon(
+                            onPressed: _syncingProgress ? null : _syncProgress,
+                            icon: _syncingProgress
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.upload_file),
-                            label: Text(_uploading ? 'Uploading' : 'Upload'),
-                          )),
-                      if (_docs.isEmpty)
-                        Text('Upload your offer letter, certificate or reports here.',
-                            style: TextStyle(color: Colors.grey.shade700))
-                      else
-                        ..._docs.map((d) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.insert_drive_file_outlined),
-                              title: Text(d.fileName,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                              subtitle: Text('Added ${fmtDate(d.createdAt)}'),
-                              onTap: () => _openDoc(d),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: () => _deleteDoc(d),
-                              ),
-                            )),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.sync),
+                            label: const Text('Sync'),
+                          ),
+                        TextButton.icon(
+                          onPressed: _submittingProgress ? null : _addProgress,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add update'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _currentProgress / 100,
+                            minHeight: 10,
+                            backgroundColor: Colors.grey.shade200,
+                            color: AppTheme.saffron,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '$_currentProgress%',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  if (_progressError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _progressError!,
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ),
+                  if (_updates.isEmpty)
+                    Text(
+                      'No updates yet. Add one when you finish a milestone.',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    )
+                  else
+                    ..._updates.map(
+                      (u) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.ink,
+                          child: Text(
+                            '${u.progressPercent}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        title: Text(u.taskSummary),
+                        subtitle: Text(
+                          '${fmtDate(u.capturedAt)}'
+                          '${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                        ),
+                      ),
+                    ),
+                  _sectionHeader(
+                    'Documents',
+                    action: TextButton.icon(
+                      onPressed: _uploading ? null : _upload,
+                      icon: _uploading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.upload_file),
+                      label: Text(_uploading ? 'Uploading' : 'Upload'),
+                    ),
+                  ),
+                  if (_docs.isEmpty)
+                    Text(
+                      'Upload your offer letter, certificate or reports here.',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    )
+                  else
+                    ..._docs.map(
+                      (d) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.insert_drive_file_outlined),
+                        title: Text(
+                          d.fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text('Added ${fmtDate(d.createdAt)}'),
+                        onTap: () => _openDoc(d),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _deleteDoc(d),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
