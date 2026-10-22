@@ -68,7 +68,7 @@ class _StudentShellState extends State<StudentShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: _goTo,
+        onDestinationSelected: (i) => _goTo(i, reload: true),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.work_outline), selectedIcon: Icon(Icons.work), label: 'Internships'),
@@ -90,40 +90,91 @@ class _HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<_HomeTab> {
-  late final Future<List<Application>> _apps = StudentService().myApplications();
+  late Future<List<Application>> _apps;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _apps = StudentService().myApplications();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _load();
+    });
+    await _apps.catchError((_) => <Application>[]);
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final first = widget.user.firstName;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text('Hello, $first', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        const Text('Track your internships and applications in one place.'),
-        const SizedBox(height: 16),
-        FutureBuilder<List<Application>>(
-          future: _apps,
-          builder: (context, s) {
-            final list = s.data ?? const <Application>[];
-            int n(String st) => list.where((a) => a.status == st).length;
-            return Row(children: [
-              _Stat('Pending', n('pending')),
-              _Stat('Approved', n('approved')),
-              _Stat('Rejected', n('rejected')),
-            ]);
-          },
-        ),
-        const SizedBox(height: 16),
-        _Action(Icons.work_outline, 'Browse internships', 'See open positions and apply',
-            () => widget.onNavigate(1)),
-        _Action(Icons.assignment_outlined, 'My applications', 'Check status, documents and progress',
-            () => widget.onNavigate(2)),
-        _Action(Icons.bar_chart_outlined, 'My report', 'See your application and progress summary',
-            () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const ReportsScreen()))),
-      ],
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Hello, $first', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          const Text('Track your internships and applications in one place.'),
+          const SizedBox(height: 16),
+          FutureBuilder<List<Application>>(
+            future: _apps,
+            builder: (context, s) {
+              final list = s.data ?? const <Application>[];
+              int n(String st) => list
+                  .where((a) =>
+                      a.status.trim().toLowerCase() == st.trim().toLowerCase())
+                  .length;
+              return Row(children: [
+                _Stat(
+                  'Pending',
+                  n('pending'),
+                  onTap: () => widget.onNavigate(2),
+                ),
+                _Stat(
+                  'Approved',
+                  n('approved'),
+                  onTap: () => widget.onNavigate(2),
+                ),
+                _Stat(
+                  'Rejected',
+                  n('rejected'),
+                  onTap: () => widget.onNavigate(2),
+                ),
+              ]);
+            },
+          ),
+          const SizedBox(height: 16),
+          _Action(
+              Icons.work_outline,
+              'Browse internships',
+              'See open positions and apply',
+              () => widget.onNavigate(1)),
+          _Action(
+              Icons.assignment_outlined,
+              'My applications',
+              'Check status, documents and progress',
+              () => widget.onNavigate(2)),
+          _Action(
+              Icons.bar_chart_outlined,
+              'My report',
+              'See your application and progress summary',
+              () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReportsScreen()))),
+        ],
+      ),
     );
   }
 }
@@ -131,17 +182,22 @@ class _HomeTabState extends State<_HomeTab> {
 class _Stat extends StatelessWidget {
   final String label;
   final int value;
-  const _Stat(this.label, this.value);
+  final VoidCallback? onTap;
+  const _Stat(this.label, this.value, {this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(
         child: Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(children: [
-              Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-              Text(label),
-            ]),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(children: [
+                Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+                Text(label),
+              ]),
+            ),
           ),
         ),
       );

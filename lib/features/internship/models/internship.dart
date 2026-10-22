@@ -30,18 +30,20 @@ class Internship {
       id: m['id'] as String,
       studentId: m['student_id'] as String,
       companyName: m['company_name'] as String,
-      title: m['title'] as String,
+      title: (m['title'] ?? m['role'] ?? '') as String,
       description: m['description'] as String?,
       mode: (m['mode'] ?? 'onsite') as String,
       startDate: DateTime.parse(m['start_date'] as String),
       endDate: DateTime.parse(m['end_date'] as String),
-      status: (m['status'] ?? 'pending') as String,
+      status: (m['status'] ?? 'pending').toString().trim().toLowerCase(),
       progress: (m['progress'] ?? 0) as int,
-      createdAt: DateTime.parse(m['created_at'] as String),
+      createdAt: m['created_at'] != null
+          ? DateTime.parse(m['created_at'] as String)
+          : DateTime.now(),
     );
   }
 
-  bool get isEditable => status == 'pending';
+  bool get isEditable => status.toLowerCase() == 'pending';
 }
 
 class ProgressUpdate {
