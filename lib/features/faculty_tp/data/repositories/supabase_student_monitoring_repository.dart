@@ -8,7 +8,7 @@ import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
 
 class SupabaseStudentMonitoringRepository
-    implements StudentMonitoringRepository {
+    extends StudentMonitoringRepository {
   final SupabaseClient? _providedClient;
 
   SupabaseStudentMonitoringRepository({SupabaseClient? client})
@@ -638,5 +638,28 @@ class SupabaseStudentMonitoringRepository
         return null;
       }
     }
+  }
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {
+    final client = _client;
+    if (client == null) {
+      throw StateError('Supabase is not initialized.');
+    }
+
+    await client
+        .from('internship_documents')
+        .update({
+          'status': status,
+          'rejection_reason': status == 'rejected' ? rejectionReason : null,
+          'remarks': remarks,
+          'verified_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', documentId);
   }
 }

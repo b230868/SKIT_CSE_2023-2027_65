@@ -31,8 +31,11 @@ class StudentMonitoringService {
     String? rejectionReason,
     String? remarks,
   }) {
-    throw UnsupportedError(
-      'Document verification is not supported by the configured repository.',
+    return repository.verifyStudentDocument(
+      documentId: documentId,
+      status: status,
+      rejectionReason: rejectionReason,
+      remarks: remarks,
     );
   }
 }

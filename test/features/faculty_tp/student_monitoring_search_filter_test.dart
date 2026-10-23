@@ -7,7 +7,7 @@ import 'package:prashikshan/features/faculty_tp/data/repositories/student_monito
 import 'package:prashikshan/features/faculty_tp/presentation/screens/student_detail_screen.dart';
 import 'package:prashikshan/features/faculty_tp/presentation/screens/student_monitoring_screen.dart';
 
-class FilterTestRepository implements StudentMonitoringRepository {
+class FilterTestRepository extends StudentMonitoringRepository {
   final List<StudentMonitoringItem> students = [
     const StudentMonitoringItem(
       studentId: 'student-1',
@@ -92,6 +92,14 @@ class FilterTestRepository implements StudentMonitoringRepository {
     required String bucket,
     required String path,
   }) async => 'https://example.com/$bucket/$path';
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {}
 }
 
 void main() {

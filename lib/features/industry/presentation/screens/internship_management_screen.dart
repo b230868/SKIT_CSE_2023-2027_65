@@ -212,18 +212,6 @@ class _InternshipManagementScreenState
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                _buildFilterChip('all', 'All (${_allInternships.length})'),
-                const SizedBox(width: 8),
-                _buildFilterChip('active', 'Active'),
-                const SizedBox(width: 8),
-                _buildFilterChip('completed', 'Completed'),
-                const SizedBox(width: 8),
-                _buildFilterChip('pending_eval', 'Pending Eval'),
-                const SizedBox(width: 8),
-                _buildFilterChip('pending_itr', 'Pending ITR'),
-                const SizedBox(width: 8),
-                _buildFilterChip('planned', 'Planned'),
-                const SizedBox(width: 16),
                 ActionChip(
                   avatar: Icon(
                     _sortBy == 'progress' ? Icons.sort : Icons.sort_by_alpha,
@@ -238,6 +226,18 @@ class _InternshipManagementScreenState
                     });
                   },
                 ),
+                const SizedBox(width: 8),
+                _buildFilterChip('all', 'All (${_allInternships.length})'),
+                const SizedBox(width: 8),
+                _buildFilterChip('active', 'Active'),
+                const SizedBox(width: 8),
+                _buildFilterChip('completed', 'Completed'),
+                const SizedBox(width: 8),
+                _buildFilterChip('pending_eval', 'Pending Eval'),
+                const SizedBox(width: 8),
+                _buildFilterChip('pending_itr', 'Pending ITR'),
+                const SizedBox(width: 8),
+                _buildFilterChip('planned', 'Planned'),
               ],
             ),
           ),

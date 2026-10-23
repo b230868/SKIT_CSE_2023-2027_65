@@ -27,6 +27,7 @@ class _StudentMonitoringScreenState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _pendingApprovalsOnly = false;
+  final Map<String, String> _documentStatusOverrides = {};
 
   @override
   void initState() {
@@ -119,7 +120,9 @@ class _StudentMonitoringScreenState
           backgroundColor: status == 'approved' ? Colors.green : Colors.red,
         ),
       );
-      _loadStudents();
+      setState(() {
+        _documentStatusOverrides[documentId] = status;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -441,6 +444,21 @@ class _StudentMonitoringScreenState
                     ],
                   ),
                   const Divider(height: 20),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      Text(
+                        'ITR: ${(student.itrStatus ?? 'missing').toUpperCase()}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        student.hasCertificate
+                            ? 'Cert: Uploaded'
+                            : 'Cert: Missing',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
 
                   // Company Evaluation & Attendance Visibility for Faculty
                   Row(
@@ -567,7 +585,12 @@ class _StudentMonitoringScreenState
                       ),
                     )
                   else
-                    ...student.documents.map((doc) => _buildDocumentTile(doc)),
+                    ...student.documents.map(
+                      (doc) => _buildDocumentTile(
+                        doc,
+                        statusOverride: _documentStatusOverrides[doc.id],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -581,10 +604,16 @@ class _StudentMonitoringScreenState
     );
   }
 
-  Widget _buildDocumentTile(InternshipDocument doc) {
+  Widget _buildDocumentTile(
+    InternshipDocument doc, {
+    String? statusOverride,
+  }) {
+    final effectiveStatus = statusOverride ?? doc.status;
     Color indColor = Colors.orange;
-    if (doc.status == 'approved') indColor = Colors.green;
-    if (doc.status == 'rejected') indColor = Colors.red;
+    if (effectiveStatus == 'approved' || effectiveStatus == 'verified') {
+      indColor = Colors.green;
+    }
+    if (effectiveStatus == 'rejected') indColor = Colors.red;
 
     Color facColor = Colors.orange;
     if (doc.facultyStatus == 'approved') facColor = Colors.green;
@@ -682,7 +711,7 @@ class _StudentMonitoringScreenState
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        doc.status.toUpperCase(),
+                        effectiveStatus.toUpperCase(),
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: indColor),
                       ),
                     ),

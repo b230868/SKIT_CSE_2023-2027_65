@@ -6,7 +6,7 @@ import 'package:prashikshan/features/faculty_tp/data/repositories/student_monito
 import 'package:prashikshan/features/faculty_tp/data/repositories/student_monitoring_repository_factory.dart';
 import 'package:prashikshan/features/faculty_tp/presentation/screens/student_detail_screen.dart';
 
-class TestMockMonitoringRepo implements StudentMonitoringRepository {
+class TestMockMonitoringRepo extends StudentMonitoringRepository {
   final StudentMonitoringDetail? detailToReturn;
   final bool shouldThrow;
 
@@ -33,6 +33,14 @@ class TestMockMonitoringRepo implements StudentMonitoringRepository {
   }) async {
     return 'https://supabase.prashikshan.test/storage/v1/object/sign/$bucket/$path?token=mock_jwt';
   }
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {}
 }
 
 void main() {

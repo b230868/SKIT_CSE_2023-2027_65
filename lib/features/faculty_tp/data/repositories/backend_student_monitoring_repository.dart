@@ -5,7 +5,7 @@ import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
 
 class BackendStudentMonitoringRepository
-    implements StudentMonitoringRepository {
+    extends StudentMonitoringRepository {
   final ApiClient _apiClient;
 
   BackendStudentMonitoringRepository({ApiClient? apiClient})
@@ -127,5 +127,22 @@ class BackendStudentMonitoringRepository
     required String path,
   }) async {
     return '${_apiClient.baseUrl}/files/$bucket/$path';
+  }
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {
+    await _apiClient.patch(
+      '/monitoring/documents/$documentId',
+      body: {
+        'status': status,
+        'rejectionReason': rejectionReason,
+        'remarks': remarks,
+      },
+    );
   }
 }

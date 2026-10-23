@@ -3,7 +3,7 @@ import '../models/student_monitoring_detail.dart';
 import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
 
-class MockStudentMonitoringRepository implements StudentMonitoringRepository {
+class MockStudentMonitoringRepository extends StudentMonitoringRepository {
   @override
   Future<List<StudentMonitoringItem>> getStudents() async {
     await Future.delayed(const Duration(milliseconds: 100));
@@ -26,4 +26,12 @@ class MockStudentMonitoringRepository implements StudentMonitoringRepository {
   }) async {
     return 'https://example.com/files/$bucket/$path';
   }
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {}
 }
