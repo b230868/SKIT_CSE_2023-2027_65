@@ -31,10 +31,6 @@ class GeoProgressLog {
     this.isPendingSync = false,
   });
 
-  int get percent => progressPercent;
-  String get note => taskSummary;
-  DateTime get createdAt => capturedAt;
-
   factory GeoProgressLog.fromJson(Map<String, dynamic> j) => GeoProgressLog(
     id: j['id'] as String?,
     clientRef: j['client_ref'] as String,

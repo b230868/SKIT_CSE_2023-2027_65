@@ -254,20 +254,10 @@ class IndustryAnalyticsData {
   final Map<String, int> gradeDistribution;
   final Map<String, int> progressBands;
 
-  // Optional backward compatible fields (deprecated, not displayed in UI)
+  // Backward-compatible ITR counters used by older dashboard consumers.
   final int pendingItrs;
   final int submittedItrs;
   final int approvedItrs;
-
-
-  final int pendingItrs;
-  final int submittedItrs;
-  final int approvedItrs;
-  final int pendingEvaluations;
-  final int completedEvaluations;
-  final double? averageScore;
-  final Map<String, int> gradeDistribution;
-  final Map<String, int> progressBands;
 
 
   const IndustryAnalyticsData({
@@ -278,8 +268,8 @@ class IndustryAnalyticsData {
 
     this.pendingAttendance = 0,
     this.attendanceRate = 0.0,
-    required this.pendingEvaluations,
-    required this.completedEvaluations,
+    this.pendingEvaluations = 0,
+    this.completedEvaluations = 0,
     this.pendingCertificates = 0,
     this.issuedCertificates = 0,
     this.pendingOfferLetters = 0,
@@ -290,15 +280,5 @@ class IndustryAnalyticsData {
     this.pendingItrs = 0,
     this.submittedItrs = 0,
     this.approvedItrs = 0,
-
-    required this.pendingItrs,
-    required this.submittedItrs,
-    required this.approvedItrs,
-    required this.pendingEvaluations,
-    required this.completedEvaluations,
-    required this.averageScore,
-    required this.gradeDistribution,
-    required this.progressBands,
-
   });
 }

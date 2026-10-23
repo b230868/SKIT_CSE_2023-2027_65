@@ -7,6 +7,7 @@ import '../../../internship/models/internship.dart';
 import '../../data/models/student_monitoring_item.dart';
 import '../../data/repositories/student_monitoring_repository_factory.dart';
 import '../../data/services/student_monitoring_service.dart';
+import 'student_detail_screen.dart';
 
 class StudentMonitoringScreen extends StatefulWidget {
   const StudentMonitoringScreen({super.key});
@@ -23,6 +24,9 @@ class _StudentMonitoringScreenState
   List<StudentMonitoringItem> _students = [];
   bool _isLoading = true;
   String? _error;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _pendingApprovalsOnly = false;
 
   @override
   void initState() {
@@ -70,6 +74,25 @@ class _StudentMonitoringScreenState
         _isLoading = false;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<StudentMonitoringItem> get _filteredStudents {
+    final query = _searchQuery.toLowerCase();
+    return _students.where((student) {
+      final matchesQuery =
+          query.isEmpty ||
+          student.studentName.toLowerCase().contains(query) ||
+          (student.studentEmail?.toLowerCase().contains(query) ?? false) ||
+          (student.rollNumber?.toLowerCase().contains(query) ?? false);
+      return matchesQuery &&
+          (!_pendingApprovalsOnly || student.hasPendingApprovals);
+    }).toList();
   }
 
   Future<void> _verifyDocument({
@@ -268,21 +291,84 @@ class _StudentMonitoringScreenState
       );
     }
 
-    if (_students.isEmpty) {
-      return const Center(
-        child: Text('No students available'),
+    final filteredStudents = _filteredStudents;
+    if (filteredStudents.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No students match your filter criteria.'),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                _searchController.clear();
+                setState(() {
+                  _searchQuery = '';
+                  _pendingApprovalsOnly = false;
+                });
+              },
+              child: const Text('Reset All Filters'),
+            ),
+          ],
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadStudents,
-      child: ListView.builder(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search by student name, email, or roll no...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    ),
+            ),
+            onChanged: (value) =>
+                setState(() => _searchQuery = value.trim()),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FilterChip(
+              label: const Text('Pending Approvals'),
+              selected: _pendingApprovalsOnly,
+              onSelected: (selected) =>
+                  setState(() => _pendingApprovalsOnly = selected),
+            ),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadStudents,
+            child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _students.length,
+        itemCount: filteredStudents.length,
         itemBuilder: (context, index) {
-          final student = _students[index];
+          final student = filteredStudents[index];
 
-          return Card(
+          return InkWell(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => StudentDetailScreen(
+                  studentId: student.studentId,
+                  internshipId: student.internshipId,
+                  studentName: student.studentName,
+                ),
+              ),
+            ),
+            child: Card(
             margin: const EdgeInsets.only(bottom: 12),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -316,6 +402,20 @@ class _StudentMonitoringScreenState
                             if (student.companyName != null)
                               Text(
                                 student.companyName!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            if (student.rollNumber != null ||
+                                student.studentEmail != null)
+                              Text(
+                                [
+                                  if (student.rollNumber != null)
+                                    student.rollNumber!,
+                                  if (student.studentEmail != null)
+                                    student.studentEmail!,
+                                ].join(' • '),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade600,
@@ -464,9 +564,13 @@ class _StudentMonitoringScreenState
                 ],
               ),
             ),
+            ),
           );
         },
-      ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

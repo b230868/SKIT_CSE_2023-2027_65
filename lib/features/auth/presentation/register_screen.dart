@@ -149,20 +149,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       if (res.session == null) {
-        // Email confirmation is switched on in Supabase.
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Check your email'),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-              'We sent a confirmation link to ${_email.text.trim()}. Confirm it, then sign in.',
+              'Account created! Please check your email inbox to verify your account before signing in.',
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-            ],
           ),
         );
         Navigator.of(context).pop();
@@ -269,7 +260,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
-                          return 'Enter your email';
+                          return 'Enter your email address';
                         }
                         if (!v.contains('@') || !v.contains('.')) {
                           return 'Enter a valid email';

@@ -13,6 +13,7 @@ import '../repositories/industry_repository_provider.dart';
 
 class IndustryService {
   final IndustryRepository _repository;
+  final ItrRepository? itrRepository;
 
 
   IndustryService({IndustryRepository? repository, this.itrRepository})
@@ -20,9 +21,6 @@ class IndustryService {
 
   ItrRepository get _effectiveItrRepo =>
       itrRepository ?? ItrRepositoryProvider.instance;
-
-  IndustryService({IndustryRepository? repository})
-    : _repository = repository ?? industryRepository;
 
 
   Future<List<IndustryInternshipModel>> getIndustryInternships() {
@@ -206,12 +204,9 @@ class IndustryService {
     }
 
 
-    // 2. Count approved ITRs directly from real internship records
     final approvedItrs = internships
         .where((i) => i.itrStatus.toLowerCase() == 'approved')
         .length;
-
-    // 3. Compute real evaluation score average and grade distribution from available ITR records
 
     return IndustryAnalyticsData(
       industryName: dashboard.industryName,
@@ -229,13 +224,10 @@ class IndustryService {
       issuedOfferLetters: dashboard.issuedOfferLetters,
       averageScore: averageScore,
       gradeDistribution: gradeDistribution,
-
-      averageScore: null,
-      gradeDistribution: const {},
-
       progressBands: progressBands,
       pendingItrs: dashboard.pendingItrs,
       submittedItrs: dashboard.submittedItrs,
+      approvedItrs: approvedItrs,
     );
   }
 }
