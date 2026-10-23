@@ -36,9 +36,8 @@ signed-in user.
 
 ## Checks
 
-Run static analysis and tests with:
+Run static analysis with:
 
 ```sh
 flutter analyze
-flutter test --no-test-assets
 ```

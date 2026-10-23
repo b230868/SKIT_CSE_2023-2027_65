@@ -8,7 +8,12 @@ import '../../data/services/student_monitoring_service.dart';
 import 'student_detail_screen.dart';
 
 class StudentMonitoringScreen extends StatefulWidget {
-  const StudentMonitoringScreen({super.key});
+  final bool initialPendingApprovalsOnly;
+
+  const StudentMonitoringScreen({
+    super.key,
+    this.initialPendingApprovalsOnly = false,
+  });
 
   @override
   State<StudentMonitoringScreen> createState() =>
@@ -29,11 +34,12 @@ class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
   String _selectedInternshipStatus = 'All';
   String _selectedItrStatus = 'All';
   String _selectedCertStatus = 'All';
-  bool _pendingApprovalsOnly = false;
+  late bool _pendingApprovalsOnly;
 
   @override
   void initState() {
     super.initState();
+    _pendingApprovalsOnly = widget.initialPendingApprovalsOnly;
     _service = StudentMonitoringService(
       repository: StudentMonitoringRepositoryFactory.create(),
     );

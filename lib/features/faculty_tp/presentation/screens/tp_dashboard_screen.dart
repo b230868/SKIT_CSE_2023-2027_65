@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
 import '../../../approval/domain/entities/approval_review_stage.dart';
+import '../../../approval/domain/entities/approval_status.dart';
+import '../../../approval/presentation/screens/approval_list_screen.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
 import 'faculty_dashboard_screen.dart';
@@ -187,21 +189,67 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
         title: 'Pending Approvals',
         value: statistics.pendingApprovals,
         icon: Icons.pending_actions,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ApprovalListScreen(
+                title: 'Pending Approvals (T&P)',
+                stage: ApprovalReviewStage.tpAdmin,
+                initialStatus: ApprovalStatus.pending,
+              ),
+            ),
+          ).then((_) => _loadDashboard());
+        },
       ),
       DashboardStatItem(
         title: 'Approved Internships',
         value: statistics.approvedInternships,
         icon: Icons.check_circle_outline,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ApprovalListScreen(
+                title: 'Approved Internships (T&P)',
+                stage: ApprovalReviewStage.tpAdmin,
+                initialStatus: ApprovalStatus.approved,
+              ),
+            ),
+          ).then((_) => _loadDashboard());
+        },
       ),
       DashboardStatItem(
         title: 'Rejected Applications',
         value: statistics.rejectedApplications,
         icon: Icons.cancel_outlined,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ApprovalListScreen(
+                title: 'Rejected Applications (T&P)',
+                stage: ApprovalReviewStage.tpAdmin,
+                initialStatus: ApprovalStatus.rejected,
+              ),
+            ),
+          ).then((_) => _loadDashboard());
+        },
       ),
       DashboardStatItem(
         title: 'Students Requiring Review',
         value: statistics.studentsRequiringReview,
         icon: Icons.person_search,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const StudentMonitoringScreen(
+                initialPendingApprovalsOnly: true,
+              ),
+            ),
+          ).then((_) => _loadDashboard());
+        },
       ),
     ];
 
@@ -239,6 +287,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
                       (item) => DashboardStatCard(
                         title: item.title,
                         value: item.value,
+                        onTap: item.onTap,
                       ),
                     )
                     .toList(),

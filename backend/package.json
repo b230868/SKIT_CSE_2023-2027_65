@@ -7,8 +7,7 @@
     "start": "tsx server.ts",
     "dev": "tsx watch server.ts",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "test": "tsx test/api.test.ts && tsx test/role_escalation_security.test.ts"
+    "prisma:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",

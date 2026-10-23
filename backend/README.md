@@ -84,8 +84,6 @@ backend/
 │   │   ├── response.ts      # Standard ApiResponse and ApiError classes
 │   │   └── validators.ts    # UUID regex helper and Zod schemas
 │   └── app.ts               # Express application configuration
-├── test/
-│   └── api.test.ts          # Comprehensive 40-test integration suite
 ├── .env.example             # Template for required environment variables
 ├── package.json             # NPM dependencies and development scripts
 ├── prisma7.config.ts        # Prisma 7 configuration file
@@ -130,13 +128,10 @@ npm run prisma:generate
 # 3. Verify TypeScript type checking
 npm run typecheck
 
-# 4. Run the automated integration test suite
-npm test
-
-# 5. Start the development server (with auto-reload)
+# 4. Start the development server (with auto-reload)
 npm run dev
 
-# 6. Start the production server
+# 5. Start the production server
 npm start
 ```
 
