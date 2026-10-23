@@ -1,7 +1,9 @@
+
 import '../../../internship/models/internship.dart';
 import '../../../itr/data/repositories/itr_repository.dart';
 import '../../../itr/data/repositories/itr_repository_provider.dart';
 import '../models/industry_attendance_model.dart';
+
 import '../models/industry_dashboard_data.dart';
 import '../models/industry_evaluation_model.dart';
 import '../models/industry_internship_model.dart';
@@ -11,13 +13,17 @@ import '../repositories/industry_repository_provider.dart';
 
 class IndustryService {
   final IndustryRepository _repository;
-  final ItrRepository? itrRepository;
+
 
   IndustryService({IndustryRepository? repository, this.itrRepository})
     : _repository = repository ?? industryRepository;
 
   ItrRepository get _effectiveItrRepo =>
       itrRepository ?? ItrRepositoryProvider.instance;
+
+  IndustryService({IndustryRepository? repository})
+    : _repository = repository ?? industryRepository;
+
 
   Future<List<IndustryInternshipModel>> getIndustryInternships() {
     return _repository.getIndustryInternships();
@@ -132,6 +138,7 @@ class IndustryService {
       }
     }
 
+
     // 2. Compute evaluation score average and grade distribution from industry evaluations
     double averageScore = 0.0;
     final gradeDistribution = <String, int>{
@@ -198,6 +205,14 @@ class IndustryService {
       );
     }
 
+
+    // 2. Count approved ITRs directly from real internship records
+    final approvedItrs = internships
+        .where((i) => i.itrStatus.toLowerCase() == 'approved')
+        .length;
+
+    // 3. Compute real evaluation score average and grade distribution from available ITR records
+
     return IndustryAnalyticsData(
       industryName: dashboard.industryName,
       totalInterns: dashboard.totalInterns,
@@ -207,12 +222,17 @@ class IndustryService {
       attendanceRate: attendanceRate,
       pendingEvaluations: dashboard.pendingEvaluations,
       completedEvaluations: dashboard.completedEvaluations,
+
       pendingCertificates: dashboard.pendingCertificates,
       issuedCertificates: dashboard.issuedCertificates,
       pendingOfferLetters: dashboard.pendingOfferLetters,
       issuedOfferLetters: dashboard.issuedOfferLetters,
       averageScore: averageScore,
       gradeDistribution: gradeDistribution,
+
+      averageScore: null,
+      gradeDistribution: const {},
+
       progressBands: progressBands,
       pendingItrs: dashboard.pendingItrs,
       submittedItrs: dashboard.submittedItrs,

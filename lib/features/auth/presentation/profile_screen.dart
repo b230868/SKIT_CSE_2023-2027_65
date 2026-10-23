@@ -19,7 +19,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _auth = AuthService();
+  AuthService get _auth => AuthService();
   late final TextEditingController _name;
   late final TextEditingController _enrollment;
   late final TextEditingController _branch;

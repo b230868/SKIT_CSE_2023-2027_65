@@ -1,3 +1,4 @@
+
 class IndustryEvaluationModel {
   final String id;
   final String internshipId;
@@ -234,11 +235,13 @@ class IndustryVerificationModel {
   }
 }
 
+
 class IndustryAnalyticsData {
   final String industryName;
   final int totalInterns;
   final int activeInterns;
   final int completedInternships;
+
   final int pendingAttendance;
   final double attendanceRate;
   final int pendingEvaluations;
@@ -256,11 +259,23 @@ class IndustryAnalyticsData {
   final int submittedItrs;
   final int approvedItrs;
 
+
+  final int pendingItrs;
+  final int submittedItrs;
+  final int approvedItrs;
+  final int pendingEvaluations;
+  final int completedEvaluations;
+  final double? averageScore;
+  final Map<String, int> gradeDistribution;
+  final Map<String, int> progressBands;
+
+
   const IndustryAnalyticsData({
     required this.industryName,
     required this.totalInterns,
     required this.activeInterns,
     required this.completedInternships,
+
     this.pendingAttendance = 0,
     this.attendanceRate = 0.0,
     required this.pendingEvaluations,
@@ -275,5 +290,15 @@ class IndustryAnalyticsData {
     this.pendingItrs = 0,
     this.submittedItrs = 0,
     this.approvedItrs = 0,
+
+    required this.pendingItrs,
+    required this.submittedItrs,
+    required this.approvedItrs,
+    required this.pendingEvaluations,
+    required this.completedEvaluations,
+    required this.averageScore,
+    required this.gradeDistribution,
+    required this.progressBands,
+
   });
 }
