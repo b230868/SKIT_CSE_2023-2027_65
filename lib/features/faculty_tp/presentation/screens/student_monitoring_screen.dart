@@ -421,6 +421,13 @@ class _StudentMonitoringScreenState
                                   color: Colors.grey.shade600,
                                 ),
                               ),
+                            Text(
+                              '${student.progress}%',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),

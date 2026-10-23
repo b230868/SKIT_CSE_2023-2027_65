@@ -1,5 +1,6 @@
 import 'student_monitoring_detail.dart';
 import 'student_monitoring_item.dart';
+import '../../../internship/models/internship.dart';
 
 class MockStudentMonitoringData {
   static final List<StudentMonitoringItem> students = [
@@ -20,6 +21,19 @@ class MockStudentMonitoringData {
       certificateStatus: 'pending',
       progress: 60,
       hasPendingApprovals: true,
+      documents: [
+        InternshipDocument(
+          id: 'doc-001',
+          internshipId: 'internship-001',
+          docType: 'offer_letter',
+          fileName: 'Rahul_TechNova_OfferLetter.pdf',
+          filePath: 'documents/rahul-offer-letter.pdf',
+          status: 'approved',
+          verifiedByName: 'Rajesh Varma (Tech Lead)',
+          facultyStatus: 'pending',
+          createdAt: DateTime(2026, 8, 10),
+        ),
+      ],
     ),
     StudentMonitoringItem(
       studentId: 'student-002',

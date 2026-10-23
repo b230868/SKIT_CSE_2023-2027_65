@@ -422,6 +422,7 @@ class _InternshipManagementScreenState
                           runSpacing: 4,
                           children: [
                             _statusChip(internship.status),
+                            _statusChip(internship.itrStatus),
                             _statusChip(internship.evaluationStatus),
                             if (internship.certificateStatus != 'pending')
                               _statusChip(internship.certificateStatus),
