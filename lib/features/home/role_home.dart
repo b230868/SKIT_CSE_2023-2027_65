@@ -79,6 +79,7 @@ class _RoleHomeState extends State<RoleHome> {
           case 'tnp':
             return const TpDashboardScreen();
           case 'industry':
+          case 'industry_supervisor':
             return IndustryShell(user: user);
           default:
             return ComingSoonScreen(user: user);

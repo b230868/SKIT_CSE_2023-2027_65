@@ -49,7 +49,14 @@ class _StudentShellState extends State<StudentShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() {
+            if (i == 0 && _index != 0) {
+              _version++;
+            }
+            _index = i;
+          });
+        },
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),

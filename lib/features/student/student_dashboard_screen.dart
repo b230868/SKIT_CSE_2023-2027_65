@@ -7,6 +7,7 @@ import '../auth/models/app_user.dart';
 import '../internship/data/internship_service.dart';
 import '../internship/models/internship.dart';
 import '../internship/presentation/internship_detail_screen.dart';
+import '../internship/presentation/internship_form_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   final AppUser user;
@@ -38,6 +39,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       _future = f;
     });
     await f;
+  }
+
+  Future<void> _openApplyForm() async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const InternshipFormScreen()),
+    );
+    if (res == true || mounted) {
+      await _reload();
+    }
   }
 
   @override
@@ -132,9 +142,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       children: [
                         const Text('No internships yet'),
                         const SizedBox(height: 12),
-                        FilledButton(
-                            onPressed: widget.onApply,
-                            child: const Text('Apply for an internship')),
+                        FilledButton.icon(
+                            onPressed: _openApplyForm,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Apply for an internship')),
                       ],
                     ),
                   )
@@ -167,6 +178,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openApplyForm,
+        icon: const Icon(Icons.add),
+        label: const Text('Apply'),
       ),
     );
   }

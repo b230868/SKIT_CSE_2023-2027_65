@@ -2,7 +2,7 @@ import 'student_monitoring_detail.dart';
 import 'student_monitoring_item.dart';
 
 class MockStudentMonitoringData {
-  static const List<StudentMonitoringItem> students = [
+  static final List<StudentMonitoringItem> students = [
     StudentMonitoringItem(
       studentId: 'student-001',
       studentName: 'Demo Student 1',

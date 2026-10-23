@@ -1,3 +1,4 @@
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,8 +11,13 @@ import 'industry_reports_analytics_screen.dart';
 
 class IndustryReportsScreen extends StatefulWidget {
   final IndustryService? industryService;
+  final IndustryService? service;
 
-  const IndustryReportsScreen({super.key, this.industryService});
+  const IndustryReportsScreen({
+    super.key,
+    this.industryService,
+    this.service,
+  });
 
   @override
   State<IndustryReportsScreen> createState() => _IndustryReportsScreenState();
@@ -31,7 +37,8 @@ class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
   @override
   void initState() {
     super.initState();
-    _industryService = widget.industryService ?? IndustryService();
+    _industryService =
+        widget.industryService ?? widget.service ?? IndustryService();
     _loadReportData();
   }
 

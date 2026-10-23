@@ -40,13 +40,18 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     super.initState();
 
     _contentController = TextEditingController(text: widget.itr.content ?? '');
-    _workDoneController = TextEditingController(text: widget.itr.workDone ?? '');
-    _technologiesController =
-        TextEditingController(text: widget.itr.technologiesUsed ?? '');
-    _learningsController =
-        TextEditingController(text: widget.itr.keyLearnings ?? '');
-    _challengesController =
-        TextEditingController(text: widget.itr.challengesFaced ?? '');
+    _workDoneController = TextEditingController(
+      text: widget.itr.workDone ?? '',
+    );
+    _technologiesController = TextEditingController(
+      text: widget.itr.technologiesUsed ?? '',
+    );
+    _learningsController = TextEditingController(
+      text: widget.itr.keyLearnings ?? '',
+    );
+    _challengesController = TextEditingController(
+      text: widget.itr.challengesFaced ?? '',
+    );
   }
 
   @override
@@ -59,6 +64,9 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     super.dispose();
   }
 
+  static const int _maxZipBytes = 50 * 1024 * 1024; // 50 MB
+  static const int _maxPptBytes = 25 * 1024 * 1024; // 25 MB
+
   Future<void> _pickProjectZip() async {
     try {
       final result = await FilePicker.pickFiles(
@@ -70,6 +78,19 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
       final file = result.single;
       final Uint8List bytes = await file.readAsBytes();
+
+      if (bytes.lengthInBytes > _maxZipBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ZIP file exceeds the maximum allowed size of 50 MB.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       if (!mounted) return;
 
@@ -97,6 +118,19 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
       final file = result.single;
       final Uint8List bytes = await file.readAsBytes();
+
+      if (bytes.lengthInBytes > _maxPptBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Presentation exceeds the maximum allowed size of 25 MB.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       if (!mounted) return;
 
@@ -325,8 +359,7 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
                 maxLines: 5,
                 decoration: const InputDecoration(
                   labelText: 'Internship Work Details / Summary *',
-                  hintText:
-                      'Describe the work you completed, technologies used, features developed, learning outcomes, and your contribution...',
+                  hintText: 'Describe the work you completed, technologies used, features developed, learning outcomes, and your contribution...',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),

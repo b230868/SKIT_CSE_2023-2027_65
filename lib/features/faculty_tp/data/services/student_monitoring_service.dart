@@ -24,4 +24,15 @@ class StudentMonitoringService {
   }) async {
     return repository.getFileUrl(bucket: bucket, path: path);
   }
+
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) {
+    throw UnsupportedError(
+      'Document verification is not supported by the configured repository.',
+    );
+  }
 }

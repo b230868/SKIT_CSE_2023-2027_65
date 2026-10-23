@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
+
 import '../models/itr_model.dart';
 import 'itr_repository.dart';
 
@@ -20,6 +22,7 @@ class MockItrRepository implements ItrRepository {
       challengesFaced:
           'Managing API integration and handling application states.',
       submittedAt: DateTime(2026, 8, 28),
+      certificateStatus: 'pending',
     ),
     ItrModel(
       id: 'itr-002',
@@ -35,6 +38,9 @@ class MockItrRepository implements ItrRepository {
       keyLearnings: 'Data cleaning and business analysis.',
       challengesFaced: 'Handling incomplete datasets.',
       submittedAt: DateTime(2026, 8, 29),
+      certificateStatus: 'verified',
+      evaluationScore: 90.0,
+      evaluationGrade: 'A+',
     ),
     const ItrModel(
       id: 'itr-003',
@@ -44,8 +50,27 @@ class MockItrRepository implements ItrRepository {
       internshipTitle: 'Flutter Development Intern',
       companyName: 'Tech Company',
       status: 'draft',
+      certificateStatus: 'pending',
     ),
   ];
+
+  final Map<String, EvaluationModel> _evaluations = {
+    'itr-002': EvaluationModel(
+      id: 'eval-002',
+      itrId: 'itr-002',
+      internshipId: 'internship-002',
+      studentId: 'student-002',
+      evaluatorId: 'evaluator-001',
+      evaluatorName: 'Industry Supervisor',
+      technicalScore: 22,
+      workQualityScore: 23,
+      punctualityScore: 24,
+      presentationScore: 21,
+      remarks: 'Consistently delivered quality work throughout the internship.',
+      certificateStatus: 'verified',
+      evaluatedAt: DateTime(2026, 9, 1),
+    ),
+  };
 
   @override
   Future<List<ItrModel>> getItrs() async {
@@ -80,26 +105,7 @@ class MockItrRepository implements ItrRepository {
 
     final existingItr = _itrs[index];
 
-    _itrs[index] = ItrModel(
-      id: existingItr.id,
-      internshipId: existingItr.internshipId,
-      studentId: existingItr.studentId,
-      studentName: existingItr.studentName,
-      internshipTitle: existingItr.internshipTitle,
-      companyName: existingItr.companyName,
-      status: status,
-      content: existingItr.content,
-      workDone: existingItr.workDone,
-      technologiesUsed: existingItr.technologiesUsed,
-      keyLearnings: existingItr.keyLearnings,
-      challengesFaced: existingItr.challengesFaced,
-      documentPath: existingItr.documentPath,
-      projectZipPath: existingItr.projectZipPath,
-      presentationPath: existingItr.presentationPath,
-      submittedAt: existingItr.submittedAt,
-      reviewerName: existingItr.reviewerName,
-      remarks: existingItr.remarks,
-    );
+    _itrs[index] = existingItr.copyWith(status: status);
   }
 
   @override
@@ -108,7 +114,15 @@ class MockItrRepository implements ItrRepository {
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    return 'mock/$itrId/project/$fileName';
+    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final path = 'mock/$itrId/project/$fileName';
+
+    if (index != -1) {
+      final existingItr = _itrs[index];
+      _itrs[index] = existingItr.copyWith(projectZipPath: path);
+    }
+
+    return path;
   }
 
   @override
@@ -117,12 +131,20 @@ class MockItrRepository implements ItrRepository {
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    return 'mock/$itrId/presentation/$fileName';
+    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final path = 'mock/$itrId/presentation/$fileName';
+
+    if (index != -1) {
+      final existingItr = _itrs[index];
+      _itrs[index] = existingItr.copyWith(presentationPath: path);
+    }
+
+    return path;
   }
 
   @override
   Future<String?> getFileUrl(String filePath) async {
-    return filePath;
+    return 'https://example.com/mock-storage/$filePath';
   }
 
   @override
@@ -130,18 +152,18 @@ class MockItrRepository implements ItrRepository {
 
   @override
   Future<List<ItrModel>> getIndustryItrs() async {
-    await Future.delayed(const Duration(milliseconds: 300));
     return List.unmodifiable(_itrs);
   }
 
   @override
   Future<ItrModel?> getItrByInternshipId(String internshipId) async {
-    await Future.delayed(const Duration(milliseconds: 200));
     try {
-      return _itrs.firstWhere((itr) =>
-          itr.internshipId == internshipId ||
-          itr.internshipId == 'internship-$internshipId' ||
-          itr.internshipId.endsWith(internshipId));
+      return _itrs.firstWhere(
+        (itr) =>
+            itr.internshipId == internshipId ||
+            itr.internshipId == 'internship-$internshipId' ||
+            itr.internshipId.endsWith(internshipId),
+      );
     } catch (_) {
       return null;
     }
@@ -158,25 +180,54 @@ class MockItrRepository implements ItrRepository {
     if (index == -1) return;
 
     final existing = _itrs[index];
-    _itrs[index] = ItrModel(
-      id: existing.id,
-      internshipId: existing.internshipId,
-      studentId: existing.studentId,
-      studentName: existing.studentName,
-      internshipTitle: existing.internshipTitle,
-      companyName: existing.companyName,
+    _itrs[index] = existing.copyWith(
       status: status,
-      content: existing.content,
-      workDone: existing.workDone,
-      technologiesUsed: existing.technologiesUsed,
-      keyLearnings: existing.keyLearnings,
-      challengesFaced: existing.challengesFaced,
-      documentPath: existing.documentPath,
-      projectZipPath: existing.projectZipPath,
-      presentationPath: existing.presentationPath,
-      submittedAt: existing.submittedAt,
-      reviewerName: reviewerName ?? existing.reviewerName ?? 'Industry Supervisor',
       remarks: remarks,
+      reviewerName:
+          reviewerName ?? existing.reviewerName ?? 'Industry Supervisor',
     );
+  }
+
+  @override
+  Future<void> saveEvaluation(EvaluationModel evaluation) async {
+    _evaluations[evaluation.itrId] = evaluation;
+    final index = _itrs.indexWhere((itr) => itr.id == evaluation.itrId);
+    if (index != -1) {
+      final existing = _itrs[index];
+      _itrs[index] = existing.copyWith(
+        evaluationScore: evaluation.totalScore,
+        evaluationGrade: evaluation.grade,
+        certificateStatus: evaluation.certificateStatus,
+      );
+    }
+  }
+
+  @override
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId) async {
+    return _evaluations[itrId];
+  }
+
+  @override
+  Future<void> updateCertificateStatus({
+    required String itrId,
+    required String status,
+    String? certificateUrl,
+  }) async {
+    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    if (index != -1) {
+      final existing = _itrs[index];
+      _itrs[index] = existing.copyWith(
+        certificateStatus: status,
+        certificateUrl: certificateUrl ?? existing.certificateUrl,
+      );
+    }
+
+    final eval = _evaluations[itrId];
+    if (eval != null) {
+      _evaluations[itrId] = eval.copyWith(
+        certificateStatus: status,
+        certificateVerifiedAt: status == 'verified' ? DateTime.now() : null,
+      );
+    }
   }
 }

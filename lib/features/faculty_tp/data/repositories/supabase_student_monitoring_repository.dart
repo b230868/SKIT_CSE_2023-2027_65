@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../internship/models/internship.dart';
 import '../models/mock_student_monitoring_data.dart';
 import '../models/student_monitoring_detail.dart';
 import '../models/student_monitoring_item.dart';
@@ -41,6 +42,7 @@ class SupabaseStudentMonitoringRepository
         company_name,
         progress,
         student_id,
+        company_name,
         created_at,
         students (
           id,
@@ -83,8 +85,111 @@ class SupabaseStudentMonitoringRepository
           .order('created_at', ascending: false);
 
       final items = <StudentMonitoringItem>[];
+      final internshipList = response as List;
+      if (internshipList.isEmpty) return [];
 
-      for (final item in response as List) {
+      final internshipIds =
+          internshipList.map((e) => (e as Map)['id']?.toString() ?? '').toList();
+
+      final Map<String, Map<String, dynamic>> evaluationsMap = {};
+      final Map<String, double> attendanceRateMap = {};
+      final Map<String, List<InternshipDocument>> docsMap = {};
+
+      try {
+        final evalRows = await client
+            .from('evaluations')
+            .select('''
+              internship_id,
+              total_score,
+              score,
+              marks,
+              grade,
+              status,
+              feedback,
+              remarks,
+              evaluator_id,
+              submitted_at,
+              profiles:evaluator_id (
+                full_name,
+                designation
+              )
+            ''')
+            .inFilter('internship_id', internshipIds)
+            .order('created_at', ascending: false);
+
+        for (final row in (evalRows as List)) {
+          final id = row['internship_id']?.toString();
+          if (id != null && !evaluationsMap.containsKey(id)) {
+            evaluationsMap[id] = Map<String, dynamic>.from(row as Map);
+          }
+        }
+      } catch (_) {}
+
+      try {
+        final attRows = await client
+            .from('attendance')
+            .select('internship_id, status')
+            .inFilter('internship_id', internshipIds);
+
+        final Map<String, int> totDays = {};
+        final Map<String, int> presDays = {};
+        for (final row in (attRows as List)) {
+          final id = row['internship_id']?.toString();
+          if (id != null) {
+            totDays[id] = (totDays[id] ?? 0) + 1;
+            if (row['status']?.toString().toLowerCase() == 'present') {
+              presDays[id] = (presDays[id] ?? 0) + 1;
+            }
+          }
+        }
+        for (final id in totDays.keys) {
+          final tot = totDays[id] ?? 0;
+          final pres = presDays[id] ?? 0;
+          attendanceRateMap[id] = tot > 0 ? (pres / tot) * 100 : 0.0;
+        }
+      } catch (_) {}
+
+      try {
+        final docRows = await client
+            .from('internship_documents')
+            .select('''
+              id,
+              internship_id,
+              name,
+              file_url,
+              file_size,
+              doc_type,
+              status,
+              rejection_reason,
+              remarks,
+              verified_by,
+              verified_at,
+              faculty_status,
+              faculty_rejection_reason,
+              faculty_remarks,
+              faculty_verified_by,
+              faculty_verified_at,
+              uploaded_at,
+              profiles:verified_by (
+                full_name
+              )
+            ''')
+            .inFilter('internship_id', internshipIds)
+            .order('uploaded_at', ascending: false);
+
+        for (final row in (docRows as List)) {
+          final map = Map<String, dynamic>.from(row as Map);
+          final internshipId = map['internship_id']?.toString() ?? '';
+          final verifierProfile = map['profiles'] as Map<String, dynamic>?;
+          if (verifierProfile != null && map['verified_by_name'] == null) {
+            map['verified_by_name'] = verifierProfile['full_name'];
+          }
+          final doc = InternshipDocument.fromMap(map);
+          docsMap.putIfAbsent(internshipId, () => []).add(doc);
+        }
+      } catch (_) {}
+
+      for (final item in internshipList) {
         final map = Map<String, dynamic>.from(item as Map);
 
         final student = map['students'] is Map

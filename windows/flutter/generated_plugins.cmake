@@ -4,10 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
-<<<<<<< HEAD
-=======
+  connectivity_plus
   geolocator_windows
->>>>>>> origin/main
+  printing
   url_launcher_windows
 )
 

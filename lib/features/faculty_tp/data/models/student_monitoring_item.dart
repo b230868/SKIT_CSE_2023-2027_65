@@ -15,6 +15,12 @@ class StudentMonitoringItem {
   final String? certificateStatus;
   final int progress;
   final bool hasPendingApprovals;
+  final double? companyEvaluationScore;
+  final String? companyEvaluationGrade;
+  final double? attendanceRate;
+  final String? companyRemarks;
+  final String? companyEvaluatorName;
+  final List<dynamic> documents;
 
   const StudentMonitoringItem({
     required this.studentId,
@@ -33,5 +39,11 @@ class StudentMonitoringItem {
     this.certificateStatus,
     this.progress = 0,
     this.hasPendingApprovals = false,
+    this.companyEvaluationScore,
+    this.companyEvaluationGrade,
+    this.attendanceRate,
+    this.companyRemarks,
+    this.companyEvaluatorName,
+    this.documents = const [],
   });
 }

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../internship/models/internship.dart';
 import '../../data/models/student_monitoring_item.dart';
 import '../../data/repositories/student_monitoring_repository_factory.dart';
 import '../../data/services/student_monitoring_service.dart';
-import 'student_detail_screen.dart';
 
 class StudentMonitoringScreen extends StatefulWidget {
   const StudentMonitoringScreen({super.key});
@@ -15,35 +16,23 @@ class StudentMonitoringScreen extends StatefulWidget {
       _StudentMonitoringScreenState();
 }
 
-class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
+class _StudentMonitoringScreenState
+    extends State<StudentMonitoringScreen> {
   late final StudentMonitoringService _service;
 
   List<StudentMonitoringItem> _students = [];
   bool _isLoading = true;
   String? _error;
 
-  // Search & Filter state
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  String _selectedDepartment = 'All';
-  String _selectedInternshipStatus = 'All';
-  String _selectedItrStatus = 'All';
-  String _selectedCertStatus = 'All';
-  bool _pendingApprovalsOnly = false;
-
   @override
   void initState() {
     super.initState();
+
     _service = StudentMonitoringService(
       repository: StudentMonitoringRepositoryFactory.create(),
     );
-    _loadStudents();
-  }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+    _loadStudents();
   }
 
   Future<void> _loadStudents() async {
@@ -70,7 +59,8 @@ class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
       } else if (e is UnauthorizedException ||
           (e is PostgrestException && e.code == '42501') ||
           e.toString().toLowerCase().contains('permission denied')) {
-        message = 'Your account does not have permission to access student monitoring data.';
+        message =
+            'Your account does not have permission to access student monitoring data.';
       } else {
         message = 'Unable to load student monitoring data';
       }
@@ -82,104 +72,143 @@ class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
     }
   }
 
-  List<String> get _departmentOptions {
-    final depts = <String>{'All'};
-    for (final s in _students) {
-      if (s.department != null && s.department!.trim().isNotEmpty) {
-        depts.add(s.department!.trim());
-      }
+  Future<void> _verifyDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {
+    try {
+      await _service.verifyStudentDocument(
+        documentId: documentId,
+        status: status,
+        rejectionReason: rejectionReason,
+        remarks: remarks,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'approved'
+                ? 'Document verified by Faculty successfully.'
+                : 'Document rejected by Faculty.',
+          ),
+          backgroundColor: status == 'approved' ? Colors.green : Colors.red,
+        ),
+      );
+      _loadStudents();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update document: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-    return depts.toList();
   }
 
-  List<StudentMonitoringItem> get _filteredStudents {
-    return _students.where((student) {
-      // 1. Text Search: name, email, roll number
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final nameMatches = student.studentName.toLowerCase().contains(q);
-        final emailMatches =
-            student.studentEmail?.toLowerCase().contains(q) ?? false;
-        final rollMatches =
-            student.rollNumber?.toLowerCase().contains(q) ?? false;
-        final titleMatches = student.internshipTitle.toLowerCase().contains(q);
-        if (!nameMatches && !emailMatches && !rollMatches && !titleMatches) {
-          return false;
-        }
-      }
-
-      // 2. Department filter
-      if (_selectedDepartment != 'All') {
-        if (student.department?.toLowerCase() !=
-            _selectedDepartment.toLowerCase()) {
-          return false;
-        }
-      }
-
-      // 3. Internship Status filter
-      if (_selectedInternshipStatus != 'All') {
-        final currentStatus =
-            (student.internshipStatus ?? student.applicationStatus)
-                .toLowerCase();
-        if (currentStatus != _selectedInternshipStatus.toLowerCase()) {
-          return false;
-        }
-      }
-
-      // 4. ITR status filter
-      if (_selectedItrStatus != 'All') {
-        final itr = student.itrStatus?.toLowerCase();
-        if (_selectedItrStatus == 'submitted' &&
-            itr != 'submitted' &&
-            itr != 'approved') {
-          return false;
-        } else if (_selectedItrStatus == 'draft' && itr != 'draft') {
-          return false;
-        } else if (_selectedItrStatus == 'missing' &&
-            itr != null &&
-            itr.isNotEmpty) {
-          return false;
-        }
-      }
-
-      // 5. Certificate status filter
-      if (_selectedCertStatus != 'All') {
-        if (_selectedCertStatus == 'uploaded' && !student.hasCertificate) {
-          return false;
-        } else if (_selectedCertStatus == 'not_uploaded' &&
-            student.hasCertificate) {
-          return false;
-        }
-      }
-
-      // 6. Pending approvals only
-      if (_pendingApprovalsOnly && !student.hasPendingApprovals) {
-        return false;
-      }
-
-      return true;
-    }).toList();
+  void _showApproveDialog(InternshipDocument doc) {
+    final remarksController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Faculty Document Verification'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Approve document: ${doc.fileName}?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: remarksController,
+              decoration: const InputDecoration(
+                labelText: 'Faculty Remarks (Optional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _verifyDocument(
+                documentId: doc.id,
+                status: 'approved',
+                remarks: remarksController.text.trim().isNotEmpty
+                    ? remarksController.text.trim()
+                    : null,
+              );
+            },
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
   }
 
-  bool get _hasActiveFilters {
-    return _searchQuery.isNotEmpty ||
-        _selectedDepartment != 'All' ||
-        _selectedInternshipStatus != 'All' ||
-        _selectedItrStatus != 'All' ||
-        _selectedCertStatus != 'All' ||
-        _pendingApprovalsOnly;
-  }
+  void _showRejectDialog(InternshipDocument doc) {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      _searchQuery = '';
-      _selectedDepartment = 'All';
-      _selectedInternshipStatus = 'All';
-      _selectedItrStatus = 'All';
-      _selectedCertStatus = 'All';
-      _pendingApprovalsOnly = false;
-    });
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Faculty Reject Document'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Reject document: ${doc.fileName}'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Rejection Reason *',
+                  border: OutlineInputBorder(),
+                  hintText: 'Enter mandatory reason for rejection',
+                ),
+                maxLines: 3,
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Rejection reason is mandatory';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(ctx).pop();
+                _verifyDocument(
+                  documentId: doc.id,
+                  status: 'rejected',
+                  rejectionReason: reasonController.text.trim(),
+                );
+              }
+            },
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -200,11 +229,6 @@ class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
             ),
             tooltip: AuthService.hasActiveSession ? 'Account' : 'Sign In',
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadStudents,
-            tooltip: 'Refresh',
-          ),
         ],
       ),
       body: _buildBody(),
@@ -213,582 +237,444 @@ class _StudentMonitoringScreenState extends State<StudentMonitoringScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
 
     if (_error != null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadStudents,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-              if (_error!.contains('sign in')) ...[
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () => AuthService.showAuthDialog(
-                    context,
-                    onSessionChanged: _loadStudents,
-                  ),
-                  icon: const Icon(Icons.login),
-                  label: const Text('Sign In'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_error!),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadStudents,
+              child: const Text('Retry'),
+            ),
+            if (_error!.contains('sign in')) ...[
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => AuthService.showAuthDialog(
+                  context,
+                  onSessionChanged: _loadStudents,
                 ),
-              ],
+                child: const Text('Sign In'),
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
 
     if (_students.isEmpty) {
-      return const Center(child: Text('No students available'));
+      return const Center(
+        child: Text('No students available'),
+      );
     }
 
-    final filtered = _filteredStudents;
+    return RefreshIndicator(
+      onRefresh: _loadStudents,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _students.length,
+        itemBuilder: (context, index) {
+          final student = _students[index];
 
-    return Column(
-      children: [
-        _buildSearchAndFilterHeader(),
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildEmptyFilteredState()
-              : RefreshIndicator(
-                  onRefresh: _loadStudents,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final student = filtered[index];
-                      return _buildStudentCard(student);
-                    },
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchAndFilterHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            offset: const Offset(0, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Search TextField
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search by student name, email, or roll no...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              isDense: true,
-            ),
-            onChanged: (val) {
-              setState(() {
-                _searchQuery = val.trim();
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-
-          // Horizontal Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Department filter dropdown chip
-                if (_departmentOptions.length > 2) ...[
-                  PopupMenuButton<String>(
-                    initialValue: _selectedDepartment,
-                    onSelected: (val) {
-                      setState(() {
-                        _selectedDepartment = val;
-                      });
-                    },
-                    itemBuilder: (ctx) => _departmentOptions.map((dept) {
-                      return PopupMenuItem(
-                        value: dept,
-                        child: Text(dept == 'All' ? 'All Departments' : dept),
-                      );
-                    }).toList(),
-                    child: Chip(
-                      avatar: const Icon(Icons.domain, size: 16),
-                      label: Text(
-                        _selectedDepartment == 'All'
-                            ? 'Department'
-                            : _selectedDepartment,
-                        style: const TextStyle(fontSize: 12),
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        child: Icon(Icons.person_outline),
                       ),
-                      backgroundColor: _selectedDepartment != 'All'
-                          ? Colors.blue.shade100
-                          : null,
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              student.studentName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              student.internshipTitle,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            if (student.companyName != null)
+                              Text(
+                                student.companyName!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Chip(
+                        label: Text(
+                          student.applicationStatus.toUpperCase(),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
+                  const Divider(height: 20),
+
+                  // Company Evaluation & Attendance Visibility for Faculty
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Company Evaluation',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              student.companyEvaluationScore != null
+                                  ? '${student.companyEvaluationScore!.toStringAsFixed(1)} / 100 (Grade: ${student.companyEvaluationGrade ?? "N/A"})'
+                                  : 'Evaluation Pending',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: student.companyEvaluationScore != null
+                                    ? Colors.black87
+                                    : Colors.orange.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            'Attendance Rate',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            student.attendanceRate != null
+                                ? '${student.attendanceRate!.toStringAsFixed(0)}%'
+                                : 'No logs',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  if (student.companyRemarks != null &&
+                      student.companyRemarks!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.comment_outlined, size: 14, color: Colors.blueGrey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Company Remarks: ${student.companyRemarks!}',
+                              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  if (student.companyEvaluatorName != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Evaluated by: ${student.companyEvaluatorName}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+
+                  // Student-Uploaded Documents Section
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Student Documents (Offer Letters & Certificates)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        '${student.documents.length} doc(s)',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (student.documents.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Text(
+                        'No offer letters or certificates uploaded yet.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                      ),
+                    )
+                  else
+                    ...student.documents.map((doc) => _buildDocumentTile(doc)),
                 ],
-
-                // Internship Status filter
-                PopupMenuButton<String>(
-                  initialValue: _selectedInternshipStatus,
-                  onSelected: (val) {
-                    setState(() {
-                      _selectedInternshipStatus = val;
-                    });
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(
-                      value: 'All',
-                      child: Text('All Internship Statuses'),
-                    ),
-                    PopupMenuItem(value: 'active', child: Text('Active')),
-                    PopupMenuItem(value: 'planned', child: Text('Planned')),
-                    PopupMenuItem(value: 'completed', child: Text('Completed')),
-                    PopupMenuItem(value: 'pending', child: Text('Pending')),
-                  ],
-                  child: Chip(
-                    avatar: const Icon(
-                      Icons.business_center_outlined,
-                      size: 16,
-                    ),
-                    label: Text(
-                      _selectedInternshipStatus == 'All'
-                          ? 'Internship Status'
-                          : _selectedInternshipStatus.toUpperCase(),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    backgroundColor: _selectedInternshipStatus != 'All'
-                        ? Colors.blue.shade100
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 6),
-
-                // ITR status filter
-                PopupMenuButton<String>(
-                  initialValue: _selectedItrStatus,
-                  onSelected: (val) {
-                    setState(() {
-                      _selectedItrStatus = val;
-                    });
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(
-                      value: 'All',
-                      child: Text('All ITR Statuses'),
-                    ),
-                    PopupMenuItem(
-                      value: 'submitted',
-                      child: Text('ITR Submitted'),
-                    ),
-                    PopupMenuItem(value: 'draft', child: Text('ITR Draft')),
-                    PopupMenuItem(value: 'missing', child: Text('ITR Missing')),
-                  ],
-                  child: Chip(
-                    avatar: const Icon(Icons.description_outlined, size: 16),
-                    label: Text(
-                      _selectedItrStatus == 'All'
-                          ? 'ITR Status'
-                          : 'ITR: ${_selectedItrStatus.toUpperCase()}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    backgroundColor: _selectedItrStatus != 'All'
-                        ? Colors.blue.shade100
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 6),
-
-                // Certificate Status filter
-                PopupMenuButton<String>(
-                  initialValue: _selectedCertStatus,
-                  onSelected: (val) {
-                    setState(() {
-                      _selectedCertStatus = val;
-                    });
-                  },
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(
-                      value: 'All',
-                      child: Text('All Certificate Statuses'),
-                    ),
-                    PopupMenuItem(
-                      value: 'uploaded',
-                      child: Text('Certificate Uploaded'),
-                    ),
-                    PopupMenuItem(
-                      value: 'not_uploaded',
-                      child: Text('Certificate Missing'),
-                    ),
-                  ],
-                  child: Chip(
-                    avatar: const Icon(Icons.verified_outlined, size: 16),
-                    label: Text(
-                      _selectedCertStatus == 'All'
-                          ? 'Certificate'
-                          : (_selectedCertStatus == 'uploaded'
-                                ? 'Cert Uploaded'
-                                : 'Cert Missing'),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    backgroundColor: _selectedCertStatus != 'All'
-                        ? Colors.blue.shade100
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 6),
-
-                // Pending Approvals Toggle Chip
-                FilterChip(
-                  label: const Text(
-                    'Pending Approvals',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  selected: _pendingApprovalsOnly,
-                  onSelected: (val) {
-                    setState(() {
-                      _pendingApprovalsOnly = val;
-                    });
-                  },
-                ),
-
-                if (_hasActiveFilters) ...[
-                  const SizedBox(width: 6),
-                  ActionChip(
-                    avatar: const Icon(Icons.close, size: 14),
-                    label: const Text('Reset', style: TextStyle(fontSize: 12)),
-                    onPressed: _resetFilters,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyFilteredState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 48, color: Colors.grey),
-            const SizedBox(height: 12),
-            const Text(
-              'No students match your filter criteria.',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try clearing some filters or searching with a different term.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _resetFilters,
-              child: const Text('Reset All Filters'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStudentCard(StudentMonitoringItem student) {
-    final statusColor = _getStatusColor(student.applicationStatus);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => StudentDetailScreen(
-                studentId: student.studentId,
-                internshipId: student.internshipId,
-                studentName: student.studentName,
               ),
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Row: Avatar, Name, Roll No, Chevron
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .primaryContainer,
-                    child: Text(
-                      student.studentName.isNotEmpty
-                          ? student.studentName[0].toUpperCase()
-                          : 'S',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          student.studentName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        if (student.rollNumber != null ||
-                            student.department != null)
-                          Text(
-                            [
-                              if (student.rollNumber != null)
-                                'Roll: ${student.rollNumber}',
-                              if (student.department != null)
-                                student.department,
-                              if (student.batchYear != null)
-                                'Batch ${student.batchYear}',
-                            ].join(' • '),
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        if (student.studentEmail != null)
-                          Text(
-                            student.studentEmail!,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 11,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-              const Divider(height: 1),
-              const SizedBox(height: 10),
-
-              // Internship Details Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          student.internshipTitle,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                        if (student.companyName != null &&
-                            student.companyName!.isNotEmpty)
-                          Text(
-                            student.companyName!,
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Chip(
-                    label: Text(
-                      student.applicationStatus.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor.shade900,
-                      ),
-                    ),
-                    backgroundColor: statusColor.shade50,
-                    side: BorderSide(color: statusColor.shade200),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // Progress Bar
-              Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: (student.progress.clamp(0, 100)) / 100,
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade200,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${student.progress}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // Status badges row: ITR, Certificate, Pending review
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  _badgeChip(
-                    icon: Icons.description_outlined,
-                    label: student.itrStatus != null
-                        ? 'ITR: ${student.itrStatus!.toUpperCase()}'
-                        : 'ITR: Missing',
-                    isPositive:
-                        student.itrStatus == 'submitted' ||
-                        student.itrStatus == 'approved',
-                  ),
-                  _badgeChip(
-                    icon: Icons.verified_outlined,
-                    label: student.hasCertificate
-                        ? 'Cert: Uploaded'
-                        : 'Cert: Missing',
-                    isPositive: student.hasCertificate,
-                  ),
-                  if (student.hasPendingApprovals)
-                    _badgeChip(
-                      icon: Icons.hourglass_top,
-                      label: 'Approval Pending',
-                      isPositive: false,
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _badgeChip({
-    required IconData icon,
-    required String label,
-    required bool isPositive,
-  }) {
+  Widget _buildDocumentTile(InternshipDocument doc) {
+    Color indColor = Colors.orange;
+    if (doc.status == 'approved') indColor = Colors.green;
+    if (doc.status == 'rejected') indColor = Colors.red;
+
+    Color facColor = Colors.orange;
+    if (doc.facultyStatus == 'approved') facColor = Colors.green;
+    if (doc.facultyStatus == 'rejected') facColor = Colors.red;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isPositive ? Colors.green.shade50 : Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isPositive ? Colors.green.shade300 : Colors.orange.shade300,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 13,
-            color: isPositive ? Colors.green.shade800 : Colors.orange.shade800,
+          Row(
+            children: [
+              Icon(
+                doc.docType == 'certificate'
+                    ? Icons.workspace_premium
+                    : Icons.description,
+                size: 20,
+                color: Colors.indigo,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  doc.fileName,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.open_in_new, size: 18),
+                tooltip: 'Open / Download Document',
+                onPressed: () async {
+                  final url = doc.fileUrl;
+                  if (url != null && url.isNotEmpty) {
+                    final uri = Uri.tryParse(url);
+                    if (uri != null) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  }
+                },
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: isPositive
-                  ? Colors.green.shade900
-                  : Colors.orange.shade900,
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  doc.docType == 'certificate'
+                      ? 'CERTIFICATE'
+                      : doc.docType == 'offer_letter'
+                          ? 'OFFER LETTER'
+                          : 'DOCUMENT',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Uploaded: ${doc.createdAt.toLocal().toString().split(' ')[0]}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Dual Verification Status Badges (Industry & Faculty)
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Industry Verification: ',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: indColor.withAlpha(26),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        doc.status.toUpperCase(),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: indColor),
+                      ),
+                    ),
+                    if (doc.verifiedByName != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '(${doc.verifiedByName})',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ],
+                ),
+                if (doc.rejectionReason != null && doc.rejectionReason!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Industry Rejection Reason: ${doc.rejectionReason}',
+                      style: const TextStyle(fontSize: 11, color: Colors.red),
+                    ),
+                  ),
+                if (doc.remarks != null && doc.remarks!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Industry Remarks: ${doc.remarks}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                const Divider(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      'Faculty Verification: ',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: facColor.withAlpha(26),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        doc.facultyStatus.toUpperCase(),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: facColor),
+                      ),
+                    ),
+                    if (doc.facultyVerifiedByName != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '(${doc.facultyVerifiedByName})',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ],
+                ),
+                if (doc.facultyRejectionReason != null && doc.facultyRejectionReason!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Faculty Rejection Reason: ${doc.facultyRejectionReason}',
+                      style: const TextStyle(fontSize: 11, color: Colors.red),
+                    ),
+                  ),
+                if (doc.facultyRemarks != null && doc.facultyRemarks!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Faculty Remarks: ${doc.facultyRemarks}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Faculty Verification Action Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _showRejectDialog(doc),
+                icon: const Icon(Icons.close, size: 14),
+                label: const Text('Reject', style: TextStyle(fontSize: 12)),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _showApproveDialog(doc),
+                icon: const Icon(Icons.check, size: 14),
+                label: const Text('Approve', style: TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
         ],
       ),
     );
-  }
-
-  MaterialColor _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-      case 'active':
-      case 'completed':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'planned':
-        return Colors.blue;
-      case 'pending':
-      default:
-        return Colors.orange;
-    }
   }
 }

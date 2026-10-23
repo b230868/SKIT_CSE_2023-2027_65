@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prashikshan/features/industry/data/models/industry_dashboard_data.dart';
+import 'package:prashikshan/features/industry/data/models/industry_attendance_model.dart';
 import 'package:prashikshan/features/industry/data/models/industry_internship_model.dart';
 import 'package:prashikshan/features/industry/data/repositories/industry_repository.dart';
 import 'package:prashikshan/features/industry/data/repositories/mock_industry_repository.dart';
 import 'package:prashikshan/features/industry/data/services/industry_service.dart';
+import 'package:prashikshan/features/internship/models/internship.dart';
 import 'package:prashikshan/features/industry/presentation/screens/industry_internship_details_screen.dart';
 import 'package:prashikshan/features/industry/presentation/screens/internship_management_screen.dart';
 
@@ -33,6 +35,47 @@ class FailingInternshipRepository implements IndustryRepository {
   Future<IndustryDashboardData> getDashboardData() async {
     return IndustryDashboardData.empty();
   }
+
+  @override
+  Future<List<IndustryAttendanceRecord>> getAttendanceRecords(
+    String internshipId,
+  ) async => const [];
+
+  @override
+  Future<void> markAttendance({
+    required String internshipId,
+    required String studentId,
+    required DateTime date,
+    required String status,
+    String? remarks,
+  }) async {}
+
+  @override
+  Future<void> updateOfferLetter({
+    required String internshipId,
+    required String status,
+    String? fileUrl,
+  }) async {}
+
+  @override
+  Future<void> updateCertificate({
+    required String internshipId,
+    required String status,
+    String? fileUrl,
+  }) async {}
+
+  @override
+  Future<List<InternshipDocument>> getStudentDocuments(
+    String internshipId,
+  ) async => const [];
+
+  @override
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {}
 }
 
 void main() {
