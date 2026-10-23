@@ -28,7 +28,7 @@ class MockStudentMonitoringData {
           docType: 'offer_letter',
           fileName: 'Rahul_TechNova_OfferLetter.pdf',
           filePath: 'documents/rahul-offer-letter.pdf',
-          status: 'approved',
+          status: 'verified',
           verifiedByName: 'Rajesh Varma (Tech Lead)',
           facultyStatus: 'pending',
           createdAt: DateTime(2026, 8, 10),
