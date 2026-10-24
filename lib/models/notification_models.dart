@@ -3,6 +3,10 @@ class AppNotification {
   final bool isRead;
   final DateTime createdAt;
 
+  /// Set for notifications that belong to an application, so tapping
+  /// them can open that application directly.
+  final String? applicationId;
+
   const AppNotification({
     required this.id,
     required this.title,
@@ -10,19 +14,20 @@ class AppNotification {
     required this.type,
     required this.isRead,
     required this.createdAt,
+    this.applicationId,
   });
 
   factory AppNotification.fromMap(Map<String, dynamic> m) => AppNotification(
-    id: m['id'] as String,
-    title: m['title'] as String,
-    body: (m['body'] ?? '') as String,
-    type: (m['type'] ?? 'general') as String,
-    isRead: (m['is_read'] ?? false) as bool,
-    createdAt: DateTime.parse(m['created_at'] as String),
-  );
+        id: m['id'] as String,
+        title: m['title'] as String,
+        body: (m['body'] ?? '') as String,
+        type: (m['type'] ?? 'general') as String,
+        isRead: (m['is_read'] ?? false) as bool,
+        createdAt: DateTime.parse(m['created_at'] as String),
+        applicationId: m['application_id'] as String?,
+      );
 }
 
-/// Aggregated application, document, and progress metrics used by Reports.
 class ReportSummary {
   final int totalApplications, approved, pending, rejected;
   final int documentsUploaded;
@@ -38,11 +43,11 @@ class ReportSummary {
   });
 
   factory ReportSummary.empty() => const ReportSummary(
-    totalApplications: 0,
-    approved: 0,
-    pending: 0,
-    rejected: 0,
-    documentsUploaded: 0,
-    latestProgress: 0,
-  );
+        totalApplications: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        documentsUploaded: 0,
+        latestProgress: 0,
+      );
 }

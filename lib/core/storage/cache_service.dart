@@ -7,7 +7,6 @@ class CacheService {
   static Box? _box;
 
   static Future<void> init() async {
-    await Hive.initFlutter();
     _box = await Hive.openBox(_boxName);
   }
 
@@ -20,79 +19,110 @@ class CacheService {
     return _box!;
   }
 
+  static String _ownerKey(String ownerId, String key) => 'owner:$ownerId:$key';
+
+  static Future<void> cacheData({
+    required String ownerId,
+    required String key,
+    required Object data,
+  }) async {
+    await box.put(
+      _ownerKey(ownerId, key),
+      jsonEncode({'cached_at': DateTime.now().toIso8601String(), 'data': data}),
+    );
+  }
+
+  static Object? getCachedData({required String ownerId, required String key}) {
+    final raw = box.get(_ownerKey(ownerId, key));
+    if (raw == null) return null;
+    if (raw is! String) {
+      throw const FormatException('Cached data has an invalid format.');
+    }
+    final payload = jsonDecode(raw);
+    if (payload is! Map<String, dynamic> || !payload.containsKey('data')) {
+      throw const FormatException('Cached data has an invalid format.');
+    }
+    return payload['data'];
+  }
+
+  static Future<void> removeCachedData({
+    required String ownerId,
+    required String key,
+  }) async {
+    await box.delete(_ownerKey(ownerId, key));
+  }
+
+  static Future<void> clearOwnerCache(String ownerId) async {
+    final prefix = 'owner:$ownerId:';
+    final keys = box.keys
+        .where((key) => key is String && key.startsWith(prefix))
+        .toList();
+    await box.deleteAll(keys);
+  }
+
   static Future<void> cacheDashboardStats(
     String key,
     Map<String, dynamic> stats,
   ) async {
-    try {
-      final payload = {
+    await box.put(
+      'dashboard_$key',
+      jsonEncode({
         'cached_at': DateTime.now().toIso8601String(),
         'data': stats,
-      };
-      await box.put('dashboard_$key', jsonEncode(payload));
-    } catch (_) {
-      // Gracefully ignore caching failure
-    }
+      }),
+    );
   }
 
   static Map<String, dynamic>? getCachedDashboardStats(String key) {
-    try {
-      final raw = box.get('dashboard_$key');
-      if (raw == null) return null;
-      final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
-      return decoded['data'] as Map<String, dynamic>?;
-    } catch (_) {
-      return null;
-    }
+    final data = _getLegacyData('dashboard_$key');
+    return data == null ? null : Map<String, dynamic>.from(data as Map);
   }
 
   static Future<void> cacheStudentMonitoring(
     List<Map<String, dynamic>> items,
   ) async {
-    try {
-      final payload = {
+    await box.put(
+      'student_monitoring',
+      jsonEncode({
         'cached_at': DateTime.now().toIso8601String(),
         'data': items,
-      };
-      await box.put('student_monitoring', jsonEncode(payload));
-    } catch (_) {
-      // Gracefully ignore caching failure
-    }
+      }),
+    );
   }
 
   static List<Map<String, dynamic>>? getCachedStudentMonitoring() {
-    try {
-      final raw = box.get('student_monitoring');
-      if (raw == null) return null;
-      final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
-      final list = decoded['data'] as List?;
-      if (list == null) return null;
-      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    } catch (_) {
-      return null;
+    final data = _getLegacyData('student_monitoring');
+    if (data == null) return null;
+    if (data is! List) {
+      throw const FormatException(
+        'Cached student monitoring has an invalid format.',
+      );
     }
+    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   static Future<void> cacheReportData(Map<String, dynamic> data) async {
-    try {
-      final payload = {
-        'cached_at': DateTime.now().toIso8601String(),
-        'data': data,
-      };
-      await box.put('faculty_reports', jsonEncode(payload));
-    } catch (_) {
-      // Gracefully ignore caching failure
-    }
+    await box.put(
+      'faculty_reports',
+      jsonEncode({'cached_at': DateTime.now().toIso8601String(), 'data': data}),
+    );
   }
 
   static Map<String, dynamic>? getCachedReportData() {
-    try {
-      final raw = box.get('faculty_reports');
-      if (raw == null) return null;
-      final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
-      return decoded['data'] as Map<String, dynamic>?;
-    } catch (_) {
-      return null;
+    final data = _getLegacyData('faculty_reports');
+    return data == null ? null : Map<String, dynamic>.from(data as Map);
+  }
+
+  static Object? _getLegacyData(String key) {
+    final raw = box.get(key);
+    if (raw == null) return null;
+    if (raw is! String) {
+      throw const FormatException('Cached data has an invalid format.');
     }
+    final payload = jsonDecode(raw);
+    if (payload is! Map<String, dynamic> || !payload.containsKey('data')) {
+      throw const FormatException('Cached data has an invalid format.');
+    }
+    return payload['data'];
   }
 }

@@ -33,6 +33,9 @@ class _InternshipManagementScreenState
   @override
   void initState() {
     super.initState();
+    if (widget.initialFilter != null) {
+      _selectedFilter = widget.initialFilter!;
+    }
     _industryService = widget.service ?? IndustryService();
     _searchController = TextEditingController();
     _selectedFilter = widget.initialFilter ?? 'all';
