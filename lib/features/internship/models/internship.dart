@@ -30,20 +30,18 @@ class Internship {
       id: m['id'] as String,
       studentId: m['student_id'] as String,
       companyName: m['company_name'] as String,
-      title: (m['title'] ?? m['role'] ?? '') as String,
+      title: m['title'] as String,
       description: m['description'] as String?,
       mode: (m['mode'] ?? 'onsite') as String,
       startDate: DateTime.parse(m['start_date'] as String),
       endDate: DateTime.parse(m['end_date'] as String),
-      status: (m['status'] ?? 'pending').toString().trim().toLowerCase(),
+      status: (m['status'] ?? 'pending') as String,
       progress: (m['progress'] ?? 0) as int,
-      createdAt: m['created_at'] != null
-          ? DateTime.parse(m['created_at'] as String)
-          : DateTime.now(),
+      createdAt: DateTime.parse(m['created_at'] as String),
     );
   }
 
-  bool get isEditable => status.toLowerCase() == 'pending';
+  bool get isEditable => status == 'pending';
 }
 
 class ProgressUpdate {
@@ -69,10 +67,10 @@ class ProgressUpdate {
 
 class InternshipDocument {
   final String id;
-  final String? internshipId;
+  final String internshipId;
   final String? studentId;
   final String? studentName;
-  final String? docType; // 'offer_letter' | 'certificate' | 'other'
+  final String docType; // 'offer_letter', 'certificate', 'resume', 'noc', 'other'
   final String fileName;
   final String filePath;
   final String? fileUrl;
@@ -92,10 +90,10 @@ class InternshipDocument {
 
   const InternshipDocument({
     required this.id,
-    this.internshipId,
+    this.internshipId = '',
     this.studentId,
     this.studentName,
-    this.docType,
+    this.docType = 'other',
     required this.fileName,
     required this.filePath,
     this.fileUrl,
@@ -113,6 +111,40 @@ class InternshipDocument {
     this.facultyVerifiedAt,
     required this.createdAt,
   });
+
+  factory InternshipDocument.fromMap(Map<String, dynamic> m) =>
+      InternshipDocument(
+        id: m['id']?.toString() ?? '',
+        internshipId: m['internship_id']?.toString() ?? '',
+        studentId: m['student_id']?.toString(),
+        studentName: m['student_name']?.toString(),
+        docType: m['doc_type']?.toString() ??
+            m['document_type']?.toString() ??
+            'other',
+        fileName: m['file_name']?.toString() ?? 'Document',
+        filePath: m['file_path']?.toString() ?? '',
+        fileUrl: m['file_url']?.toString(),
+        status: m['status']?.toString() ?? 'pending',
+        rejectionReason: m['rejection_reason']?.toString(),
+        remarks: m['remarks']?.toString(),
+        verifiedBy: m['verified_by']?.toString(),
+        verifiedByName: m['verified_by_name']?.toString(),
+        verifiedAt: m['verified_at'] != null
+            ? DateTime.tryParse(m['verified_at'].toString())
+            : null,
+        facultyStatus: m['faculty_status']?.toString() ?? 'pending',
+        facultyRejectionReason: m['faculty_rejection_reason']?.toString(),
+        facultyRemarks: m['faculty_remarks']?.toString(),
+        facultyVerifiedBy: m['faculty_verified_by']?.toString(),
+        facultyVerifiedByName: m['faculty_verified_by_name']?.toString(),
+        facultyVerifiedAt: m['faculty_verified_at'] != null
+            ? DateTime.tryParse(m['faculty_verified_at'].toString())
+            : null,
+        createdAt: m['created_at'] != null
+            ? (DateTime.tryParse(m['created_at'].toString()) ?? DateTime.now())
+                .toLocal()
+            : DateTime.now(),
+      );
 
   InternshipDocument copyWith({
     String? id,
@@ -163,60 +195,4 @@ class InternshipDocument {
       createdAt: createdAt ?? this.createdAt,
     );
   }
-
-  factory InternshipDocument.fromMap(Map<String, dynamic> m) =>
-      InternshipDocument(
-        id: (m['id'] ?? '').toString(),
-        internshipId: m['internship_id']?.toString(),
-        studentId: m['student_id']?.toString(),
-        studentName: m['student_name']?.toString(),
-        docType: m['doc_type']?.toString(),
-        fileName: (m['file_name'] ?? 'document.pdf').toString(),
-        filePath: (m['file_path'] ?? '').toString(),
-        fileUrl: m['file_url']?.toString(),
-        status: (m['status'] ?? 'pending').toString(),
-        rejectionReason: m['rejection_reason']?.toString(),
-        remarks: m['remarks']?.toString(),
-        verifiedBy: m['verified_by']?.toString(),
-        verifiedByName: m['verified_by_name']?.toString(),
-        verifiedAt: m['verified_at'] != null
-            ? DateTime.tryParse(m['verified_at'].toString())?.toLocal()
-            : null,
-        facultyStatus: (m['faculty_status'] ?? 'pending').toString(),
-        facultyRejectionReason: m['faculty_rejection_reason']?.toString(),
-        facultyRemarks: m['faculty_remarks']?.toString(),
-        facultyVerifiedBy: m['faculty_verified_by']?.toString(),
-        facultyVerifiedByName: m['faculty_verified_by_name']?.toString(),
-        facultyVerifiedAt: m['faculty_verified_at'] != null
-            ? DateTime.tryParse(m['faculty_verified_at'].toString())?.toLocal()
-            : null,
-        createdAt: m['created_at'] != null
-            ? (DateTime.tryParse(m['created_at'].toString()) ?? DateTime.now())
-                .toLocal()
-            : DateTime.now(),
-      );
-
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'internship_id': internshipId,
-        'student_id': studentId,
-        'student_name': studentName,
-        'doc_type': docType,
-        'file_name': fileName,
-        'file_path': filePath,
-        'file_url': fileUrl,
-        'status': status,
-        'rejection_reason': rejectionReason,
-        'remarks': remarks,
-        'verified_by': verifiedBy,
-        'verified_by_name': verifiedByName,
-        'verified_at': verifiedAt?.toIso8601String(),
-        'faculty_status': facultyStatus,
-        'faculty_rejection_reason': facultyRejectionReason,
-        'faculty_remarks': facultyRemarks,
-        'faculty_verified_by': facultyVerifiedBy,
-        'faculty_verified_by_name': facultyVerifiedByName,
-        'faculty_verified_at': facultyVerifiedAt?.toIso8601String(),
-        'created_at': createdAt.toIso8601String(),
-      };
 }

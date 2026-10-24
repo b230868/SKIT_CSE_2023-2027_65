@@ -229,6 +229,31 @@ class ItrDetailsScreen extends StatelessWidget {
               value: itr.remarks,
             ),
 
+            const SizedBox(height: 10),
+
+            const Text(
+              'Evaluation & Certificate',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 12),
+
+            _section(
+              icon: Icons.grade,
+              title: 'Evaluation Marks',
+              value: itr.evaluationScore != null
+                  ? '${itr.evaluationScore!.toStringAsFixed(1)} / 100 (Grade: ${itr.evaluationGrade ?? "N/A"})'
+                  : 'Pending Mentor Evaluation',
+            ),
+
+            _section(
+              icon: Icons.verified,
+              title: 'Certificate Verification',
+              value: itr.certificateStatus != null
+                  ? _formatStatus(itr.certificateStatus!)
+                  : 'Pending Verification',
+            ),
+
             const SizedBox(height: 24),
 
             if (_canEdit)

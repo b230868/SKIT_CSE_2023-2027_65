@@ -38,7 +38,8 @@ class AppUser {
     return name.split(' ').first;
   }
 
-  String get initial => fullName.trim().isEmpty ? '?' : fullName.trim()[0].toUpperCase();
+  String get initial =>
+      fullName.trim().isEmpty ? '?' : fullName.trim()[0].toUpperCase();
 
   String get roleLabel {
     switch (role) {
@@ -47,6 +48,7 @@ class AppUser {
       case 'tnp':
         return 'Training & Placement';
       case 'industry':
+      case 'industry_supervisor':
         return 'Industry';
       default:
         return 'Student';

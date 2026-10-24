@@ -5,6 +5,7 @@ import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../data/auth_service.dart';
 import '../models/app_user.dart';
+import '../utils/phone_validator.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AppUser user;
@@ -23,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _enrollment;
   late final TextEditingController _branch;
   late final TextEditingController _phone;
+  late final TextEditingController _designation;
   bool _saving = false;
 
   @override
@@ -33,11 +35,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _enrollment = TextEditingController(text: u.enrollmentNo ?? '');
     _branch = TextEditingController(text: u.branch ?? '');
     _phone = TextEditingController(text: u.phone ?? '');
+    _designation = TextEditingController(text: u.designation ?? '');
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _enrollment, _branch, _phone]) {
+    for (final c in [_name, _enrollment, _branch, _phone, _designation]) {
       c.dispose();
     }
     super.dispose();
@@ -54,11 +57,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         enrollmentNo: _nullIfEmpty(_enrollment.text),
         branch: _nullIfEmpty(_branch.text),
         phone: _nullIfEmpty(_phone.text),
+        designation: _nullIfEmpty(_designation.text),
       );
       widget.onUpdated?.call(updated);
       if (mounted) showSnack(context, 'Profile saved');
     } catch (_) {
-      if (mounted) showSnack(context, 'Could not save your profile', error: true);
+      if (mounted) {
+        showSnack(context, 'Could not save your profile', error: true);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -71,11 +77,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Sign out?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sign out')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign out'),
+          ),
         ],
       ),
     );
@@ -104,28 +112,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         CircleAvatar(
                           radius: 30,
                           backgroundColor: AppTheme.ink,
-                          child: Text(u.initial,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700)),
+                          child: Text(
+                            u.initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(u.fullName.isEmpty ? 'Your name' : u.fullName,
-                                  style: const TextStyle(
-                                      fontSize: 18, fontWeight: FontWeight.w700)),
+                              Text(
+                                u.fullName.isEmpty ? 'Your name' : u.fullName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               const SizedBox(height: 2),
-                              Text(u.email,
-                                  style: TextStyle(color: Colors.grey.shade700)),
+                              Text(
+                                u.email,
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
                               const SizedBox(height: 2),
-                              Text(u.roleLabel,
-                                  style: const TextStyle(
-                                      color: AppTheme.saffron,
-                                      fontWeight: FontWeight.w700)),
+                              Text(
+                                u.roleLabel,
+                                style: const TextStyle(
+                                  color: AppTheme.saffron,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (u.designation != null &&
+                                  u.designation!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  u.designation!,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -140,6 +172,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ? 'Enter your full name'
                           : null,
                     ),
+                    if (u.role == 'industry' ||
+                        u.role == 'industry_supervisor') ...[
+                      AppTextField(
+                        controller: _designation,
+                        label: 'Professional designation',
+                        icon: Icons.badge_outlined,
+                      ),
+                    ],
                     if (isStudent) ...[
                       AppTextField(
                         controller: _enrollment,
@@ -157,12 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: 'Mobile number',
                       icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return null;
-                        return RegExp(r'^\d{10}$').hasMatch(v.trim())
-                            ? null
-                            : 'Enter a 10-digit number';
-                      },
+                      validator: (v) => PhoneValidator.validate(v),
                     ),
                     const SizedBox(height: 6),
                     FilledButton(
@@ -172,7 +207,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: 22,
                               width: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Save changes'),
                     ),

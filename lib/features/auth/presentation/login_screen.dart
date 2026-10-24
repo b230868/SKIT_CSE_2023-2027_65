@@ -5,6 +5,7 @@ import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../data/auth_service.dart';
+import '../utils/email_validator.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -32,19 +33,160 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
+    final email = _email.text.trim();
     try {
-      await _auth.signIn(_email.text.trim(), _password.text);
-      // AuthGate reacts to the new session and swaps this screen out.
+      final res = await _auth.signIn(email, _password.text);
+      final user = res.user ?? Supabase.instance.client.auth.currentUser;
+
+      // Enforce verified email:
+      if (user != null && user.emailConfirmedAt == null) {
+        await _auth.signOut();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Email not verified. Please verify via your inbox before signing in.',
+              ),
+              backgroundColor: Colors.red.shade700,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'Resend',
+                textColor: Colors.white,
+                onPressed: () async {
+                  try {
+                    await _auth.resendVerificationEmail(email: email);
+                    if (mounted) {
+                      showSnack(context, 'Verification email sent to $email');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      showSnack(
+                        context,
+                        AuthService.parseAuthErrorMessage(e),
+                        error: true,
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      // AuthGate reacts to the verified session and navigates automatically.
     } on AuthException catch (e) {
-      if (mounted) showSnack(context, e.message, error: true);
-    } catch (_) {
       if (mounted) {
-        showSnack(context, 'Could not sign in. Check your connection and try again.',
-            error: true);
+        showSnack(
+          context,
+          AuthService.parseAuthErrorMessage(e.message),
+          error: true,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, AuthService.parseAuthErrorMessage(e), error: true);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailController = TextEditingController(
+      text: _email.text.trim(),
+    );
+    bool resetting = false;
+    String? resetError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Reset Password'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter your registered email address to receive password recovery instructions.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(Icons.mail_outline),
+                  ),
+                ),
+                if (resetError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    resetError!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: resetting ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: resetting
+                    ? null
+                    : () async {
+                        final email = resetEmailController.text.trim();
+                        if (email.isEmpty || !email.contains('@')) {
+                          setDialogState(() {
+                            resetError = 'Please enter a valid email address.';
+                          });
+                          return;
+                        }
+
+                        setDialogState(() {
+                          resetting = true;
+                          resetError = null;
+                        });
+
+                        try {
+                          await _auth.sendPasswordResetEmail(email: email);
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          if (mounted) {
+                            showSnack(
+                              context,
+                              'Password reset instructions sent to $email.',
+                            );
+                          }
+                        } catch (err) {
+                          setDialogState(() {
+                            resetError = AuthService.parseAuthErrorMessage(err);
+                            resetting = false;
+                          });
+                        }
+                      },
+                child: resetting
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Send Reset Link'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    resetEmailController.dispose();
   }
 
   @override
@@ -73,7 +215,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Internships and ITR, tracked in one place.',
-                      style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 36),
                     AppTextField(
@@ -81,31 +226,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: 'Email',
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Enter your email';
-                        if (!v.contains('@')) return 'Enter a valid email';
-                        return null;
-                      },
+                      validator: EmailValidator.validate,
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: TextFormField(
                         controller: _password,
                         obscureText: _hidePassword,
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Enter your password' : null,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'Enter your password'
+                            : null,
                         onFieldSubmitted: (_) => _login(),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(_hidePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined),
+                            icon: Icon(
+                              _hidePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
                             onPressed: () =>
                                 setState(() => _hidePassword = !_hidePassword),
                           ),
                         ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading ? null : _showForgotPasswordDialog,
+                        child: const Text('Forgot password?'),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -116,7 +267,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 22,
                               width: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Sign in'),
                     ),
@@ -125,9 +278,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _loading
                           ? null
                           : () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const RegisterScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
                               ),
+                            ),
                       child: const Text('New here? Create an account'),
                     ),
                   ],

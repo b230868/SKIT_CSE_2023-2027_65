@@ -24,4 +24,18 @@ class StudentMonitoringService {
   }) async {
     return repository.getFileUrl(bucket: bucket, path: path);
   }
+
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) {
+    return repository.verifyStudentDocument(
+      documentId: documentId,
+      status: status,
+      rejectionReason: rejectionReason,
+      remarks: remarks,
+    );
+  }
 }

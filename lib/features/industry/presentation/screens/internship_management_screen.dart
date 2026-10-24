@@ -27,7 +27,7 @@ class _InternshipManagementScreenState
   bool _loading = true;
   String? _error;
   List<IndustryInternshipModel> _allInternships = [];
-  String _selectedFilter = 'all';
+  late String _selectedFilter;
   String _sortBy = 'name'; // 'name' | 'progress'
 
   @override
@@ -38,6 +38,7 @@ class _InternshipManagementScreenState
     }
     _industryService = widget.service ?? IndustryService();
     _searchController = TextEditingController();
+    _selectedFilter = widget.initialFilter ?? 'all';
     _loadInternships();
   }
 
@@ -76,11 +77,29 @@ class _InternshipManagementScreenState
       final matchesQuery =
           query.isEmpty ||
           item.studentName.toLowerCase().contains(query) ||
-          item.internshipTitle.toLowerCase().contains(query);
+          item.internshipTitle.toLowerCase().contains(query) ||
+          (item.studentRollNo != null &&
+              item.studentRollNo!.toLowerCase().contains(query)) ||
+          (item.branch != null && item.branch!.toLowerCase().contains(query));
 
-      final matchesFilter =
-          _selectedFilter == 'all' ||
-          item.status.toLowerCase() == _selectedFilter.toLowerCase();
+      bool matchesFilter;
+      if (_selectedFilter == 'all') {
+        matchesFilter = true;
+      } else if (_selectedFilter == 'pending_eval') {
+        matchesFilter = [
+          'pending',
+          'in_progress',
+        ].contains(item.evaluationStatus.toLowerCase());
+      } else if (_selectedFilter == 'pending_itr') {
+        matchesFilter = [
+          'draft',
+          'submitted',
+          'under_review',
+        ].contains(item.itrStatus.toLowerCase());
+      } else {
+        matchesFilter =
+            item.status.toLowerCase() == _selectedFilter.toLowerCase();
+      }
 
       return matchesQuery && matchesFilter;
     }).toList();
@@ -123,14 +142,24 @@ class _InternshipManagementScreenState
   }
 
   Widget _statusChip(String status) {
-    return Chip(
-      label: Text(
-        _formatStatus(status),
-        style: const TextStyle(color: Colors.white, fontSize: 11),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: _getStatusColor(status).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _getStatusColor(status).withValues(alpha: 0.4),
+          width: 0.8,
+        ),
       ),
-      backgroundColor: _getStatusColor(status),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
+      child: Text(
+        _formatStatus(status),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: _getStatusColor(status),
+        ),
+      ),
     );
   }
 
@@ -151,13 +180,13 @@ class _InternshipManagementScreenState
       ),
       body: Column(
         children: [
-          // Search & Filter header
+          // Search Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by student name or role...',
+                hintText: 'Search by student, roll number, or role...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -168,25 +197,24 @@ class _InternshipManagementScreenState
                         },
                       )
                     : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onChanged: (_) => setState(() {}),
             ),
           ),
 
-          // Filter chips & sort row
+          // Filter chips & sort option
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                _buildFilterChip('all', 'All (${_allInternships.length})'),
-                const SizedBox(width: 8),
-                _buildFilterChip('active', 'Active'),
-                const SizedBox(width: 8),
-                _buildFilterChip('completed', 'Completed'),
-                const SizedBox(width: 8),
-                _buildFilterChip('planned', 'Planned'),
-                const SizedBox(width: 16),
                 ActionChip(
                   avatar: Icon(
                     _sortBy == 'progress' ? Icons.sort : Icons.sort_by_alpha,
@@ -201,6 +229,18 @@ class _InternshipManagementScreenState
                     });
                   },
                 ),
+                const SizedBox(width: 8),
+                _buildFilterChip('all', 'All (${_allInternships.length})'),
+                const SizedBox(width: 8),
+                _buildFilterChip('active', 'Active'),
+                const SizedBox(width: 8),
+                _buildFilterChip('completed', 'Completed'),
+                const SizedBox(width: 8),
+                _buildFilterChip('pending_eval', 'Pending Eval'),
+                const SizedBox(width: 8),
+                _buildFilterChip('pending_itr', 'Pending ITR'),
+                const SizedBox(width: 8),
+                _buildFilterChip('planned', 'Planned'),
               ],
             ),
           ),
@@ -281,6 +321,15 @@ class _InternshipManagementScreenState
         itemBuilder: (context, index) {
           final internship = displayList[index];
 
+          final subDetails = <String>[];
+          if (internship.studentRollNo != null &&
+              internship.studentRollNo!.isNotEmpty) {
+            subDetails.add('ID: ${internship.studentRollNo}');
+          }
+          if (internship.branch != null && internship.branch!.isNotEmpty) {
+            subDetails.add(internship.branch!);
+          }
+
           return Card(
             margin: const EdgeInsets.only(bottom: 14),
             child: InkWell(
@@ -289,8 +338,10 @@ class _InternshipManagementScreenState
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        IndustryInternshipDetailsScreen(internship: internship),
+                    builder: (_) => IndustryInternshipDetailsScreen(
+                      internship: internship,
+                      industryService: _industryService,
+                    ),
                   ),
                 );
               },
@@ -327,6 +378,17 @@ class _InternshipManagementScreenState
                                   color: Colors.grey.shade700,
                                 ),
                               ),
+                              if (subDetails.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    subDetails.join(' • '),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -350,8 +412,13 @@ class _InternshipManagementScreenState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Progress: ${internship.progress.toStringAsFixed(0)}%',
-                          style: const TextStyle(fontSize: 13),
+                          internship.attendanceRate != null
+                              ? 'Att: ${internship.attendanceRate!.toStringAsFixed(0)}%'
+                              : 'Progress: ${internship.progress.toStringAsFixed(0)}%',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Wrap(
                           spacing: 6,
@@ -360,6 +427,8 @@ class _InternshipManagementScreenState
                             _statusChip(internship.status),
                             _statusChip(internship.itrStatus),
                             _statusChip(internship.evaluationStatus),
+                            if (internship.certificateStatus != 'pending')
+                              _statusChip(internship.certificateStatus),
                           ],
                         ),
                       ],
