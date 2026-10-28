@@ -9,6 +9,9 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final int maxLines;
   final bool enabled;
+  final Widget? suffixIcon;
+  final ValueChanged<String>? onChanged;
+  final AutovalidateMode? autovalidateMode;
 
   const AppTextField({
     super.key,
@@ -20,6 +23,9 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.maxLines = 1,
     this.enabled = true,
+    this.suffixIcon,
+    this.onChanged,
+    this.autovalidateMode,
   });
 
   @override
@@ -33,9 +39,12 @@ class AppTextField extends StatelessWidget {
         validator: validator,
         maxLines: obscure ? 1 : maxLines,
         enabled: enabled,
+        onChanged: onChanged,
+        autovalidateMode: autovalidateMode,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon == null ? null : Icon(icon),
+          suffixIcon: suffixIcon,
         ),
       ),
     );

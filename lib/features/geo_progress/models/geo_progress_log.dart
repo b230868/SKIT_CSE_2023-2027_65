@@ -58,4 +58,11 @@ class GeoProgressLog {
     'accuracy_m': accuracyM,
     'captured_at': capturedAt.toUtc().toIso8601String(),
   };
+
+  Map<String, dynamic> toJson() => {
+    ...toInsertJson(),
+    'id': id,
+    'client_ref': clientRef,
+    'is_pending_sync': isPendingSync,
+  };
 }

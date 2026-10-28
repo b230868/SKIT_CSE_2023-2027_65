@@ -6,8 +6,10 @@
   "scripts": {
     "start": "tsx server.ts",
     "dev": "tsx watch server.ts",
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "test": "node -e \"console.log('No tests configured')\""
   },
   "keywords": [],
   "author": "",

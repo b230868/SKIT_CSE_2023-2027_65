@@ -52,7 +52,7 @@ Prashikshan utilizes a **hybrid architecture** that balances client-side product
 - **ORM**: Prisma v7 (`@prisma/client`, `@prisma/adapter-pg`, `pg`)
 - **Authentication**: Supabase Auth verification via `@supabase/supabase-js`
 - **Validation**: Zod schema validation
-- **Execution & Testing**: `tsx` (TypeScript Execute), native `fetch` integration tests
+- **Execution**: `tsx` (TypeScript Execute)
 
 ---
 
@@ -125,15 +125,25 @@ npm install
 # 2. Generate Prisma Client
 npm run prisma:generate
 
-# 3. Verify TypeScript type checking
+# 3. Build the backend
+npm run build
+
+# 4. Verify TypeScript type checking
 npm run typecheck
 
-# 4. Start the development server (with auto-reload)
+# 5. Confirm no test suites are configured
+npm test
+
+# 6. Start the development server (with auto-reload)
 npm run dev
 
-# 5. Start the production server
+# 7. Start the production server
 npm start
 ```
+
+The repository currently has no test suites. `npm test` is retained as a
+successful no-op so automated workflows do not fail because test files were
+removed.
 
 ---
 

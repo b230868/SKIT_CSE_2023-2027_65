@@ -10,4 +10,12 @@ abstract class StudentMonitoringRepository {
   });
 
   Future<String?> getFileUrl({required String bucket, required String path});
+
+  Future<void> verifyStudentDocument({
+    required String documentId,
+    required String status,
+    String? rejectionReason,
+    String? remarks,
+  }) async {}
+
 }

@@ -1,18 +1,17 @@
 import 'dart:typed_data';
 
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/itr_model.dart';
 import 'itr_repository.dart';
 
 class SupabaseItrRepository implements ItrRepository {
-  SupabaseItrRepository({SupabaseClient? client})
-      : _customClient = client;
+  SupabaseItrRepository({SupabaseClient? client}) : _customClient = client;
 
   final SupabaseClient? _customClient;
 
-  SupabaseClient get _client =>
-      _customClient ?? Supabase.instance.client;
+  SupabaseClient get _client => _customClient ?? Supabase.instance.client;
 
   static const String _bucketName = 'itr-files';
 
@@ -61,15 +60,17 @@ class SupabaseItrRepository implements ItrRepository {
       for (final intern in (internships as List)) {
         final internId = intern['id']?.toString();
         if (internId != null && !existingInternshipIds.contains(internId)) {
-          await _client.from('itrs').upsert(
-            {
-              'internship_id': internId,
-              'student_id': studentId,
-              'status': 'draft',
-            },
-            onConflict: 'internship_id',
-            ignoreDuplicates: true,
-          );
+          await _client
+              .from('itrs')
+              .upsert(
+                {
+                  'internship_id': internId,
+                  'student_id': studentId,
+                  'status': 'draft',
+                },
+                onConflict: 'internship_id',
+                ignoreDuplicates: true,
+              );
         }
       }
     } catch (_) {
@@ -168,12 +169,15 @@ class SupabaseItrRepository implements ItrRepository {
     if (internshipData is Map) {
       internshipTitle =
           internshipData['internship_title']?.toString() ??
+          internshipData['title']?.toString() ??
           'Unknown Internship';
 
       final industryData = internshipData['industries'];
 
-      if (industryData is Map) {
-        companyName = industryData['name']?.toString() ?? 'Unknown Company';
+      if (industryData is Map && industryData['name'] != null) {
+        companyName = industryData['name'].toString();
+      } else if (internshipData['company_name'] != null) {
+        companyName = internshipData['company_name'].toString();
       }
 
       final studentData = internshipData['students'];
@@ -209,6 +213,10 @@ class SupabaseItrRepository implements ItrRepository {
           : null,
       reviewerName: item['reviewer_name']?.toString(),
       remarks: item['remarks']?.toString(),
+      certificateStatus: item['certificate_status']?.toString(),
+      certificateUrl: item['certificate_url']?.toString(),
+      evaluationScore: (item['evaluation_score'] as num?)?.toDouble(),
+      evaluationGrade: item['evaluation_grade']?.toString(),
     );
   }
 
@@ -216,8 +224,8 @@ class SupabaseItrRepository implements ItrRepository {
   Future<void> submitItr(ItrModel itr) async {
     final effectiveContent =
         (itr.content != null && itr.content!.trim().isNotEmpty)
-            ? itr.content!.trim()
-            : itr.workDone?.trim();
+        ? itr.content!.trim()
+        : itr.workDone?.trim();
 
     await _client
         .from('itrs')
@@ -311,13 +319,19 @@ class SupabaseItrRepository implements ItrRepository {
     }
     if (user == null) return null;
 
-    final row = await _client
-        .from('industry_users')
-        .select('industry_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    try {
+      final row = await _client
+          .from('industry_users')
+          .select('industry_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-    return row?['industry_id']?.toString();
+      if (row != null && row['industry_id'] != null) {
+        return row['industry_id'].toString();
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   @override
@@ -327,12 +341,16 @@ class SupabaseItrRepository implements ItrRepository {
       return [];
     }
 
-    final internshipRows = await _client
-        .from('internships')
-        .select('id')
-        .eq('industry_id', industryId);
+    List<dynamic> internshipRows = [];
+    try {
+      final res = await _client
+          .from('internships')
+          .select('id')
+          .eq('industry_id', industryId);
+      internshipRows = res;
+    } catch (_) {}
 
-    final internshipIds = (internshipRows as List)
+    final internshipIds = internshipRows
         .map((r) => r['id'].toString())
         .toList();
 
@@ -340,41 +358,96 @@ class SupabaseItrRepository implements ItrRepository {
       return [];
     }
 
-    final data = await _client
-        .from('itrs')
-        .select('''
-          id,
-          internship_id,
-          student_id,
-          status,
-          content,
-          work_done,
-          technologies_used,
-          key_learnings,
-          challenges_faced,
-          document_path,
-          project_zip_path,
-          presentation_path,
-          submitted_at,
-          reviewer_id,
-          reviewer_name,
-          remarks,
-          internships (
-            internship_title,
-            industries (
-              name
-            ),
-            students (
-              profiles (
-                full_name
+    dynamic data;
+    try {
+      data = await _client
+          .from('itrs')
+          .select('''
+            id,
+            internship_id,
+            student_id,
+            status,
+            content,
+            work_done,
+            technologies_used,
+            key_learnings,
+            challenges_faced,
+            document_path,
+            project_zip_path,
+            presentation_path,
+            submitted_at,
+            reviewer_id,
+            reviewer_name,
+            remarks,
+            certificate_status,
+            certificate_url,
+            evaluation_score,
+            evaluation_grade,
+            internships (
+              internship_title,
+              title,
+              company_name,
+              industries (
+                name
+              ),
+              students (
+                profiles (
+                  full_name
+                )
               )
             )
-          )
-        ''')
-        .inFilter('internship_id', internshipIds)
-        .order('submitted_at', ascending: false);
+          ''')
+          .inFilter('internship_id', internshipIds)
+          .order('submitted_at', ascending: false);
+    } catch (_) {
+      try {
+        data = await _client
+            .from('itrs')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              status,
+              content,
+              work_done,
+              technologies_used,
+              key_learnings,
+              challenges_faced,
+              document_path,
+              project_zip_path,
+              presentation_path,
+              submitted_at,
+              reviewer_id,
+              reviewer_name,
+              remarks,
+              internships (
+                internship_title,
+                title,
+                company_name,
+                industries (
+                  name
+                ),
+                students (
+                  profiles (
+                    full_name
+                  )
+                )
+              )
+            ''')
+            .inFilter('internship_id', internshipIds)
+            .order('submitted_at', ascending: false);
+      } catch (_) {
+        return [];
+      }
+    }
 
-    return data.map<ItrModel>((item) => _mapItr(item)).toList();
+    if (data is! List) return [];
+
+    return data
+        .map<ItrModel>(
+          (item) => _mapItr(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   @override
@@ -450,5 +523,104 @@ class SupabaseItrRepository implements ItrRepository {
         .eq('id', itrId)
         .select('id')
         .single();
+  }
+
+  @override
+  Future<void> saveEvaluation(EvaluationModel evaluation) async {
+    User? user;
+    try {
+      user = _client.auth.currentUser;
+    } catch (_) {
+      user = null;
+    }
+
+    final evalData = evaluation.toMap();
+    if (user != null && evaluation.evaluatorId.isEmpty) {
+      evalData['evaluator_id'] = user.id;
+    }
+
+    try {
+      await _client.from('evaluations').upsert(evalData, onConflict: 'itr_id');
+    } catch (_) {
+      try {
+        await _client.from('evaluations').insert(evalData);
+      } catch (_) {}
+    }
+
+    try {
+      await _client
+          .from('itrs')
+          .update({
+            'evaluation_score': evaluation.totalScore,
+            'evaluation_grade': evaluation.grade,
+            'certificate_status': evaluation.certificateStatus,
+            'remarks': evaluation.remarks,
+            'reviewer_name': evaluation.evaluatorName,
+            'status': evaluation.isCertificateVerified
+                ? 'verified'
+                : 'approved',
+          })
+          .eq('id', evaluation.itrId);
+    } catch (_) {
+      try {
+        await _client
+            .from('itrs')
+            .update({
+              'remarks': evaluation.remarks,
+              'reviewer_name': evaluation.evaluatorName,
+              'status': evaluation.isCertificateVerified
+                  ? 'verified'
+                  : 'approved',
+            })
+            .eq('id', evaluation.itrId);
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId) async {
+    try {
+      final res = await _client
+          .from('evaluations')
+          .select()
+          .eq('itr_id', itrId)
+          .maybeSingle();
+
+      if (res != null) {
+        return EvaluationModel.fromMap(res);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<void> updateCertificateStatus({
+    required String itrId,
+    required String status,
+    String? certificateUrl,
+  }) async {
+    final updates = <String, dynamic>{
+      'certificate_status': status,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (certificateUrl != null) {
+      updates['certificate_url'] = certificateUrl;
+    }
+
+    try {
+      await _client.from('itrs').update(updates).eq('id', itrId);
+    } catch (_) {}
+
+    try {
+      await _client
+          .from('evaluations')
+          .update({
+            'certificate_status': status,
+            'certificate_verified_at': status == 'verified'
+                ? DateTime.now().toIso8601String()
+                : null,
+          })
+          .eq('itr_id', itrId);
+    } catch (_) {}
   }
 }

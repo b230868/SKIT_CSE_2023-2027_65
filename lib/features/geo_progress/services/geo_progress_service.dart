@@ -1,12 +1,10 @@
-import 'dart:async';
-import 'dart:io' show SocketException;
-
-import 'package:http/http.dart' show ClientException;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/network/network_errors.dart';
+import '../../../core/storage/cache_service.dart';
 import '../models/geo_progress_log.dart';
 import 'geo_progress_queue.dart';
 
@@ -124,6 +122,7 @@ class GeoProgressService {
     await _queue.enqueue(log, ownerId: ownerId);
     try {
       final savedLog = await _send(log, ownerId: ownerId);
+      await _updateCachedLog(ownerId, savedLog);
       await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
       return savedLog;
     } on PostgrestException catch (e) {
@@ -131,7 +130,7 @@ class GeoProgressService {
         'Progress is saved on this device, but the server rejected it: ${e.message}',
       );
     } on Exception catch (e) {
-      if (_isNetworkError(e)) return log;
+      if (isNetworkError(e)) return log;
       throw GeoProgressException(
         'Progress is saved on this device, but could not be synced: $e',
       );
@@ -185,7 +184,8 @@ class GeoProgressService {
     final failures = <String, String>{};
     for (final log in _queue.pending(ownerId: ownerId)) {
       try {
-        await _send(log, ownerId: ownerId);
+        final savedLog = await _send(log, ownerId: ownerId);
+        await _updateCachedLog(ownerId, savedLog);
         await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
         syncedCount++;
       } on Exception catch (e) {
@@ -205,6 +205,7 @@ class GeoProgressService {
     final pending = ownerId == null
         ? <GeoProgressLog>[]
         : _queue.pending(ownerId: ownerId, internshipId: internshipId);
+    final cacheKey = 'progress:$internshipId';
     try {
       final rows = await _db
           .from(_table)
@@ -218,30 +219,74 @@ class GeoProgressService {
       for (final log in pending) {
         logsByRef.putIfAbsent(log.clientRef, () => log);
       }
-      final logs = logsByRef.values.toList()
-        ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+      final logs = _newestFirst(logsByRef.values);
+      if (ownerId != null) {
+        await CacheService.cacheData(
+          ownerId: ownerId,
+          key: cacheKey,
+          data: logs.map((log) => log.toJson()).toList(),
+        );
+      }
       return logs;
     } on PostgrestException catch (e) {
-      if (pending.isNotEmpty) return pending;
       throw GeoProgressException(e.message);
     } on Exception catch (e) {
-      if (!_isNetworkError(e)) {
+      if (!isNetworkError(e)) {
         throw GeoProgressException('Could not load progress history: $e');
       }
-      if (pending.isEmpty) {
+      final cached = ownerId == null
+          ? null
+          : CacheService.getCachedData(ownerId: ownerId, key: cacheKey);
+      if (cached == null && pending.isEmpty) {
         throw GeoProgressException(
           'Progress history is unavailable offline and there are no cached entries.',
         );
       }
-      return pending;
+      final logsByRef = <String, GeoProgressLog>{};
+      if (cached != null) {
+        if (cached is! List) {
+          throw const FormatException('Cached progress history is invalid.');
+        }
+        for (final row in cached) {
+          if (row is! Map) {
+            throw const FormatException('Cached progress history is invalid.');
+          }
+          final log = GeoProgressLog.fromJson(Map<String, dynamic>.from(row));
+          logsByRef[log.clientRef] = log;
+        }
+      }
+      for (final log in pending) {
+        logsByRef[log.clientRef] = log;
+      }
+      return _newestFirst(logsByRef.values);
     }
   }
 
-  bool _isNetworkError(Exception error) =>
-      error is ClientException ||
-      error is TimeoutException ||
-      error is SocketException ||
-      error is AuthRetryableFetchException;
+  static List<GeoProgressLog> _newestFirst(Iterable<GeoProgressLog> logs) =>
+      logs.toList()..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+
+  Future<void> _updateCachedLog(String ownerId, GeoProgressLog log) async {
+    final key = 'progress:${log.internshipId}';
+    final cached = CacheService.getCachedData(ownerId: ownerId, key: key);
+    if (cached == null) return;
+    if (cached is! List) {
+      throw const FormatException('Cached progress history is invalid.');
+    }
+    final logs = <String, GeoProgressLog>{};
+    for (final row in cached) {
+      if (row is! Map) {
+        throw const FormatException('Cached progress history is invalid.');
+      }
+      final cachedLog = GeoProgressLog.fromJson(Map<String, dynamic>.from(row));
+      logs[cachedLog.clientRef] = cachedLog;
+    }
+    logs[log.clientRef] = log;
+    await CacheService.cacheData(
+      ownerId: ownerId,
+      key: key,
+      data: _newestFirst(logs.values).map((item) => item.toJson()).toList(),
+    );
+  }
 
   /// Latest log per internship (for faculty / T&P / industry dashboards).
   Future<GeoProgressLog?> fetchLatest(String internshipId) async {

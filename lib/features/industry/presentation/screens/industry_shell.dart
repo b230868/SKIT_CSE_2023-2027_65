@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:prashikshan/features/auth/models/app_user.dart';
 import 'package:prashikshan/features/auth/presentation/profile_screen.dart';
 
+import 'industry_attendance_screen.dart';
 import 'industry_dashboard_screen.dart';
-import 'industry_itr_list_screen.dart';
 import 'industry_reports_screen.dart';
 import 'internship_management_screen.dart';
 
-/// Navigation shell for Industry partners and mentors:
-/// Dashboard | Internships | ITR Reviews | Reports | Profile
+/// Navigation shell for Industry partners and supervisors:
+/// Dashboard | Internships | Attendance | Reports | Profile
 class IndustryShell extends StatefulWidget {
   final AppUser user;
 
@@ -42,7 +42,7 @@ class _IndustryShellState extends State<IndustryShell> {
         children: [
           IndustryDashboardScreen(onNavigateToTab: _onTabSelected),
           const InternshipManagementScreen(),
-          const IndustryItrListScreen(),
+          const IndustryAttendanceScreen(),
           const IndustryReportsScreen(),
           ProfileScreen(
             user: _user,
@@ -65,9 +65,9 @@ class _IndustryShellState extends State<IndustryShell> {
             label: 'Internships',
           ),
           NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon: Icon(Icons.assignment),
-            label: 'ITR Reviews',
+            icon: Icon(Icons.fact_check_outlined),
+            selectedIcon: Icon(Icons.fact_check),
+            label: 'Attendance',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),

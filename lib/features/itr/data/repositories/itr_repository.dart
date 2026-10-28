@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
+
 import '../models/itr_model.dart';
 
 abstract class ItrRepository {
@@ -36,5 +38,15 @@ abstract class ItrRepository {
     required String status,
     required String remarks,
     String? reviewerName,
+  });
+
+  Future<void> saveEvaluation(EvaluationModel evaluation);
+
+  Future<EvaluationModel?> getEvaluationByItrId(String itrId);
+
+  Future<void> updateCertificateStatus({
+    required String itrId,
+    required String status,
+    String? certificateUrl,
   });
 }

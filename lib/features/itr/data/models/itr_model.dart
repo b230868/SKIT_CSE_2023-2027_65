@@ -21,6 +21,11 @@ class ItrModel {
   final String? reviewerName;
   final String? remarks;
 
+  final String? certificateStatus;
+  final String? certificateUrl;
+  final double? evaluationScore;
+  final String? evaluationGrade;
+
   const ItrModel({
     required this.id,
     required this.internshipId,
@@ -40,7 +45,13 @@ class ItrModel {
     this.submittedAt,
     this.reviewerName,
     this.remarks,
+    this.certificateStatus,
+    this.certificateUrl,
+    this.evaluationScore,
+    this.evaluationGrade,
   });
+
+  bool get isCertificateVerified => certificateStatus == 'verified';
 
   factory ItrModel.fromMap(Map<String, dynamic> map) {
     return ItrModel(
@@ -65,6 +76,10 @@ class ItrModel {
           : null,
       reviewerName: map['reviewer_name']?.toString(),
       remarks: map['remarks']?.toString(),
+      certificateStatus: map['certificate_status']?.toString(),
+      certificateUrl: map['certificate_url']?.toString(),
+      evaluationScore: (map['evaluation_score'] as num?)?.toDouble(),
+      evaluationGrade: map['evaluation_grade']?.toString(),
     );
   }
 
@@ -88,6 +103,60 @@ class ItrModel {
       'submitted_at': submittedAt?.toIso8601String(),
       'reviewer_name': reviewerName,
       'remarks': remarks,
+      'certificate_status': certificateStatus,
+      'certificate_url': certificateUrl,
+      'evaluation_score': evaluationScore,
+      'evaluation_grade': evaluationGrade,
     };
+  }
+
+  ItrModel copyWith({
+    String? id,
+    String? internshipId,
+    String? studentId,
+    String? studentName,
+    String? internshipTitle,
+    String? companyName,
+    String? status,
+    String? content,
+    String? workDone,
+    String? technologiesUsed,
+    String? keyLearnings,
+    String? challengesFaced,
+    String? documentPath,
+    String? projectZipPath,
+    String? presentationPath,
+    DateTime? submittedAt,
+    String? reviewerName,
+    String? remarks,
+    String? certificateStatus,
+    String? certificateUrl,
+    double? evaluationScore,
+    String? evaluationGrade,
+  }) {
+    return ItrModel(
+      id: id ?? this.id,
+      internshipId: internshipId ?? this.internshipId,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      internshipTitle: internshipTitle ?? this.internshipTitle,
+      companyName: companyName ?? this.companyName,
+      status: status ?? this.status,
+      content: content ?? this.content,
+      workDone: workDone ?? this.workDone,
+      technologiesUsed: technologiesUsed ?? this.technologiesUsed,
+      keyLearnings: keyLearnings ?? this.keyLearnings,
+      challengesFaced: challengesFaced ?? this.challengesFaced,
+      documentPath: documentPath ?? this.documentPath,
+      projectZipPath: projectZipPath ?? this.projectZipPath,
+      presentationPath: presentationPath ?? this.presentationPath,
+      submittedAt: submittedAt ?? this.submittedAt,
+      reviewerName: reviewerName ?? this.reviewerName,
+      remarks: remarks ?? this.remarks,
+      certificateStatus: certificateStatus ?? this.certificateStatus,
+      certificateUrl: certificateUrl ?? this.certificateUrl,
+      evaluationScore: evaluationScore ?? this.evaluationScore,
+      evaluationGrade: evaluationGrade ?? this.evaluationGrade,
+    );
   }
 }
