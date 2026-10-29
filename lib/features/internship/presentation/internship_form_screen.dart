@@ -105,9 +105,9 @@ class _InternshipFormScreenState extends State<InternshipFormScreen> {
         showSnack(context, _isEdit ? 'Changes saved' : 'Application submitted');
         Navigator.of(context).pop(true);
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        showSnack(context, 'Could not save. Try again.', error: true);
+        showSnack(context, 'Could not save: $error', error: true);
       }
     } finally {
       if (mounted) setState(() => _saving = false);

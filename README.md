@@ -28,17 +28,31 @@ local; it is excluded from Git.
 
 Apply
 [`supabase/migrations/20261011000000_geo_progress_offline_cache.sql`](./supabase/migrations/20261011000000_geo_progress_offline_cache.sql)
-after the base schema. Approved internships can submit progress from their
-detail screen with a GPS fix. Submissions are stored in Hive before upload; if
-offline, the detail screen shows the queued entry and a **Sync** action retries
-pending uploads when connectivity returns. Queue entries are scoped to the
-signed-in user.
+after the base schema. approved internships can submit progress from their detail screen with a GPS
+fix. Submissions are stored in Hive before upload; if offline, the detail
+screen shows the queued entry and a **Sync** action retries pending uploads.
+Retries also start automatically when connectivity returns, after sign-in, and
+when the app resumes. Queue entries are scoped to the signed-in user.
+
+Internship lists, details, progress history, and document metadata are cached
+per signed-in user and can be read while offline. Document files still require
+a network connection to upload or open.
+
+## S5 notifications and analytics APIs
+
+Apply
+[`supabase/migrations/20261026000000_s5_notification_analytics_apis.sql`](./supabase/migrations/20261026000000_s5_notification_analytics_apis.sql)
+after `schema.sql` and the internship/progress migrations. It adds
+owner-scoped notification access, notifications for internship submission,
+status changes, progress updates, and document uploads, plus the authenticated
+`get_student_analytics` RPC used by the student report. Notification realtime
+updates require the `notifications` table to be enabled in the Supabase
+`supabase_realtime` publication; the migration enables it when available.
 
 ## Checks
 
-Run static analysis and tests with:
+Run static analysis with:
 
 ```sh
 flutter analyze
-flutter test --no-test-assets
 ```

@@ -59,7 +59,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         title: const Text('Prashikshan'),
         actions: [
           IconButton(
-            tooltip: 'My Reports & Analytics',
+tooltip: 'My Reports & Analytics',
             icon: const Icon(Icons.bar_chart_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ReportsScreen()),
@@ -86,7 +86,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   const SizedBox(height: 12),
                   Center(
                     child: TextButton(
-                        onPressed: _reload, child: const Text('Try again')),
+                      onPressed: _reload,
+                      child: const Text('Try again'),
+                    ),
                   ),
                 ],
               );
@@ -99,18 +101,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             final avg = items.isEmpty
                 ? 0
                 : (items.map((i) => i.progress).reduce((a, b) => a + b) /
-                        items.length)
-                    .round();
+                          items.length)
+                      .round();
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
-                Text('Hello, ${widget.user.firstName}',
-                    style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.ink)),
+                Text(
+                  'Hello, ${widget.user.firstName}',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   items.isEmpty
@@ -127,20 +132,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     const SizedBox(width: 10),
                     _Stat(label: 'Approved', value: '$approved', onTap: widget.onApply),
                     const SizedBox(width: 10),
-                    _Stat(label: 'Avg progress', value: '$avg%', highlight: true),
+                    _Stat(
+                      label: 'Avg progress',
+                      value: '$avg%',
+                      highlight: true,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Recent internships',
-                          style: TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        'Recent internships',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                     TextButton(
-                        onPressed: widget.onApply,
-                        child: const Text('See all')),
+                      onPressed: widget.onApply,
+                      child: const Text('See all'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -157,14 +171,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         const Text('No internships yet'),
                         const SizedBox(height: 12),
                         FilledButton.icon(
-                            onPressed: _openApplyForm,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Apply for an internship')),
+                          onPressed: _openApplyForm,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Apply for an internship'),
+                        ),
                       ],
                     ),
                   )
                 else
-                  ...items.take(3).map(
+                  ...items
+                      .take(3)
+                      .map(
                         (i) => Card(
                           elevation: 0,
                           margin: const EdgeInsets.only(bottom: 10),
@@ -174,16 +191,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           child: ListTile(
                             onTap: () async {
-                              await Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) =>
-                                    InternshipDetailScreen(internshipId: i.id),
-                              ));
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => InternshipDetailScreen(
+                                    internshipId: i.id,
+                                  ),
+                                ),
+                              );
                               _reload();
                             },
-                            title: Text(i.title,
-                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                            title: Text(
+                              i.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             subtitle: Text(
-                                '${i.companyName} · ${fmtDate(i.startDate)}'),
+                              '${i.companyName} · ${fmtDate(i.startDate)}',
+                            ),
                             trailing: StatusChip(status: i.status),
                           ),
                         ),
@@ -229,21 +254,28 @@ class _Stat extends StatelessWidget {
               color: highlight ? AppTheme.ink : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: highlight ? AppTheme.ink : Colors.grey.shade300),
+                color: highlight ? AppTheme.ink : Colors.grey.shade300,
+              ),
             ),
             child: Column(
               children: [
-                Text(value,
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: highlight ? AppTheme.saffron : AppTheme.ink)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: highlight ? AppTheme.saffron : AppTheme.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: highlight ? Colors.white70 : Colors.grey.shade700)),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: highlight ? Colors.white70 : Colors.grey.shade700,
+                  ),
+                ),
               ],
             ),
           ),
