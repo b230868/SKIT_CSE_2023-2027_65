@@ -84,8 +84,6 @@ backend/
 │   │   ├── response.ts      # Standard ApiResponse and ApiError classes
 │   │   └── validators.ts    # UUID regex helper and Zod schemas
 │   └── app.ts               # Express application configuration
-├── test/
-│   └── api.test.ts          # Comprehensive 40-test integration suite
 ├── .env.example             # Template for required environment variables
 ├── package.json             # NPM dependencies and development scripts
 ├── prisma7.config.ts        # Prisma 7 configuration file
