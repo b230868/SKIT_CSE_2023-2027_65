@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
 import '../../models/notification_models.dart';
 import '../../services/report_service.dart';
 
@@ -15,7 +16,20 @@ const _docLabels = {
 String _docLabel(String key) => _docLabels[key] ?? key;
 
 String _fmtDate(DateTime d) {
-  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   final l = d.toLocal();
   return '${l.day} ${m[l.month - 1]} ${l.year}';
 }
@@ -41,44 +55,62 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // ---------------- PDF ----------------
 
   pw.Widget _cell(String text, {bool bold = false}) => pw.Padding(
-        padding: const pw.EdgeInsets.all(5),
-        child: pw.Text(text,
-            style: pw.TextStyle(fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-      );
+    padding: const pw.EdgeInsets.all(5),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      ),
+    ),
+  );
 
   pw.Widget _pdfTable(List<String> header, List<List<String>> rows) => pw.Table(
-        border: pw.TableBorder.all(),
-        children: [
-          pw.TableRow(children: [for (final h in header) _cell(h, bold: true)]),
-          for (final r in rows) pw.TableRow(children: [for (final c in r) _cell(c)]),
-        ],
-      );
+    border: pw.TableBorder.all(),
+    children: [
+      pw.TableRow(children: [for (final h in header) _cell(h, bold: true)]),
+      for (final r in rows)
+        pw.TableRow(children: [for (final c in r) _cell(c)]),
+    ],
+  );
 
   Future<void> _exportPdf(ReportSummary r) async {
     setState(() => _exporting = true);
     try {
       final doc = pw.Document();
-      final heading = pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold);
+      final heading = pw.TextStyle(
+        fontSize: 14,
+        fontWeight: pw.FontWeight.bold,
+      );
       doc.addPage(
         pw.MultiPage(
           build: (context) => [
-            pw.Text('Prashikshan - Internship Report',
-                style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.Text(
+              'Prashikshan - Internship Report',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
             pw.SizedBox(height: 4),
             pw.Text('Generated ${_fmtDate(DateTime.now())}'),
             pw.SizedBox(height: 18),
             pw.Text('Application summary', style: heading),
             pw.SizedBox(height: 6),
             _pdfTable(
-              ['Total', 'Approved', 'Pending', 'Rejected', 'Approval rate'],
+              [
+                'Total',
+                'Approved',
+                'Pending',
+                'Rejected',
+                'Completed',
+                'Approval rate',
+              ],
               [
                 [
                   '${r.totalApplications}',
                   '${r.approved}',
                   '${r.pending}',
                   '${r.rejected}',
+                  '${r.completed}',
                   '${r.approvalRate.toStringAsFixed(0)}%',
-                ]
+                ],
               ],
             ),
             pw.SizedBox(height: 18),
@@ -86,7 +118,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             pw.SizedBox(height: 6),
             pw.Text('Latest progress: ${r.latestProgress}%'),
             pw.Text('Weeks logged: ${r.weeksLogged}'),
-            pw.Text('Average gain per week: ${r.averageWeeklyGain.toStringAsFixed(1)} points'),
+            pw.Text(
+              'Average gain per week: ${r.averageWeeklyGain.toStringAsFixed(1)} points',
+            ),
             if (r.estimatedWeeksLeft != null)
               pw.Text('Estimated weeks to reach 100%: ${r.estimatedWeeksLeft}'),
             pw.SizedBox(height: 10),
@@ -101,7 +135,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       '${p.weekNo}',
                       '${p.progress}%',
                       p.recordedAt == null ? '-' : _fmtDate(p.recordedAt!),
-                    ]
+                    ],
                 ],
               ),
             pw.SizedBox(height: 18),
@@ -112,16 +146,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
             else
               _pdfTable(
                 ['Type', 'Count'],
-                [for (final e in r.documentsByType.entries) [_docLabel(e.key), '${e.value}']],
+                [
+                  for (final e in r.documentsByType.entries)
+                    [_docLabel(e.key), '${e.value}'],
+                ],
               ),
           ],
         ),
       );
-      await Printing.sharePdf(bytes: await doc.save(), filename: 'prashikshan_report.pdf');
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'prashikshan_report.pdf',
+      );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not generate the PDF. Try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not generate the PDF. Try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -143,11 +186,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (s.hasError) {
-              return ListView(children: [
-                const SizedBox(height: 160),
-                const Center(child: Text('Could not load your report.')),
-                Center(child: TextButton(onPressed: _refresh, child: const Text('Retry'))),
-              ]);
+              return ListView(
+                children: [
+                  const SizedBox(height: 160),
+                  const Center(child: Text('Could not load your report.')),
+                  Center(
+                    child: TextButton(
+                      onPressed: _refresh,
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
             }
             return _content(s.data ?? ReportSummary.empty());
           },
@@ -163,15 +213,46 @@ class _ReportsScreenState extends State<ReportsScreen> {
       children: [
         Text('Application summary', style: theme.textTheme.titleMedium),
         const SizedBox(height: 12),
-        Row(children: [
-          _StatCard('Total', r.totalApplications, Icons.assignment_outlined),
-          _StatCard('Approved', r.approved, Icons.check_circle_outline, color: Colors.green),
-        ]),
+        Row(
+          children: [
+            _StatCard('Total', r.totalApplications, Icons.assignment_outlined),
+            _StatCard(
+              'Approved',
+              r.approved,
+              Icons.check_circle_outline,
+              color: Colors.green,
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
-        Row(children: [
-          _StatCard('Pending', r.pending, Icons.hourglass_empty, color: Colors.orange),
-          _StatCard('Rejected', r.rejected, Icons.cancel_outlined, color: Colors.red),
-        ]),
+        Row(
+          children: [
+            _StatCard(
+              'Pending',
+              r.pending,
+              Icons.hourglass_empty,
+              color: Colors.orange,
+            ),
+            _StatCard(
+              'Rejected',
+              r.rejected,
+              Icons.cancel_outlined,
+              color: Colors.red,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _StatCard(
+              'Completed',
+              r.completed,
+              Icons.task_alt_outlined,
+              color: Colors.teal,
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
         const SizedBox(height: 8),
         _StatusBar(r),
         const SizedBox(height: 24),
@@ -187,7 +268,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: r.progressHistory.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('No weekly progress logged yet.')),
+                    child: Center(
+                      child: Text('No weekly progress logged yet.'),
+                    ),
                   )
                 : SizedBox(
                     height: 190,
@@ -204,14 +287,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Text('Documents (${r.documentsUploaded})', style: theme.textTheme.titleMedium),
+        Text(
+          'Documents (${r.documentsUploaded})',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
         _DocsByType(r),
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: _exporting ? null : () => _exportPdf(r),
           icon: _exporting
-              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Icon(Icons.picture_as_pdf_outlined),
           label: Text(_exporting ? 'Preparing PDF...' : 'Export as PDF'),
         ),
@@ -236,12 +326,14 @@ class _StatCard extends StatelessWidget {
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(children: [
-            Icon(icon, color: c),
-            const SizedBox(height: 8),
-            Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-            Text(label),
-          ]),
+          child: Column(
+            children: [
+              Icon(icon, color: c),
+              const SizedBox(height: 8),
+              Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+              Text(label),
+            ],
+          ),
         ),
       ),
     );
@@ -267,21 +359,33 @@ class _StatusBar extends StatelessWidget {
       (r.approved, Colors.green),
       (r.pending, Colors.orange),
       (r.rejected, Colors.red),
+      (r.completed, Colors.teal),
     ];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Row(children: [
-              for (final (n, c) in parts)
-                if (n > 0) Expanded(flex: n, child: Container(height: 14, color: c)),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Text('${r.approvalRate.toStringAsFixed(0)}% of your applications were approved'),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Row(
+                children: [
+                  for (final (n, c) in parts)
+                    if (n > 0)
+                      Expanded(
+                        flex: n,
+                        child: Container(height: 14, color: c),
+                      ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${r.approvalRate.toStringAsFixed(0)}% of your applications were approved',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -298,30 +402,41 @@ class _Insights extends StatelessWidget {
     final tiles = <(IconData, String, String)>[
       (Icons.trending_up, 'Latest progress', '${r.latestProgress}%'),
       (Icons.event_repeat, 'Weeks logged', '${r.weeksLogged}'),
-      (Icons.speed, 'Average gain per week', '${r.averageWeeklyGain.toStringAsFixed(1)} pts'),
+      (
+        Icons.speed,
+        'Average gain per week',
+        '${r.averageWeeklyGain.toStringAsFixed(1)} pts',
+      ),
       (
         Icons.update,
         'Last update',
-        days == null ? 'No updates yet' : (days == 0 ? 'Today' : '$days day(s) ago')
+        days == null
+            ? 'No updates yet'
+            : (days == 0 ? 'Today' : '$days day(s) ago'),
       ),
       (
         Icons.flag_outlined,
         'Estimated weeks to 100%',
-        left == null ? 'Not enough data' : (left == 0 ? 'Completed' : '$left')
+        left == null ? 'Not enough data' : (left == 0 ? 'Completed' : '$left'),
       ),
     ];
     return Card(
-      child: Column(children: [
-        for (var i = 0; i < tiles.length; i++) ...[
-          ListTile(
-            dense: true,
-            leading: Icon(tiles[i].$1),
-            title: Text(tiles[i].$2),
-            trailing: Text(tiles[i].$3, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          if (i < tiles.length - 1) const Divider(height: 1),
+      child: Column(
+        children: [
+          for (var i = 0; i < tiles.length; i++) ...[
+            ListTile(
+              dense: true,
+              leading: Icon(tiles[i].$1),
+              title: Text(tiles[i].$2),
+              trailing: Text(
+                tiles[i].$3,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (i < tiles.length - 1) const Divider(height: 1),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -347,23 +462,30 @@ class _DocsByType extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          for (final e in r.documentsByType.entries)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(children: [
-                SizedBox(width: 100, child: Text(_docLabel(e.key))),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(value: e.value / maxCount, minHeight: 10),
-                  ),
+        child: Column(
+          children: [
+            for (final e in r.documentsByType.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(width: 100, child: Text(_docLabel(e.key))),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: e.value / maxCount,
+                          minHeight: 10,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('${e.value}'),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Text('${e.value}'),
-              ]),
-            ),
-        ]),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -382,7 +504,10 @@ class _TrendPainter extends CustomPainter {
 
   void _text(Canvas canvas, String s, Offset o) {
     final tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(fontSize: 10, color: textColor)),
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: 10, color: textColor),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     tp.paint(canvas, o);
@@ -409,11 +534,14 @@ class _TrendPainter extends CustomPainter {
       if (p.weekNo < minWeek) minWeek = p.weekNo;
       if (p.weekNo > maxWeek) maxWeek = p.weekNo;
     }
-    double xOf(int week) =>
-        maxWeek == minWeek ? left + w / 2 : left + w * (week - minWeek) / (maxWeek - minWeek);
+    double xOf(int week) => maxWeek == minWeek
+        ? left + w / 2
+        : left + w * (week - minWeek) / (maxWeek - minWeek);
     double yOf(int progress) => top + h * (1 - progress.clamp(0, 100) / 100);
 
-    final offsets = [for (final p in points) Offset(xOf(p.weekNo), yOf(p.progress))];
+    final offsets = [
+      for (final p in points) Offset(xOf(p.weekNo), yOf(p.progress)),
+    ];
 
     final area = Path()..moveTo(offsets.first.dx, top + h);
     for (final o in offsets) {
@@ -439,7 +567,11 @@ class _TrendPainter extends CustomPainter {
     final dot = Paint()..color = line;
     for (var i = 0; i < points.length; i++) {
       canvas.drawCircle(offsets[i], 4, dot);
-      _text(canvas, 'W${points[i].weekNo}', Offset(offsets[i].dx - 8, top + h + 6));
+      _text(
+        canvas,
+        'W${points[i].weekNo}',
+        Offset(offsets[i].dx - 8, top + h + 6),
+      );
     }
   }
 
