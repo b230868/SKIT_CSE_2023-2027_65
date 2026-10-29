@@ -121,6 +121,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _StatCard(
+                      'Completed',
+                      r.completed,
+                      Icons.task_alt_outlined,
+                      color: Colors.teal,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 Text('Internship progress', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 12),

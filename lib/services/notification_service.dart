@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/internship/models/internship.dart';
 import '../models/notification_models.dart';
-import '../models/student_models.dart';
 
 abstract interface class NotificationDataSource {
   Future<List<AppNotification>> list();
@@ -9,12 +9,21 @@ abstract interface class NotificationDataSource {
   Future<void> markRead(String id);
   Future<void> markAllRead();
   Future<void> delete(String id);
-  Future<Application?> applicationFor(String applicationId);
+  Future<Internship?> internshipFor(String internshipId);
 }
 
 class NotificationService implements NotificationDataSource {
-  final SupabaseClient _db = Supabase.instance.client;
-  String get _uid => _db.auth.currentUser!.id;
+  NotificationService({SupabaseClient? client})
+    : _db = client ?? Supabase.instance.client;
+
+  final SupabaseClient _db;
+  String get _uid {
+    final userId = _db.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Sign in before accessing notifications.');
+    }
+    return userId;
+  }
 
   @override
   Future<List<AppNotification>> list() async {
@@ -23,7 +32,9 @@ class NotificationService implements NotificationDataSource {
         .select()
         .eq('user_id', _uid)
         .order('created_at', ascending: false);
-    return rows.map<AppNotification>((r) => AppNotification.fromMap(r)).toList();
+    return rows
+        .map<AppNotification>((r) => AppNotification.fromMap(r))
+        .toList();
   }
 
   /// Live list, newest first (bell badge and Notifications screen).
@@ -39,7 +50,11 @@ class NotificationService implements NotificationDataSource {
 
   @override
   Future<void> markRead(String id) async {
-    await _db.from('notifications').update({'is_read': true}).eq('id', id);
+    await _db
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('id', id)
+        .eq('user_id', _uid);
   }
 
   @override
@@ -54,19 +69,18 @@ class NotificationService implements NotificationDataSource {
   /// New: remove a notification (swipe to dismiss).
   @override
   Future<void> delete(String id) async {
-    await _db.from('notifications').delete().eq('id', id);
+    await _db.from('notifications').delete().eq('id', id).eq('user_id', _uid);
   }
 
-  /// New: load the application a notification points to, with its
-  /// internship, so the detail screen can open straight from the tap.
+  /// Loads only this user's internship linked by the notification.
   @override
-  Future<Application?> applicationFor(String applicationId) async {
+  Future<Internship?> internshipFor(String internshipId) async {
     final row = await _db
-        .from('applications')
-        .select('*, internships(*)')
-        .eq('id', applicationId)
+        .from('internships')
+        .select()
+        .eq('id', internshipId)
         .eq('student_id', _uid)
         .maybeSingle();
-    return row == null ? null : Application.fromMap(row);
+    return row == null ? null : Internship.fromMap(row);
   }
 }

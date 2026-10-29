@@ -1,8 +1,8 @@
-import 'package:prashikshan/models/student_models.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prashikshan/features/internship/models/internship.dart';
 import 'package:prashikshan/models/notification_models.dart';
 import 'package:prashikshan/screens/student/notification_screen.dart';
 import 'package:prashikshan/screens/student/reports_screen.dart';
@@ -33,8 +33,37 @@ void main() {
       expect(summary.approved, 0);
       expect(summary.pending, 0);
       expect(summary.rejected, 0);
+      expect(summary.completed, 0);
       expect(summary.documentsUploaded, 0);
       expect(summary.latestProgress, 0);
+    });
+
+    test('AppNotification accepts the current internship link field', () {
+      final notification = AppNotification.fromMap({
+        'id': 'notification-2',
+        'title': 'Application approved',
+        'created_at': '2026-10-26T10:00:00.000Z',
+        'internship_id': 'internship-2',
+      });
+
+      expect(notification.applicationId, 'internship-2');
+    });
+
+    test('ReportSummary parses analytics API counts', () {
+      final summary = ReportSummary.fromMap({
+        'total_applications': 5,
+        'approved': 1,
+        'pending': 1,
+        'rejected': 1,
+        'completed': 2,
+        'documents_uploaded': 4,
+        'latest_progress': 65,
+      });
+
+      expect(summary.totalApplications, 5);
+      expect(summary.completed, 2);
+      expect(summary.documentsUploaded, 4);
+      expect(summary.latestProgress, 65);
     });
   });
 
@@ -168,6 +197,7 @@ void main() {
       expect(find.text('Internship progress'), findsOneWidget);
       expect(find.text('Latest progress: 65%'), findsOneWidget);
       expect(find.text('4 document(s) uploaded'), findsOneWidget);
+      expect(find.text('Completed'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
@@ -209,6 +239,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Export as PDF'));
       await tester.pumpAndSettle();
 
@@ -310,7 +342,7 @@ class _FakeNotificationService implements NotificationDataSource {
   }
 
   @override
-  Future<Application?> applicationFor(String applicationId) async => null;
+  Future<Internship?> internshipFor(String internshipId) async => null;
 }
 
 class _FakeReportService implements ReportDataSource {

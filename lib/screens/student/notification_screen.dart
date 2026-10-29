@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../features/internship/presentation/internship_detail_screen.dart';
 import '../../models/notification_models.dart';
 import '../../services/notification_service.dart';
-import 'application_detail_screen.dart';
 
 IconData _iconFor(String type) => switch (type) {
       'application' => Icons.assignment_turned_in_outlined,
@@ -39,18 +40,36 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _open(AppNotification n) async {
-    if (!n.isRead) await _svc.markRead(n.id).catchError((_) {});
-    final appId = n.applicationId;
-    if (appId == null) return;
+    if (!n.isRead) {
+      try {
+        await _svc.markRead(n.id);
+      } catch (_) {
+        _toast('Could not mark the notification as read.');
+      }
+    }
+    final internshipId = n.internshipId;
+    if (internshipId == null) return;
     try {
-      final app = await _svc.applicationFor(appId);
+      final internship = await _svc.internshipFor(internshipId);
       if (!mounted) return;
-      if (app == null) return _toast('That application is no longer available.');
+      if (internship == null) {
+        return _toast('That internship is no longer available.');
+      }
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ApplicationDetailScreen(application: app)),
+        MaterialPageRoute(
+          builder: (_) => InternshipDetailScreen(internshipId: internship.id),
+        ),
       );
     } catch (_) {
-      _toast('Could not open the application. Try again.');
+      _toast('Could not open the internship. Try again.');
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await _svc.markAllRead();
+    } catch (_) {
+      _toast('Could not mark notifications as read.');
     }
   }
 
@@ -72,7 +91,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         title: const Text('Notifications'),
         actions: [
           TextButton(
-            onPressed: () => _svc.markAllRead().catchError((_) {}),
+            onPressed: _markAllRead,
             child: const Text('Mark all read'),
           ),
         ],
@@ -116,7 +135,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   title: Text(n.title,
                       style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
                   subtitle: Text(n.body),
-                  trailing: n.applicationId != null
+                  trailing: n.internshipId != null
                       ? const Icon(Icons.chevron_right)
                       : (n.isRead ? null : const Icon(Icons.circle, size: 10, color: Colors.blue)),
                   onTap: () => _open(n),

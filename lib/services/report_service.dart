@@ -37,13 +37,20 @@ class PrintingReportPdfExporter implements ReportPdfExporter {
             ),
             pw.SizedBox(height: 8),
             pw.TableHelper.fromTextArray(
-              headers: const ['Total', 'Approved', 'Pending', 'Rejected'],
+              headers: const [
+                'Total',
+                'Approved',
+                'Pending',
+                'Rejected',
+                'Completed',
+              ],
               data: [
                 [
                   summary.totalApplications,
                   summary.approved,
                   summary.pending,
                   summary.rejected,
+                  summary.completed,
                 ].map((value) => '$value').toList(),
               ],
             ),
@@ -68,38 +75,17 @@ class PrintingReportPdfExporter implements ReportPdfExporter {
 
 /// Builds the student's report summary from existing student tables.
 class ReportService implements ReportDataSource {
-  final SupabaseClient _db = Supabase.instance.client;
-  String get _uid => _db.auth.currentUser!.id;
+  ReportService({SupabaseClient? client})
+    : _db = client ?? Supabase.instance.client;
+
+  final SupabaseClient _db;
 
   @override
   Future<ReportSummary> studentSummary() async {
-    final internships = await _db
-        .from('internships')
-        .select('id, status')
-        .eq('student_id', _uid);
-    final docs = await _db
-        .from('documents')
-        .select('id')
-        .eq('student_id', _uid);
-    final progress = await _db
-        .from('progress_logs')
-        .select('progress')
-        .eq('student_id', _uid)
-        .order('created_at', ascending: false)
-        .limit(1);
-
-    int count(String status) =>
-        internships.where((item) => item['status'] == status).length;
-
-    return ReportSummary(
-      totalApplications: internships.length,
-      approved: count('approved'),
-      pending: count('pending'),
-      rejected: count('rejected'),
-      documentsUploaded: docs.length,
-      latestProgress: progress.isEmpty
-          ? 0
-          : (progress.first['progress'] as int),
-    );
+    final response = await _db.rpc('get_student_analytics');
+    if (response is! Map) {
+      throw const FormatException('Student analytics response is invalid.');
+    }
+    return ReportSummary.fromMap(Map<String, dynamic>.from(response));
   }
 }
