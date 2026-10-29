@@ -156,7 +156,44 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
-    if (_internship?.status != 'approved' || _submittingProgress) return;
+    if (_internship?.status != 'approved') {
+      showSnack(
+        context,
+        'Progress can only be tracked after the internship is approved by Faculty.',
+        error: true,
+      );
+      return;
+    }
+    if (_submittingProgress) return;
+
+    // Check internship date bounds if specified
+    final now = DateTime.now();
+    final startDate = _internship?.startDate;
+    if (startDate != null) {
+      // Start date with beginning of day
+      if (now.isBefore(DateTime(startDate.year, startDate.month, startDate.day))) {
+        showSnack(
+          context,
+          'Internship has not started yet (starts ${fmtDate(startDate)}).',
+          error: true,
+        );
+        return;
+      }
+    }
+    final endDate = _internship?.endDate;
+    if (endDate != null) {
+      // End date until end of day + grace period (e.g. 7 days)
+      final expiryWithGrace = DateTime(endDate.year, endDate.month, endDate.day).add(const Duration(days: 7));
+      if (now.isAfter(expiryWithGrace)) {
+        showSnack(
+          context,
+          'Internship period has concluded (ended ${fmtDate(endDate)}).',
+          error: true,
+        );
+        return;
+      }
+    }
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _ProgressDialog(initial: _currentProgress),
@@ -172,12 +209,26 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     }
     setState(() => _submittingProgress = true);
     try {
-      await _service.addProgress(
-          widget.internshipId, result['note'] as String, result['percent'] as int);
-      if (mounted) showSnack(context, 'Progress updated');
+      final savedLog = await _geoProgressService.submitProgress(
+        internshipId: widget.internshipId,
+        progressPercent: result['percent'] as int,
+        taskSummary: result['note'] as String,
+      );
+      if (mounted) {
+        if (savedLog.isPendingSync) {
+          showSnack(
+            context,
+            'Offline: Progress saved locally in Hive cache. It will sync once you are back online.',
+          );
+        } else {
+          showSnack(context, 'Geo-progress update recorded successfully');
+        }
+      }
       _load();
-    } catch (_) {
-      if (mounted) showSnack(context, 'Could not save the update', error: true);
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, 'Could not save progress: $e', error: true);
+      }
     } finally {
       if (mounted) setState(() => _submittingProgress = false);
     }
@@ -307,6 +358,57 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                       const SizedBox(height: 4),
                       Text(i.companyName,
                           style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
+                      const SizedBox(height: 10),
+                      if (i.status == 'pending')
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.hourglass_top, color: Colors.orange.shade800),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Application is pending faculty review. Once faculty approves, you can submit progress and updates.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.orange.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (i.status == 'approved')
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.green.shade800),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Internship application approved by faculty.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.green.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -388,20 +490,60 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                         Text('No updates yet. Add one when you finish a milestone.',
                             style: TextStyle(color: Colors.grey.shade700))
                       else
-                        ..._updates.map((u) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                backgroundColor: AppTheme.ink,
-                                child: Text('${u.progressPercent}%',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 12)),
+                        ..._updates.map((u) {
+                          final geoTag = (u.latitude != null && u.longitude != null)
+                              ? ' • 📍 ${u.latitude!.toStringAsFixed(4)}, ${u.longitude!.toStringAsFixed(4)}'
+                              : '';
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: AppTheme.ink,
+                              child: Text(
+                                '${u.progressPercent}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
                               ),
-                              title: Text(u.taskSummary),
-                              subtitle: Text(
-                                '${fmtDate(u.capturedAt)}'
-                                '${u.isPendingSync ? ' • Waiting to sync' : ''}',
-                              ),
-                            )),
+                            ),
+                            title: Text(u.taskSummary),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${fmtDate(u.capturedAt)}$geoTag',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                if (u.isPendingSync)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.cloud_off,
+                                          size: 13,
+                                          color: Colors.orange.shade800,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Cached offline (Hive) - will sync when online',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.orange.shade800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
                       _sectionHeader('Documents',
                           action: TextButton.icon(
                             onPressed: _uploading ? null : _upload,

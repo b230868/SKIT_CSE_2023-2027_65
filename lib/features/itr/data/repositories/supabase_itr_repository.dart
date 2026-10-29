@@ -96,6 +96,10 @@ class SupabaseItrRepository implements ItrRepository {
           reviewer_id,
           reviewer_name,
           remarks,
+          certificate_status,
+          certificate_url,
+          evaluation_score,
+          evaluation_grade,
           internships (
             internship_title,
             industries (
@@ -137,6 +141,10 @@ class SupabaseItrRepository implements ItrRepository {
           reviewer_id,
           reviewer_name,
           remarks,
+          certificate_status,
+          certificate_url,
+          evaluation_score,
+          evaluation_grade,
           internships (
             internship_title,
             industries (
@@ -239,6 +247,9 @@ class SupabaseItrRepository implements ItrRepository {
           'document_path': itr.documentPath,
           'project_zip_path': itr.projectZipPath,
           'presentation_path': itr.presentationPath,
+          if (itr.certificateUrl != null) 'certificate_url': itr.certificateUrl,
+          if (itr.certificateUrl != null && (itr.certificateStatus == null || itr.certificateStatus == 'draft'))
+            'certificate_status': 'pending',
           'submitted_at': DateTime.now().toIso8601String(),
         })
         .eq('id', itr.id)
@@ -282,6 +293,25 @@ class SupabaseItrRepository implements ItrRepository {
     required Uint8List fileBytes,
   }) async {
     final path = '$itrId/presentation/$fileName';
+
+    await _client.storage
+        .from(_bucketName)
+        .uploadBinary(
+          path,
+          fileBytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    return path;
+  }
+
+  @override
+  Future<String> uploadCertificate({
+    required String itrId,
+    required String fileName,
+    required Uint8List fileBytes,
+  }) async {
+    final path = '$itrId/certificate/$fileName';
 
     await _client.storage
         .from(_bucketName)

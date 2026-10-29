@@ -7,6 +7,8 @@ import '../../data/models/industry_evaluation_model.dart';
 import '../../data/models/industry_internship_model.dart';
 import '../../data/services/industry_evaluation_service.dart';
 import '../../data/services/industry_service.dart';
+import '../../../geo_progress/models/geo_progress_log.dart';
+import '../../../geo_progress/services/geo_progress_service.dart';
 import 'industry_evaluation_form_screen.dart';
 
 class IndustryInternshipDetailsScreen extends StatefulWidget {
@@ -37,6 +39,7 @@ class _IndustryInternshipDetailsScreenState
   IndustryEvaluationModel? _evaluation;
   List<IndustryAttendanceRecord> _attendanceRecords = [];
   List<InternshipDocument> _studentDocuments = [];
+  List<GeoProgressLog> _geoProgressLogs = [];
 
   @override
   void initState() {
@@ -59,6 +62,7 @@ class _IndustryInternshipDetailsScreenState
         _evaluationService.getEvaluationByInternshipId(_internship.id),
         _industryService.getAttendanceRecords(_internship.id),
         _industryService.getStudentDocuments(_internship.id),
+        GeoProgressService().fetchHistory(_internship.id).catchError((_) => <GeoProgressLog>[]),
       ]);
 
       if (!mounted) return;
@@ -66,6 +70,7 @@ class _IndustryInternshipDetailsScreenState
         _evaluation = results[0] as IndustryEvaluationModel?;
         _attendanceRecords = results[1] as List<IndustryAttendanceRecord>;
         _studentDocuments = results[2] as List<InternshipDocument>;
+        _geoProgressLogs = results[3] as List<GeoProgressLog>;
         _loading = false;
       });
     } catch (e) {
@@ -643,6 +648,121 @@ class _IndustryInternshipDetailsScreenState
                                     ? '${_internship.attendanceRate!.toStringAsFixed(0)}%'
                                     : 'No logs yet'),
                         ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Geo-Tagged Progress Section for Industry
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Student Geo-Progress Updates',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Chip(
+                      label: Text(
+                        '${_geoProgressLogs.length} Updates',
+                        style: const TextStyle(fontSize: 12, color: Colors.indigo),
+                      ),
+                      backgroundColor: Colors.indigo.shade50,
+                      side: BorderSide(color: Colors.indigo.shade200),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_geoProgressLogs.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'No geo-progress updates submitted by student yet.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        else
+                          ..._geoProgressLogs.map((log) {
+                            final hasCoords =
+                                log.latitude != null && log.longitude != null;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: Colors.teal.shade100,
+                                    child: Text(
+                                      '${log.progressPercent}%',
+                                      style: TextStyle(
+                                        color: Colors.teal.shade900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          log.taskSummary,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _formatDate(log.capturedAt),
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (hasCoords) ...[
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.location_pin,
+                                                size: 14,
+                                                color: Colors.redAccent,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Lat: ${log.latitude!.toStringAsFixed(4)}, Long: ${log.longitude!.toStringAsFixed(4)} (±${log.accuracyM?.toStringAsFixed(0) ?? '?'}m)',
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade800,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),

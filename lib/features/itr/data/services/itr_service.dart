@@ -51,6 +51,18 @@ class ItrService {
     );
   }
 
+  Future<String> uploadCertificate({
+    required String itrId,
+    required String fileName,
+    required Uint8List fileBytes,
+  }) {
+    return repository.uploadCertificate(
+      itrId: itrId,
+      fileName: fileName,
+      fileBytes: fileBytes,
+    );
+  }
+
   Future<String?> getFileUrl(String filePath) {
     return repository.getFileUrl(filePath);
   }

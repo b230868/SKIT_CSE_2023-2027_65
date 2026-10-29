@@ -254,6 +254,39 @@ class ItrDetailsScreen extends StatelessWidget {
                   : 'Pending Verification',
             ),
 
+            const SizedBox(height: 10),
+
+            const Text(
+              'Submitted Files & Project',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 12),
+
+            _section(
+              icon: Icons.folder_zip,
+              title: 'Project ZIP File',
+              value: itr.projectZipPath != null
+                  ? itr.projectZipPath!.split('/').last
+                  : 'Not uploaded',
+            ),
+
+            _section(
+              icon: Icons.slideshow,
+              title: 'Project Presentation (PPT)',
+              value: itr.presentationPath != null
+                  ? itr.presentationPath!.split('/').last
+                  : 'Not uploaded',
+            ),
+
+            _section(
+              icon: Icons.card_membership,
+              title: 'Internship Certificate',
+              value: itr.certificateUrl != null
+                  ? itr.certificateUrl!.split('/').last
+                  : 'Not uploaded',
+            ),
+
             const SizedBox(height: 24),
 
             if (_canEdit)

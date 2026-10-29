@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/itr_model.dart';
 import '../../data/repositories/itr_repository_provider.dart';
 import '../../data/services/itr_service.dart';
+import '../../../../screens/student/notification_screen.dart';
 import 'itr_details_screen.dart';
 
 class ItrListScreen extends StatefulWidget {
@@ -65,7 +66,12 @@ class _ItrListScreenState extends State<ItrListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My ITRs')),
+      appBar: AppBar(
+        title: const Text('My ITRs'),
+        actions: const [
+          NotificationBell(),
+        ],
+      ),
       body: FutureBuilder<List<ItrModel>>(
         future: _itrFuture,
         builder: (context, snapshot) {

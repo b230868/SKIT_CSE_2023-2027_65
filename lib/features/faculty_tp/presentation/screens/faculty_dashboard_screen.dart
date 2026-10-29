@@ -6,6 +6,7 @@ import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../../approval/presentation/screens/faculty_approval_dashboard_screen.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+import '../../../../screens/student/notification_screen.dart';
 import 'student_monitoring_screen.dart';
 import 'tp_dashboard_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -124,6 +125,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
+          const NotificationBell(),
         ],
       ),
       body: _buildBody(),

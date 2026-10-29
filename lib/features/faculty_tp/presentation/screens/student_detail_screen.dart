@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../geo_progress/models/geo_progress_log.dart';
+import '../../../geo_progress/services/geo_progress_service.dart';
 import '../../data/models/student_monitoring_detail.dart';
 import '../../data/repositories/student_monitoring_repository_factory.dart';
 import '../../data/services/student_monitoring_service.dart';
@@ -667,7 +669,186 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        _buildFacultyGeoProgressSection(detail),
       ],
+    );
+  }
+
+  Widget _buildFacultyGeoProgressSection(StudentMonitoringDetail detail) {
+    final isApproved = detail.internshipStatus?.toLowerCase() == 'approved';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.share_location, color: Colors.indigo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Student Geo Progress Tracking',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    isApproved ? 'TRACKING ACTIVE' : 'LOCKED',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isApproved ? Colors.green.shade900 : Colors.red.shade900,
+                    ),
+                  ),
+                  backgroundColor:
+                      isApproved ? Colors.green.shade50 : Colors.red.shade50,
+                  side: BorderSide(
+                    color:
+                        isApproved ? Colors.green.shade300 : Colors.red.shade300,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(),
+            if (!isApproved)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline, color: Colors.amber.shade900),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Geo Progress tracking is locked. It will only be visible once you approve this internship application.',
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              FutureBuilder<List<GeoProgressLog>>(
+                future: GeoProgressService().fetchHistory(detail.internshipId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Unable to load geo progress logs: ${snapshot.error}',
+                        style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                      ),
+                    );
+                  }
+                  final logs = snapshot.data ?? [];
+                  if (logs.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No geo-tagged progress reports submitted by student yet.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: logs.map((log) {
+                      final hasCoords = log.latitude != null && log.longitude != null;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: Colors.indigo.shade100,
+                              child: Text(
+                                '${log.progressPercent}%',
+                                style: TextStyle(
+                                  color: Colors.indigo.shade900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    log.taskSummary,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatDate(log.capturedAt),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  if (hasCoords) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 14,
+                                          color: Colors.redAccent,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Lat: ${log.latitude!.toStringAsFixed(4)}, Long: ${log.longitude!.toStringAsFixed(4)} (±${log.accuracyM?.toStringAsFixed(0) ?? '?'}m)',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade800,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 

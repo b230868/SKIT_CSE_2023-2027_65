@@ -25,6 +25,12 @@ abstract class ItrRepository {
     required Uint8List fileBytes,
   });
 
+  Future<String> uploadCertificate({
+    required String itrId,
+    required String fileName,
+    required Uint8List fileBytes,
+  });
+
   Future<String?> getFileUrl(String filePath);
 
   Future<void> deleteFile(String filePath);
