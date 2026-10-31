@@ -156,7 +156,15 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
-    if (_internship?.status != 'approved' || _submittingProgress) return;
+    if (_submittingProgress) return;
+    if (_internship?.status != 'approved' && _internship?.status != 'completed') {
+      showSnack(
+        context,
+        'Progress updates can only be submitted once your internship is approved.',
+        error: true,
+      );
+      return;
+    }
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _ProgressDialog(initial: _currentProgress),

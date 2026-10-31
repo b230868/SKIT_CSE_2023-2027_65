@@ -138,3 +138,141 @@ exception when others then
   raise notice 'Could not add table to supabase_realtime publication: %', sqlerrm;
 end;
 $$;
+
+-- 6. Analytics API: get_student_analytics() and student_report_data()
+create or replace function public.get_student_analytics()
+returns jsonb
+language plpgsql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_name text;
+  v_total integer;
+  v_approved integer;
+  v_pending integer;
+  v_rejected integer;
+  v_completed integer;
+  v_documents integer;
+  v_latest_progress integer;
+  v_unread_notifications integer;
+  v_documents_by_type jsonb;
+  v_notifications_by_type jsonb;
+  v_progress jsonb;
+begin
+  if v_user_id is null then
+    raise exception 'Authentication is required to read student analytics.'
+      using errcode = '42501';
+  end if;
+
+  select full_name into v_name from public.profiles where id = v_user_id;
+
+  select
+    count(*)::integer,
+    (count(*) filter (where status = 'approved'))::integer,
+    (count(*) filter (where status = 'pending'))::integer,
+    (count(*) filter (where status = 'rejected'))::integer,
+    (count(*) filter (where status = 'completed'))::integer
+  into v_total, v_approved, v_pending, v_rejected, v_completed
+  from public.internships
+  where student_id = v_user_id;
+
+  select count(*)::integer
+  into v_documents
+  from public.internship_documents
+  where student_id = v_user_id;
+
+  select coalesce(jsonb_object_agg(document_type, document_count), '{}'::jsonb)
+  into v_documents_by_type
+  from (
+    select
+      case
+        when lower(file_name) ~ '\.(png|jpe?g)$' then 'image'
+        when lower(file_name) ~ '\.pdf$' then 'pdf'
+        when lower(file_name) ~ '\.docx$' then 'docx'
+        when lower(file_name) ~ '\.doc$' then 'doc'
+        else 'other'
+      end as document_type,
+      count(*)::integer as document_count
+    from public.internship_documents
+    where student_id = v_user_id
+    group by 1
+  ) as document_counts;
+
+  select percent
+  into v_latest_progress
+  from public.progress_updates
+  where student_id = v_user_id
+  order by captured_at desc, created_at desc
+  limit 1;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'week_no', week_no,
+        'progress', percent,
+        'recorded_at', captured_at
+      )
+      order by week_no
+    ),
+    '[]'::jsonb
+  )
+  into v_progress
+  from (
+    select
+      row_number() over (order by captured_at, created_at)::integer as week_no,
+      percent,
+      captured_at
+    from public.progress_updates
+    where student_id = v_user_id
+  ) as progress_history;
+
+  select count(*)::integer
+  into v_unread_notifications
+  from public.notifications
+  where user_id = v_user_id and is_read = false;
+
+  select coalesce(jsonb_object_agg(type, c), '{}'::jsonb)
+  into v_notifications_by_type
+  from (
+    select type, count(*)::integer as c
+    from public.notifications
+    where user_id = v_user_id
+    group by type
+  ) as notif_counts;
+
+  return jsonb_build_object(
+    'student_name', v_name,
+    'total_applications', coalesce(v_total, 0),
+    'approved', coalesce(v_approved, 0),
+    'pending', coalesce(v_pending, 0),
+    'rejected', coalesce(v_rejected, 0),
+    'completed', coalesce(v_completed, 0),
+    'documents_uploaded', coalesce(v_documents, 0),
+    'documents_by_type', coalesce(v_documents_by_type, '{}'::jsonb),
+    'latest_progress', coalesce(v_latest_progress, 0),
+    'progress', coalesce(v_progress, '[]'::jsonb),
+    'unread_notifications', coalesce(v_unread_notifications, 0),
+    'notifications_by_type', coalesce(v_notifications_by_type, '{}'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.get_student_analytics() from public;
+revoke all on function public.get_student_analytics() from anon;
+grant execute on function public.get_student_analytics() to authenticated;
+
+-- Compatibility alias
+create or replace function public.student_report_data()
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+  select public.get_student_analytics();
+$$;
+
+grant execute on function public.student_report_data() to authenticated;
