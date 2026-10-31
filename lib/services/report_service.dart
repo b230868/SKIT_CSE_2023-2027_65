@@ -97,17 +97,97 @@ class ReportService {
   // ---------- fallback path ----------
 
   Future<ReportSummary> _fromTables() async {
-    final apps = await _db.from('applications').select('status').eq('student_id', _uid);
-    final docRows = await _db.from('documents').select('doc_type').eq('student_id', _uid);
-    final progRows = await _db.from('progress_logs').select().eq('student_id', _uid);
+    final uid = _uid;
+    if (uid.isEmpty) return ReportSummary.empty();
+
+    List<Map<String, dynamic>> apps = [];
+    try {
+      final rows = await _db
+          .from('internships')
+          .select('status')
+          .eq('student_id', uid);
+      apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      try {
+        final rows = await _db
+            .from('applications')
+            .select('status')
+            .eq('student_id', uid);
+        apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } catch (_) {}
+    }
+
+    final docs = <String, int>{};
+    try {
+      final docRows = await _db
+          .from('internship_documents')
+          .select('file_name')
+          .eq('student_id', uid);
+      for (final d in docRows) {
+        final fileName = (d['file_name'] ?? '').toString().toLowerCase();
+        final type = fileName.endsWith('.pdf')
+            ? 'pdf'
+            : (RegExp(r'\.(png|jpe?g)$').hasMatch(fileName)
+                ? 'image'
+                : (RegExp(r'\.(docx?)$').hasMatch(fileName)
+                    ? 'doc'
+                    : 'other'));
+        docs[type] = (docs[type] ?? 0) + 1;
+      }
+    } catch (_) {
+      try {
+        final docRows = await _db
+            .from('documents')
+            .select('doc_type')
+            .eq('student_id', uid);
+        for (final d in docRows) {
+          final type = (d['doc_type'] ?? 'other').toString();
+          docs[type] = (docs[type] ?? 0) + 1;
+        }
+      } catch (_) {}
+    }
+
+    final history = <ProgressPoint>[];
+    try {
+      final progRows = await _db
+          .from('progress_updates')
+          .select('percent, captured_at, created_at')
+          .eq('student_id', uid)
+          .order('captured_at', ascending: true);
+      for (var i = 0; i < progRows.length; i++) {
+        final r = progRows[i];
+        history.add(ProgressPoint(
+          weekNo: i + 1,
+          progress: _int(r['percent'] ?? r['progress']),
+          recordedAt: _date(r['captured_at'] ?? r['created_at']),
+        ));
+      }
+    } catch (_) {
+      try {
+        final progRows = await _db
+            .from('progress_logs')
+            .select()
+            .eq('student_id', uid);
+        for (final r in progRows) {
+          history.add(_point(Map<String, dynamic>.from(r as Map)));
+        }
+      } catch (_) {}
+    }
 
     String? name;
     var unread = 0;
     final notifications = <String, int>{};
     try {
-      final prof = await _db.from('profiles').select('full_name').eq('id', _uid).maybeSingle();
+      final prof = await _db
+          .from('profiles')
+          .select('full_name')
+          .eq('id', uid)
+          .maybeSingle();
       name = prof?['full_name'] as String?;
-      final notifRows = await _db.from('notifications').select('type, is_read').eq('user_id', _uid);
+      final notifRows = await _db
+          .from('notifications')
+          .select('type, is_read')
+          .eq('user_id', uid);
       for (final n in notifRows) {
         final type = (n['type'] ?? 'general').toString();
         notifications[type] = (notifications[type] ?? 0) + 1;
@@ -117,15 +197,8 @@ class ReportService {
       // Profile or notification tables unavailable: the rest of the report still works.
     }
 
-    int count(String status) => apps.where((a) => a['status'] == status).length;
-
-    final docs = <String, int>{};
-    for (final d in docRows) {
-      final type = (d['doc_type'] ?? 'other').toString();
-      docs[type] = (docs[type] ?? 0) + 1;
-    }
-    final history =
-        progRows.map<ProgressPoint>((r) => _point(Map<String, dynamic>.from(r))).toList();
+    int count(String status) =>
+        apps.where((a) => a['status'] == status).length;
 
     return _build(
       total: apps.length,
