@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../models/notification_models.dart';
 import '../../services/report_service.dart';
+import 'progress_analytics_screen.dart';
 
 const _docLabels = {
   'resume': 'Resume',
@@ -183,7 +184,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My report')),
+      appBar: AppBar(
+        title: const Text('My report'),
+        actions: [
+          IconButton(
+            tooltip: 'Progress Analytics & Insights',
+            icon: const Icon(Icons.insights_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProgressAnalyticsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<ReportSummary>(

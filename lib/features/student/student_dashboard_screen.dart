@@ -9,6 +9,7 @@ import '../internship/models/internship.dart';
 import '../internship/presentation/internship_detail_screen.dart';
 import '../internship/presentation/internship_form_screen.dart';
 import '../../screens/student/notification_screen.dart';
+import '../../screens/student/progress_analytics_screen.dart';
 import '../../screens/student/reports_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
@@ -59,6 +60,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         title: const Text('Prashikshan'),
         actions: [
           const NotificationBell(),
+          IconButton(
+            tooltip: 'Progress Analytics',
+            icon: const Icon(Icons.insights_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProgressAnalyticsScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'My report',
             icon: const Icon(Icons.bar_chart_outlined),
