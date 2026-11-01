@@ -68,7 +68,7 @@ class InternshipService {
     required String mode,
     required DateTime startDate,
     required DateTime endDate,
-    String status = 'pending',
+    String status = 'Pending',
   }) async {
     await _c.from('internships').insert({
       'student_id': _uid,
