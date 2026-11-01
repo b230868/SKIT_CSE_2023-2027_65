@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../models/notification_models.dart';
-import '../../../../models/report_insights.dart';
+import '../../models/notification_models.dart';
+import '../../models/report_insights.dart';
 
 class ProgressAnalyticsScreen extends StatefulWidget {
   const ProgressAnalyticsScreen({super.key});

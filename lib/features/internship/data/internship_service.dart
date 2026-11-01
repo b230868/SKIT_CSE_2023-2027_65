@@ -68,7 +68,7 @@ class InternshipService {
     required String mode,
     required DateTime startDate,
     required DateTime endDate,
-    String status = 'Pending',
+    String status = 'pending',
   }) async {
     await _c.from('internships').insert({
       'student_id': _uid,
@@ -78,7 +78,7 @@ class InternshipService {
       'mode': mode,
       'start_date': isoDate(startDate),
       'end_date': isoDate(endDate),
-      'status': status,
+      'status': status.toLowerCase(),
       'progress': 0,
     });
     await _invalidateInternshipCache();
