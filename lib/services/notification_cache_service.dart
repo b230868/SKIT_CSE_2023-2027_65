@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../models/notification_models.dart';
+import '../models/notification_models.dart';
 
 /// Reads, live-updates and manages the signed-in student's notifications.
 ///

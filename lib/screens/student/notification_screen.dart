@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'alerts_screen.dart';
+
 import '../../features/internship/presentation/internship_detail_screen.dart';
 import '../../models/notification_models.dart';
 import '../../services/notification_service.dart';
@@ -91,6 +93,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
+          IconButton(
+            tooltip: 'View Alerts',
+            icon: const Icon(Icons.warning_amber_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AlertsScreen()),
+            ),
+          ),
           TextButton(
             onPressed: _markAllRead,
             child: const Text('Mark all read'),

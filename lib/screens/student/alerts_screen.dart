@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../models/notification_models.dart';
+import '../../features/internship/presentation/internship_detail_screen.dart';
+import '../../models/notification_models.dart';
 import '../../services/notification_cache_service.dart';
 
 class AlertsScreen extends StatefulWidget {
@@ -50,7 +51,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
       await _service.markAsRead(n.id);
     }
     final internshipId = n.internshipId;
-    if (internshipId != null) widget.onOpenInternship?.call(internshipId);
+    if (internshipId != null) {
+      if (widget.onOpenInternship != null) {
+        widget.onOpenInternship!(internshipId);
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => InternshipDetailScreen(internshipId: internshipId),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _delete(AppNotification n) async {
