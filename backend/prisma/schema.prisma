@@ -1135,6 +1135,10 @@ enum internship_status {
   active
   completed
   cancelled
+  pending
+  approved
+  rejected
+  under_review
 
   @@schema("public")
 }

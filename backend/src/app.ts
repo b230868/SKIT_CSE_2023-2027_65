@@ -8,6 +8,9 @@ import studentRoutes from "./routes/student.routes";
 import internshipRoutes from "./routes/internship.routes";
 import monitoringRoutes from "./routes/monitoring.routes";
 import authRoutes from "./routes/auth.routes";
+import industryRoutes from "./routes/industry.routes";
+import itrRoutes from "./routes/itr.routes";
+import erpRoutes from "./routes/erp.routes";
 import { sendSuccess } from "./utils/response";
 
 const app = express();
@@ -21,8 +24,8 @@ app.use(requestLogger);
 app.get("/", (_req, res) => {
   res.json({
     message: "Prashikshan backend is running!",
-    version: "1.0.0",
-    status: "healthy",
+    version: "2.1.0",
+    serverStatus: "healthy",
   });
 });
 
@@ -67,6 +70,9 @@ app.use("/students", studentRoutes);
 app.use("/internships", internshipRoutes);
 app.use("/monitoring", monitoringRoutes);
 app.use("/auth", authRoutes);
+app.use("/industry", industryRoutes);
+app.use("/itr", itrRoutes);
+app.use("/erp", erpRoutes);
 
 // 404 handler for unknown routes
 app.use(notFoundHandler);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase_config.dart';
+import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../data/auth_service.dart';
@@ -148,15 +149,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       if (!mounted) return;
       setState(() => _loading = false);
-      if (res.session == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Account created! Please check your email inbox to verify your account before signing in.',
-            ),
-          ),
+
+      if (res.user != null &&
+          res.user!.identities != null &&
+          res.user!.identities!.isEmpty) {
+        showSnack(
+          context,
+          'An account with this email already exists. Please sign in or use password recovery.',
+          error: true,
         );
-        Navigator.of(context).pop();
+        return;
+      }
+
+      if (res.session == null) {
+        await _showEmailVerificationDialog(trimmedEmail);
       } else {
         // Signed in already: AuthGate displays home screen, close register page
         Navigator.of(context).popUntil((r) => r.isFirst);
@@ -207,6 +213,175 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
 
+
+
+  Future<void> _showEmailVerificationDialog(String email) async {
+    bool resending = false;
+    String? resendMessage;
+    bool isResendSuccess = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.saffron.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 52,
+                      color: AppTheme.saffron,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Confirm your email',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.ink,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'We have sent a verification link to:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.ink,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Please check your inbox (and spam/junk folder) and click the link to confirm your account before logging in.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (resendMessage != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isResendSuccess
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isResendSuccess
+                              ? Colors.green.shade300
+                              : Colors.red.shade300,
+                        ),
+                      ),
+                      child: Text(
+                        resendMessage!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isResendSuccess
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: resending
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  resending = true;
+                                  resendMessage = null;
+                                });
+                                try {
+                                  await _auth.resendVerificationEmail(
+                                    email: email,
+                                  );
+                                  setDialogState(() {
+                                    resending = false;
+                                    isResendSuccess = true;
+                                    resendMessage =
+                                        'Verification email resent! Please check inbox.';
+                                  });
+                                } catch (e) {
+                                  setDialogState(() {
+                                    resending = false;
+                                    isResendSuccess = false;
+                                    resendMessage =
+                                        AuthService.parseAuthErrorMessage(e);
+                                  });
+                                }
+                              },
+                        child: resending
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Resend email'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.ink,
+                        ),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                        child: const Text('Go to login'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
