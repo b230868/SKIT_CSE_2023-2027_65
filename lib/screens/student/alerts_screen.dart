@@ -50,6 +50,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       setState(() => _readLocally.add(n.id));
       await _service.markAsRead(n.id);
     }
+    if (!mounted) return;
     final internshipId = n.internshipId;
     if (internshipId != null) {
       if (widget.onOpenInternship != null) {
