@@ -1,8 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:prashikshan/features/faculty_tp/data/models/student_monitoring_item.dart';
-import 'package:prashikshan/features/faculty_tp/data/models/student_monitoring_detail.dart';
 import 'package:prashikshan/features/faculty_tp/data/models/company_assignment_model.dart';
-import 'package:prashikshan/features/faculty_tp/data/models/mock_student_monitoring_data.dart';
 import 'package:prashikshan/features/faculty_tp/data/repositories/faculty_dashboard_repository.dart';
 import 'package:prashikshan/features/faculty_tp/data/repositories/mock_company_assignment_repository.dart';
 import 'package:prashikshan/features/faculty_tp/data/repositories/mock_student_monitoring_repository.dart';

@@ -69,15 +69,18 @@ class _RoleHomeState extends State<RoleHome> {
         }
 
         final user = snap.data!;
+        final role = user.role.toLowerCase().trim();
 
-        switch (user.role) {
+        switch (role) {
           case 'student':
             return StudentShell(user: user);
           case 'faculty':
           case 'faculty_mentor':
+          case 'facultymentor':
             return const FacultyDashboardScreen();
           case 'tnp':
           case 'tp_officer':
+          case 'tpofficer':
             return const TpDashboardScreen();
           case 'admin':
             return ComingSoonScreen(user: user);
