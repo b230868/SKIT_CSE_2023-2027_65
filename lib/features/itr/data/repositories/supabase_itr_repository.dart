@@ -34,23 +34,19 @@ class SupabaseItrRepository implements ItrRepository {
         .eq('user_id', user.id)
         .maybeSingle();
 
-    if (student == null) {
-      return [];
-    }
-
-    final studentId = student['id'].toString();
+    final studentId = student?['id']?.toString() ?? user.id;
 
     // Ensure every internship belonging to this student has at least a draft ITR record
     try {
       final internships = await _client
           .from('internships')
           .select('id')
-          .eq('student_id', studentId);
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}');
 
       final existingItrs = await _client
           .from('itrs')
           .select('internship_id')
-          .eq('student_id', studentId);
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}');
 
       final existingInternshipIds = (existingItrs as List)
           .map((e) => e['internship_id']?.toString())
@@ -108,15 +104,10 @@ class SupabaseItrRepository implements ItrRepository {
               company_name,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
-          .eq('student_id', studentId)
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}')
           .order('created_at', ascending: false);
     } catch (_) {
       try {
@@ -149,7 +140,7 @@ class SupabaseItrRepository implements ItrRepository {
                 company_name
               )
             ''')
-            .eq('student_id', studentId)
+            .or('student_id.eq.$studentId,student_id.eq.${user.id}')
             .order('created_at', ascending: false);
       } catch (_) {
         return [];
@@ -196,11 +187,6 @@ class SupabaseItrRepository implements ItrRepository {
               company_name,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
@@ -280,6 +266,15 @@ class SupabaseItrRepository implements ItrRepository {
         if (profileData is Map) {
           studentName =
               profileData['full_name']?.toString() ?? 'Unknown Student';
+        }
+      }
+      if (studentName == 'Unknown Student') {
+        final cur = _client.auth.currentUser;
+        if (cur != null) {
+          studentName = cur.userMetadata?['full_name']?.toString() ??
+              cur.userMetadata?['name']?.toString() ??
+              cur.email?.split('@').first ??
+              'Student';
         }
       }
     }
@@ -503,11 +498,6 @@ class SupabaseItrRepository implements ItrRepository {
               company_name,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
@@ -540,11 +530,6 @@ class SupabaseItrRepository implements ItrRepository {
                 company_name,
                 industries (
                   name
-                ),
-                students (
-                  profiles (
-                    full_name
-                  )
                 )
               )
             ''')
@@ -593,11 +578,6 @@ class SupabaseItrRepository implements ItrRepository {
               company_name,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')

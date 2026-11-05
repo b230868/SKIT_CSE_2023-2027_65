@@ -99,16 +99,7 @@ class SupabaseIndustryRepository implements IndustryRepository {
           start_date,
           end_date,
           status,
-          progress,
-          students (
-            roll_number,
-            profiles (
-              id,
-              full_name,
-              enrollment_no,
-              branch
-            )
-          )
+          progress
         ''')
         .eq('industry_id', industryId)
         .order('created_at', ascending: false);
@@ -124,6 +115,42 @@ class SupabaseIndustryRepository implements IndustryRepository {
     final internshipIds = internshipList
         .map((e) => e['id'].toString())
         .toList();
+
+    final studentIds = internshipList
+        .map((e) => e['student_id']?.toString())
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final Map<String, Map<String, dynamic>> profilesMap = {};
+    if (studentIds.isNotEmpty) {
+      try {
+        final profRows = await _client
+            .from('profiles')
+            .select('id, full_name, enrollment_no, branch')
+            .inFilter('id', studentIds);
+        for (final p in (profRows as List)) {
+          final map = Map<String, dynamic>.from(p as Map);
+          final id = map['id']?.toString();
+          if (id != null) profilesMap[id] = map;
+        }
+      } catch (_) {}
+    }
+
+    final Map<String, String> rollNumberMap = {};
+    if (studentIds.isNotEmpty) {
+      try {
+        final studentRows = await _client
+            .from('students')
+            .select('user_id, roll_number')
+            .inFilter('user_id', studentIds);
+        for (final s in (studentRows as List)) {
+          final uid = s['user_id']?.toString();
+          final roll = s['roll_number']?.toString();
+          if (uid != null && roll != null) rollNumberMap[uid] = roll;
+        }
+      } catch (_) {}
+    }
 
     final Map<String, String> latestItrStatus = {};
     final Map<String, String> latestEvaluationStatus = {};
@@ -216,8 +243,11 @@ class SupabaseIndustryRepository implements IndustryRepository {
     final result = <IndustryInternshipModel>[];
 
     for (final internship in internshipList) {
-      final student = internship['students'] as Map<String, dynamic>?;
-      final profile = student?['profiles'] as Map<String, dynamic>?;
+      final studentIdVal = internship['student_id']?.toString();
+      final profile = studentIdVal != null ? profilesMap[studentIdVal] : null;
+      final rollNoVal = (studentIdVal != null ? rollNumberMap[studentIdVal] : null) ??
+          profile?['enrollment_no']?.toString();
+      final branchVal = profile?['branch']?.toString();
       final internshipId = internship['id'].toString();
 
       final evalStatus = latestEvaluationStatus[internshipId] ?? 'pending';
@@ -227,13 +257,6 @@ class SupabaseIndustryRepository implements IndustryRepository {
                   0.0)
               .clamp(0.0, 100.0)
               .toDouble();
-
-      final studentIdVal =
-          internship['student_id']?.toString() ?? profile?['id']?.toString();
-      final rollNoVal =
-          student?['roll_number']?.toString() ??
-          profile?['enrollment_no']?.toString();
-      final branchVal = profile?['branch']?.toString();
       final startDateVal = internship['start_date'] != null
           ? DateTime.tryParse(internship['start_date'].toString())
           : null;

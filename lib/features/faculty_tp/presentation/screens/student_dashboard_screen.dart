@@ -72,11 +72,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       Map<String, dynamic>? certMap;
       final reviewsList = <Map<String, dynamic>>[];
 
-      if (studentRes != null) {
-        final studentId = studentRes['id'] as String;
+      final studentDbId = studentRes?['id']?.toString();
+      final idFilter = studentDbId != null
+          ? 'student_id.eq.$studentDbId,student_id.eq.${user.id}'
+          : 'student_id.eq.${user.id}';
 
-        // Query active or latest internship
-        final internshipRes = await client
+      // Query active or latest internship
+      dynamic internshipRes;
+      try {
+        internshipRes = await client
             .from('internships')
             .select('''
               id,
@@ -118,38 +122,60 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 created_at
               )
             ''')
-            .eq('student_id', studentId)
+            .or(idFilter)
             .order('created_at', ascending: false)
             .limit(1)
             .maybeSingle();
+      } catch (_) {
+        try {
+          internshipRes = await client
+              .from('internships')
+              .select('''
+                id,
+                internship_title,
+                company_name,
+                status,
+                mode,
+                progress,
+                start_date,
+                end_date,
+                description
+              ''')
+              .or(idFilter)
+              .order('created_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+        } catch (_) {
+          internshipRes = null;
+        }
+      }
 
-        if (internshipRes != null) {
-          internshipMap = Map<String, dynamic>.from(internshipRes);
+      if (internshipRes != null) {
+        internshipMap = Map<String, dynamic>.from(internshipRes);
 
-          if (internshipMap['itrs'] is List &&
-              (internshipMap['itrs'] as List).isNotEmpty) {
-            itrMap = Map<String, dynamic>.from(
-              (internshipMap['itrs'] as List).first as Map,
-            );
-          } else if (internshipMap['itrs'] is Map) {
-            itrMap = Map<String, dynamic>.from(internshipMap['itrs'] as Map);
-          }
+        if (internshipMap['itrs'] is List &&
+            (internshipMap['itrs'] as List).isNotEmpty) {
+          itrMap = Map<String, dynamic>.from(
+            (internshipMap['itrs'] as List).first as Map,
+          );
+        } else if (internshipMap['itrs'] is Map) {
+          itrMap = Map<String, dynamic>.from(internshipMap['itrs'] as Map);
+        }
 
-          if (internshipMap['certificates'] is List &&
-              (internshipMap['certificates'] as List).isNotEmpty) {
-            certMap = Map<String, dynamic>.from(
-              (internshipMap['certificates'] as List).first as Map,
-            );
-          } else if (internshipMap['certificates'] is Map) {
-            certMap = Map<String, dynamic>.from(
-              internshipMap['certificates'] as Map,
-            );
-          }
+        if (internshipMap['certificates'] is List &&
+            (internshipMap['certificates'] as List).isNotEmpty) {
+          certMap = Map<String, dynamic>.from(
+            (internshipMap['certificates'] as List).first as Map,
+          );
+        } else if (internshipMap['certificates'] is Map) {
+          certMap = Map<String, dynamic>.from(
+            internshipMap['certificates'] as Map,
+          );
+        }
 
-          if (internshipMap['approval_reviews'] is List) {
-            for (final r in internshipMap['approval_reviews'] as List) {
-              reviewsList.add(Map<String, dynamic>.from(r as Map));
-            }
+        if (internshipMap['approval_reviews'] is List) {
+          for (final r in internshipMap['approval_reviews'] as List) {
+            reviewsList.add(Map<String, dynamic>.from(r as Map));
           }
         }
       }
