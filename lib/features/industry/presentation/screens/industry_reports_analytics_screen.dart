@@ -287,7 +287,7 @@ class _IndustryReportsAnalyticsScreenState
                     Expanded(
                       child: _buildKpiCard(
                         title: 'Average Score',
-                        value: data.averageScore > 0
+                        value: (data.averageScore > 0)
                             ? '${data.averageScore.toStringAsFixed(1)} / 100'
                             : 'N/A',
                         icon: Icons.grade,

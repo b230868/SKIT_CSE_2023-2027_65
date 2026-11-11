@@ -41,7 +41,7 @@ class Internship {
     );
   }
 
-  bool get isEditable => status == 'pending';
+  bool get isEditable => status.toLowerCase() == 'pending';
 }
 
 class ProgressUpdate {

@@ -156,7 +156,16 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
-    if (_internship?.status != 'approved' || _submittingProgress) return;
+    if (_submittingProgress) return;
+    final st = _internship?.status.toLowerCase();
+    if (st != 'approved' && st != 'completed') {
+      showSnack(
+        context,
+        'Progress updates can only be submitted once your internship is approved.',
+        error: true,
+      );
+      return;
+    }
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _ProgressDialog(initial: _currentProgress),
@@ -427,9 +436,32 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                           ),
                         ),
                         title: Text(u.taskSummary),
-                        subtitle: Text(
-                          '${fmtDate(u.capturedAt)}'
-                          '${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${fmtDate(u.capturedAt)}${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                            ),
+                            if (u.latitude != null && u.longitude != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.location_on, size: 14, color: Colors.blueGrey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${u.latitude!.toStringAsFixed(4)}°, ${u.longitude!.toStringAsFixed(4)}°'
+                                      '${u.accuracyM != null ? ' (±${u.accuracyM!.toStringAsFixed(0)}m)' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blueGrey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),

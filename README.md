@@ -38,6 +38,17 @@ Internship lists, details, progress history, and document metadata are cached
 per signed-in user and can be read while offline. Document files still require
 a network connection to upload or open.
 
+## S5 notifications and analytics APIs
+
+Apply
+[`supabase/migrations/20261026000000_s5_notification_analytics_apis.sql`](./supabase/migrations/20261026000000_s5_notification_analytics_apis.sql)
+after `schema.sql` and the internship/progress migrations. It adds
+owner-scoped notification access, notifications for internship submission,
+status changes, progress updates, and document uploads, plus the authenticated
+`get_student_analytics` RPC used by the student report. Notification realtime
+updates require the `notifications` table to be enabled in the Supabase
+`supabase_realtime` publication; the migration enables it when available.
+
 ## Checks
 
 Run static analysis with:

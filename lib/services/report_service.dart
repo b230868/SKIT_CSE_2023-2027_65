@@ -1,105 +1,216 @@
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../models/notification_models.dart';
 
-abstract interface class ReportDataSource {
-  Future<ReportSummary> studentSummary();
-}
+/// Builds the student's report and analytics data.
+/// Preferred path: database RPC (get_student_analytics or student_report_data).
+/// If those functions are unavailable, it falls back to querying the tables.
+/// The result is cached in memory for 60 seconds per signed-in user;
+/// pull-to-refresh always fetches fresh data.
+class ReportService {
+  ReportService({SupabaseClient? client})
+      : _db = client ?? Supabase.instance.client;
 
-abstract interface class ReportPdfExporter {
-  Future<void> export(ReportSummary summary);
-}
+  final SupabaseClient _db;
+  String get _uid => _db.auth.currentUser?.id ?? '';
 
-class PrintingReportPdfExporter implements ReportPdfExporter {
-  @override
-  Future<void> export(ReportSummary summary) async {
-    final document = pw.Document();
-    document.addPage(
-      pw.Page(
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'Prashikshan - Internship Report',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              'Generated '
-              '${DateTime.now().toLocal().toString().split('.').first}',
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Application summary',
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 8),
-            pw.TableHelper.fromTextArray(
-              headers: const ['Total', 'Approved', 'Pending', 'Rejected'],
-              data: [
-                [
-                  summary.totalApplications,
-                  summary.approved,
-                  summary.pending,
-                  summary.rejected,
-                ].map((value) => '$value').toList(),
-              ],
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Internship progress',
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text('Latest progress: ${summary.latestProgress}%'),
-            pw.Text('${summary.documentsUploaded} document(s) uploaded'),
-          ],
-        ),
-      ),
-    );
-    await Printing.sharePdf(
-      bytes: await document.save(),
-      filename: 'prashikshan_report.pdf',
+  static ReportSummary? _cached;
+  static DateTime? _cachedAt;
+  static String? _cachedFor;
+  static const _cacheSeconds = 60;
+
+  Future<ReportSummary> studentSummary({bool force = false}) async {
+    final uid = _uid;
+    final at = _cachedAt;
+    if (!force &&
+        _cached != null &&
+        uid.isNotEmpty &&
+        _cachedFor == uid &&
+        at != null &&
+        DateTime.now().difference(at).inSeconds < _cacheSeconds) {
+      return _cached!;
+    }
+    ReportSummary result;
+    try {
+      final raw = await _db.rpc('get_student_analytics');
+      result = ReportSummary.fromMap(Map<String, dynamic>.from(raw as Map));
+    } catch (_) {
+      try {
+        final raw = await _db.rpc('student_report_data');
+        result = ReportSummary.fromMap(Map<String, dynamic>.from(raw as Map));
+      } catch (_) {
+        result = await _fromTables();
+      }
+    }
+    if (uid.isNotEmpty) {
+      _cached = result;
+      _cachedAt = DateTime.now();
+      _cachedFor = uid;
+    }
+    return result;
+  }
+
+  // ---------- helpers ----------
+
+  int _int(dynamic v) => (v as num?)?.toInt() ?? 0;
+
+  DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
+
+  ProgressPoint _point(Map<String, dynamic> m) => ProgressPoint(
+        weekNo: _int(m['week_no']),
+        progress: _int(m['progress']),
+        recordedAt: _date(m['recorded_at'] ?? m['created_at']),
+      );
+
+  ReportSummary _build({
+    required int total,
+    required int approved,
+    required int pending,
+    required int rejected,
+    int completed = 0,
+    required Map<String, int> docs,
+    required List<ProgressPoint> history,
+    required String? name,
+    required int unread,
+    required Map<String, int> notifications,
+  }) {
+    history.sort((a, b) => a.weekNo.compareTo(b.weekNo));
+    var latest = 0;
+    for (final p in history) {
+      if (p.progress > latest) latest = p.progress;
+    }
+    return ReportSummary(
+      totalApplications: total,
+      approved: approved,
+      pending: pending,
+      rejected: rejected,
+      completed: completed,
+      documentsUploaded: docs.values.fold<int>(0, (a, b) => a + b),
+      latestProgress: latest,
+      documentsByType: docs,
+      progressHistory: history,
+      studentName: name,
+      unreadNotifications: unread,
+      notificationsByType: notifications,
     );
   }
-}
 
-/// Builds the student's report summary from existing student tables.
-class ReportService implements ReportDataSource {
-  final SupabaseClient _db = Supabase.instance.client;
-  String get _uid => _db.auth.currentUser!.id;
+  // ---------- fallback path ----------
 
-  @override
-  Future<ReportSummary> studentSummary() async {
-    final internships = await _db
-        .from('internships')
-        .select('id, status')
-        .eq('student_id', _uid);
-    final docs = await _db
-        .from('documents')
-        .select('id')
-        .eq('student_id', _uid);
-    final progress = await _db
-        .from('progress_logs')
-        .select('progress')
-        .eq('student_id', _uid)
-        .order('created_at', ascending: false)
-        .limit(1);
+  Future<ReportSummary> _fromTables() async {
+    final uid = _uid;
+    if (uid.isEmpty) return ReportSummary.empty();
+
+    List<Map<String, dynamic>> apps = [];
+    try {
+      final rows = await _db
+          .from('internships')
+          .select('status')
+          .eq('student_id', uid);
+      apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      try {
+        final rows = await _db
+            .from('applications')
+            .select('status')
+            .eq('student_id', uid);
+        apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } catch (_) {}
+    }
+
+    final docs = <String, int>{};
+    try {
+      final docRows = await _db
+          .from('internship_documents')
+          .select('file_name')
+          .eq('student_id', uid);
+      for (final d in docRows) {
+        final fileName = (d['file_name'] ?? '').toString().toLowerCase();
+        final type = fileName.endsWith('.pdf')
+            ? 'pdf'
+            : (RegExp(r'\.(png|jpe?g)$').hasMatch(fileName)
+                ? 'image'
+                : (RegExp(r'\.(docx?)$').hasMatch(fileName)
+                    ? 'doc'
+                    : 'other'));
+        docs[type] = (docs[type] ?? 0) + 1;
+      }
+    } catch (_) {
+      try {
+        final docRows = await _db
+            .from('documents')
+            .select('doc_type')
+            .eq('student_id', uid);
+        for (final d in docRows) {
+          final type = (d['doc_type'] ?? 'other').toString();
+          docs[type] = (docs[type] ?? 0) + 1;
+        }
+      } catch (_) {}
+    }
+
+    final history = <ProgressPoint>[];
+    try {
+      final progRows = await _db
+          .from('progress_updates')
+          .select('percent, captured_at, created_at')
+          .eq('student_id', uid)
+          .order('captured_at', ascending: true);
+      for (var i = 0; i < progRows.length; i++) {
+        final r = progRows[i];
+        history.add(ProgressPoint(
+          weekNo: i + 1,
+          progress: _int(r['percent'] ?? r['progress']),
+          recordedAt: _date(r['captured_at'] ?? r['created_at']),
+        ));
+      }
+    } catch (_) {
+      try {
+        final progRows = await _db
+            .from('progress_logs')
+            .select()
+            .eq('student_id', uid);
+        for (final r in progRows) {
+          history.add(_point(Map<String, dynamic>.from(r as Map)));
+        }
+      } catch (_) {}
+    }
+
+    String? name;
+    var unread = 0;
+    final notifications = <String, int>{};
+    try {
+      final prof = await _db
+          .from('profiles')
+          .select('full_name')
+          .eq('id', uid)
+          .maybeSingle();
+      name = prof?['full_name'] as String?;
+      final notifRows = await _db
+          .from('notifications')
+          .select('type, is_read')
+          .eq('user_id', uid);
+      for (final n in notifRows) {
+        final type = (n['type'] ?? 'general').toString();
+        notifications[type] = (notifications[type] ?? 0) + 1;
+        if (n['is_read'] != true) unread++;
+      }
+    } catch (_) {
+      // Profile or notification tables unavailable: the rest of the report still works.
+    }
 
     int count(String status) =>
-        internships.where((item) => item['status'] == status).length;
+        apps.where((a) => a['status'] == status).length;
 
-    return ReportSummary(
-      totalApplications: internships.length,
+    return _build(
+      total: apps.length,
       approved: count('approved'),
       pending: count('pending'),
       rejected: count('rejected'),
-      documentsUploaded: docs.length,
-      latestProgress: progress.isEmpty
-          ? 0
-          : (progress.first['progress'] as int),
+      completed: count('completed'),
+      docs: docs,
+      history: history,
+      name: name,
+      unread: unread,
+      notifications: notifications,
     );
   }
 }
