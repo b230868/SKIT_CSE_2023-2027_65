@@ -7,6 +7,9 @@ import { authenticate, requireRole } from "./middleware/auth";
 import studentRoutes from "./routes/student.routes";
 import internshipRoutes from "./routes/internship.routes";
 import monitoringRoutes from "./routes/monitoring.routes";
+import approvalRoutes from "./routes/approval.routes";
+import reportsRoutes from "./routes/reports.routes";
+import erpRoutes from "./routes/erp.routes";
 import authRoutes from "./routes/auth.routes";
 import { sendSuccess } from "./utils/response";
 
@@ -66,6 +69,9 @@ app.get("/health", async (_req, res, next) => {
 app.use("/students", studentRoutes);
 app.use("/internships", internshipRoutes);
 app.use("/monitoring", monitoringRoutes);
+app.use("/approvals", approvalRoutes);
+app.use("/reports", reportsRoutes);
+app.use("/erp", erpRoutes);
 app.use("/auth", authRoutes);
 
 // 404 handler for unknown routes

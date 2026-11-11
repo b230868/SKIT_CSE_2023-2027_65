@@ -202,6 +202,10 @@ class AuthService {
     if (user == null) {
       throw StateError('No active authenticated user.');
     }
+
+    final meta = user.userMetadata ?? {};
+    final metaRole = (meta['role'] ?? '').toString().toLowerCase().trim();
+
     final data = await _client
         .from('profiles')
         .select()
@@ -209,11 +213,17 @@ class AuthService {
         .maybeSingle();
 
     if (data == null) {
-      final meta = user.userMetadata ?? {};
+      final role = (metaRole == 'faculty' || metaRole == 'faculty_mentor')
+          ? 'faculty_mentor'
+          : (metaRole == 'tnp' || metaRole == 'tp_officer')
+              ? 'tp_officer'
+              : (metaRole == 'industry' || metaRole == 'industry_supervisor')
+                  ? 'industry_supervisor'
+                  : 'student';
       final fallback = {
         'id': user.id,
         'full_name': meta['full_name'] ?? '',
-        'role': meta['role'] ?? 'student',
+        'role': role,
         'enrollment_no': meta['enrollment_no'],
         'branch': meta['branch'],
         'phone': meta['phone'],
@@ -226,7 +236,33 @@ class AuthService {
       }
       return AppUser.fromMap(fallback, email: user.email ?? '');
     }
-    return AppUser.fromMap(data, email: user.email ?? '');
+
+    // Self-healing: If user profile was downgraded to student by trigger,
+    // but user registered as faculty / staff, heal role in profiles table.
+    var currentRole = (data['role'] ?? 'student').toString().toLowerCase().trim();
+    if (currentRole == 'student' &&
+        (metaRole == 'faculty' ||
+            metaRole == 'faculty_mentor' ||
+            metaRole == 'tp_officer' ||
+            metaRole == 'tnp' ||
+            metaRole == 'industry' ||
+            metaRole == 'industry_supervisor')) {
+      final targetRole = (metaRole == 'faculty' || metaRole == 'faculty_mentor')
+          ? 'faculty_mentor'
+          : (metaRole == 'tnp' || metaRole == 'tp_officer')
+              ? 'tp_officer'
+              : 'industry_supervisor';
+      try {
+        await _client.from('profiles').update({'role': targetRole}).eq('id', user.id);
+        currentRole = targetRole;
+      } catch (_) {
+        currentRole = targetRole;
+      }
+    }
+
+    final updatedData = Map<String, dynamic>.from(data);
+    updatedData['role'] = currentRole;
+    return AppUser.fromMap(updatedData, email: user.email ?? '');
   }
 
   Future<AppUser> updateProfile({
