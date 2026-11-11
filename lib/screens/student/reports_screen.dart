@@ -5,7 +5,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../models/notification_models.dart';
 import '../../services/report_service.dart';
-import 'progress_analytics_screen.dart';
 
 const _docLabels = {
   'resume': 'Resume',
@@ -24,6 +23,7 @@ const _notifLabels = {
 
 String _docLabel(String key) => _docLabels[key] ?? key;
 String _notifLabel(String key) => _notifLabels[key] ?? key;
+String _two(int v) => v.toString().padLeft(2, '0');
 
 String _fmtDate(DateTime d) {
   const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -31,11 +31,18 @@ String _fmtDate(DateTime d) {
   return '${l.day} ${m[l.month - 1]} ${l.year}';
 }
 
+String _fmtTime(DateTime d) {
+  final l = d.toLocal();
+  return '${_two(l.hour)}:${_two(l.minute)}';
+}
+
+String _fileDate(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
+
 String _signed(int v) => v > 0 ? '+$v' : '$v';
 
-/// Refined analytics: selectable time window, week-over-week change, best and
-/// stalled weeks, notification statistics, a polished PDF with the student's
-/// name and page numbers, and a quick "copy summary" action.
+/// Final reporting module for students: application summary, progress
+/// analytics with a selectable time window, documents and notification
+/// statistics, PDF export and a copyable summary.
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -98,6 +105,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final doc = pw.Document();
       final heading = pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold);
       final gains = r.weeklyGains;
+      final now = DateTime.now();
       doc.addPage(
         pw.MultiPage(
           footer: (ctx) => pw.Container(
@@ -110,7 +118,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
             pw.Text('Student: ${r.studentName ?? 'Student'}'),
-            pw.Text('Generated on ${_fmtDate(DateTime.now())}'),
+            pw.Text('Generated on ${_fmtDate(now)}'),
             pw.SizedBox(height: 18),
             pw.Text('Application summary', style: heading),
             pw.SizedBox(height: 6),
@@ -171,7 +179,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ],
         ),
       );
-      await Printing.sharePdf(bytes: await doc.save(), filename: 'prashikshan_report.pdf');
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'prashikshan_report_${_fileDate(now)}.pdf',
+      );
     } catch (_) {
       _toast('Could not generate the PDF. Try again.');
     } finally {
@@ -188,11 +199,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         title: const Text('My report'),
         actions: [
           IconButton(
-            tooltip: 'Progress Analytics & Insights',
-            icon: const Icon(Icons.insights_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProgressAnalyticsScreen()),
-            ),
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: _refresh,
           ),
         ],
       ),
@@ -220,10 +229,39 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _content(ReportSummary full) {
     final theme = Theme.of(context);
+
+    // A brand-new student has nothing to report yet.
+    if (full.totalApplications == 0 &&
+        full.progressHistory.isEmpty &&
+        full.documentsUploaded == 0) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 80),
+          Icon(Icons.insights_outlined, size: 64, color: theme.colorScheme.primary),
+          const SizedBox(height: 16),
+          Text('Nothing to report yet',
+              textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 8),
+          const Text(
+            'Apply for an internship, upload your documents and log weekly progress. '
+            'Your report will appear here.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+
     final r = full.lastWeeks(_window);
+    final fetched = ReportService.lastFetchedAt;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (fetched != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('Updated ${_fmtTime(fetched)}', style: theme.textTheme.bodySmall),
+          ),
         Text('Application summary', style: theme.textTheme.titleMedium),
         const SizedBox(height: 12),
         Row(children: [
@@ -238,18 +276,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
         const SizedBox(height: 8),
         _StatusBar(full),
         const SizedBox(height: 24),
-        Row(children: [
-          Expanded(child: Text('Progress analytics', style: theme.textTheme.titleMedium)),
-          SegmentedButton<int>(
+        Text('Progress analytics', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<int>(
             showSelectedIcon: false,
             segments: const [
               ButtonSegment(value: 0, label: Text('All')),
-              ButtonSegment(value: 4, label: Text('Last 4 weeks')),
+              ButtonSegment(value: 8, label: Text('8 weeks')),
+              ButtonSegment(value: 4, label: Text('4 weeks')),
             ],
             selected: {_window},
             onSelectionChanged: (s) => setState(() => _window = s.first),
           ),
-        ]),
+        ),
         const SizedBox(height: 12),
         _Insights(r),
         const SizedBox(height: 12),
@@ -261,15 +302,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(child: Text('No weekly progress logged yet.')),
                   )
-                : SizedBox(
-                    height: 190,
-                    width: double.infinity,
-                    child: CustomPaint(
-                      painter: _TrendPainter(
-                        points: r.progressHistory,
-                        line: theme.colorScheme.primary,
-                        grid: theme.colorScheme.outlineVariant,
-                        textColor: theme.colorScheme.onSurfaceVariant,
+                : Semantics(
+                    label: 'Progress chart. Latest progress ${r.latestProgress} percent '
+                        'over ${r.weeksLogged} logged weeks.',
+                    child: SizedBox(
+                      height: 190,
+                      width: double.infinity,
+                      child: CustomPaint(
+                        painter: _TrendPainter(
+                          points: r.progressHistory,
+                          line: theme.colorScheme.primary,
+                          grid: theme.colorScheme.outlineVariant,
+                          textColor: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
