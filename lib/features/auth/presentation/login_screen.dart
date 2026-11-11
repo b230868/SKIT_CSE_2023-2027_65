@@ -38,8 +38,17 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await _auth.signIn(email, _password.text);
       final user = res.user ?? Supabase.instance.client.auth.currentUser;
 
-      // Enforce verified email:
-      if (user != null && user.emailConfirmedAt == null) {
+      // Only check unverified email if Supabase denied issuing a session:
+      // If a valid session exists or user is faculty/staff, allow login without blocking
+      final meta = user?.userMetadata ?? {};
+      final role = (meta['role'] ?? '').toString().toLowerCase().trim();
+      final isStaffOrFaculty = role == 'faculty' ||
+          role == 'faculty_mentor' ||
+          role == 'tnp' ||
+          role == 'tp_officer' ||
+          role == 'admin';
+
+      if (res.session == null && !isStaffOrFaculty && user != null && user.emailConfirmedAt == null) {
         await _auth.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -4,7 +4,9 @@ import '../../features/auth/presentation/profile_screen.dart';
 import '../../features/internship/presentation/internship_list_screen.dart';
 import '../../models/student_models.dart';
 import '../../services/student_service.dart';
+import 'alerts_screen.dart';
 import 'applications_screen.dart';
+import 'progress_analytics_screen.dart';
 import 'notification_screen.dart';
 import 'reports_screen.dart';
 
@@ -173,6 +175,18 @@ class _HomeTabState extends State<_HomeTab> {
               'See your application and progress summary',
               () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ReportsScreen()))),
+          _Action(
+              Icons.insights_outlined,
+              'Progress Analytics & Insights',
+              'View visual trend charts, best weeks, and cached analytics',
+              () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProgressAnalyticsScreen()))),
+          _Action(
+              Icons.notification_important_outlined,
+              'Alerts & Milestones',
+              'Track milestone alerts and notifications offline & online',
+              () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AlertsScreen()))),
         ],
       ),
     );

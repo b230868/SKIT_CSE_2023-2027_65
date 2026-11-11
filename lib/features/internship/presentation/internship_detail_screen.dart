@@ -156,14 +156,24 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
+
     if (_internship?.status != 'approved') {
       showSnack(
         context,
         'Progress can only be tracked after the internship is approved by Faculty.',
+
+    if (_submittingProgress) return;
+    final st = _internship?.status.toLowerCase();
+    if (st != 'approved' && st != 'completed') {
+      showSnack(
+        context,
+        'Progress updates can only be submitted once your internship is approved.',
+
         error: true,
       );
       return;
     }
+
     if (_submittingProgress) return;
 
     // Check internship date bounds if specified
@@ -193,6 +203,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
         return;
       }
     }
+
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -523,6 +534,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+
                             const SizedBox(height: 2),
                             Text(
                               '${fmtDate(u.capturedAt)}$geoTag',
@@ -532,10 +544,17 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                               ),
                             ),
                             if (u.isPendingSync)
+
+                            Text(
+                              '${fmtDate(u.capturedAt)}${u.isPendingSync ? ' • Waiting to sync' : ''}',
+                            ),
+                            if (u.latitude != null && u.longitude != null)
+
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Row(
                                   children: [
+
                                     Icon(
                                       Icons.cloud_off,
                                       size: 13,
@@ -548,6 +567,17 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.orange.shade800,
+
+                                    const Icon(Icons.location_on, size: 14, color: Colors.blueGrey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${u.latitude!.toStringAsFixed(4)}°, ${u.longitude!.toStringAsFixed(4)}°'
+                                      '${u.accuracyM != null ? ' (±${u.accuracyM!.toStringAsFixed(0)}m)' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blueGrey.shade700,
+                                        fontWeight: FontWeight.w500,
+
                                       ),
                                     ),
                                   ],

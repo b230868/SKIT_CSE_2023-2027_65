@@ -24,11 +24,17 @@ extension AppRoleExtension on AppRole {
   }
 
   static AppRole fromString(String? role) {
-    switch (role) {
+    final normalized = role?.trim().toLowerCase();
+    switch (normalized) {
+      case 'faculty':
       case 'faculty_mentor':
+      case 'facultymentor':
         return AppRole.facultyMentor;
+      case 'tnp':
       case 'tp_officer':
+      case 'tpofficer':
         return AppRole.tpOfficer;
+      case 'industry':
       case 'industry_supervisor':
         return AppRole.industrySupervisor;
       case 'admin':
@@ -106,8 +112,27 @@ class AuthService {
           .eq('id', user.id)
           .maybeSingle();
 
-      if (response == null) return null;
-      return UserProfile.fromMap(response);
+      if (response == null) {
+        final meta = user.userMetadata ?? {};
+        final roleStr = meta['role'] as String?;
+        return UserProfile(
+          id: user.id,
+          fullName: meta['full_name'] as String?,
+          email: user.email,
+          role: AppRoleExtension.fromString(roleStr),
+        );
+      }
+
+      var roleStr = response['role'] as String?;
+      final meta = user.userMetadata ?? {};
+      final metaRole = (meta['role'] as String?)?.toLowerCase().trim();
+      if ((roleStr == null || roleStr == 'student') &&
+          (metaRole == 'faculty' || metaRole == 'faculty_mentor')) {
+        roleStr = 'faculty_mentor';
+      }
+      final updatedResponse = Map<String, dynamic>.from(response);
+      updatedResponse['role'] = roleStr;
+      return UserProfile.fromMap(updatedResponse);
     } catch (_) {
       return null;
     }

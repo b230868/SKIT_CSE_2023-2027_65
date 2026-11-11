@@ -54,7 +54,8 @@ export const createProgressUpdateSchema = z.object({
 });
 
 export const createApprovalReviewSchema = z.object({
-  status: z.enum(["approved", "rejected", "pending", "changes_requested"]),
+  stage: z.enum(["faculty", "tp_admin"]).optional(),
+  status: z.enum(["approved", "rejected", "pending", "changes_requested", "under_review"]),
   remarks: z.string().max(500).optional(),
 });
 

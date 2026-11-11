@@ -8,6 +8,7 @@ import '../data/internship_service.dart';
 import '../models/internship.dart';
 import 'internship_detail_screen.dart';
 import 'internship_form_screen.dart';
+import '../../../screens/student/notification_screen.dart';
 
 class InternshipListScreen extends StatefulWidget {
   /// Called after anything changes so the dashboard can refresh.
@@ -74,7 +75,11 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+
         title: const Text('My Internships'),
+
+        title: const Text('My internships'),
+
         actions: const [
           NotificationBell(),
         ],

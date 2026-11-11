@@ -42,10 +42,14 @@ class AppUser {
       fullName.trim().isEmpty ? '?' : fullName.trim()[0].toUpperCase();
 
   String get roleLabel {
-    switch (role) {
+    switch (role.toLowerCase().trim()) {
       case 'faculty':
+      case 'faculty_mentor':
+      case 'facultymentor':
         return 'Faculty';
       case 'tnp':
+      case 'tp_officer':
+      case 'tpofficer':
         return 'Training & Placement';
       case 'industry':
       case 'industry_supervisor':
@@ -53,5 +57,15 @@ class AppUser {
       default:
         return 'Student';
     }
+  }
+
+  bool get isFaculty {
+    final r = role.toLowerCase().trim();
+    return r == 'faculty' || r == 'faculty_mentor' || r == 'facultymentor';
+  }
+
+  bool get isTpOfficer {
+    final r = role.toLowerCase().trim();
+    return r == 'tnp' || r == 'tp_officer' || r == 'tpofficer';
   }
 }

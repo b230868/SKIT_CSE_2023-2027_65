@@ -116,7 +116,7 @@ class InternshipService {
       'mode': mode,
       'start_date': isoDate(startDate),
       'end_date': isoDate(endDate),
-      'status': status,
+      'status': status.toLowerCase(),
       'progress': 0,
     });
     await _invalidateInternshipCache();
