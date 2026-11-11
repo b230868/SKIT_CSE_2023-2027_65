@@ -2,10 +2,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_models.dart';
 
 /// Builds the student's report and analytics data.
-/// Preferred path: database RPC (get_student_analytics or student_report_data).
-/// If those functions are unavailable, it falls back to querying the tables.
-/// The result is cached in memory for 60 seconds per signed-in user;
-/// pull-to-refresh always fetches fresh data.
+/// Preferred path: one database call (student_report_data). If that function
+/// has not been created or updated yet, it falls back to reading the tables.
+/// The result is kept in memory for 60 seconds so switching between screens
+/// does not repeat the queries; pass force: true to always fetch fresh data.
 class ReportService {
   ReportService({SupabaseClient? client})
       : _db = client ?? Supabase.instance.client;
@@ -17,6 +17,16 @@ class ReportService {
   static DateTime? _cachedAt;
   static String? _cachedFor;
   static const _cacheSeconds = 60;
+
+  /// When the report data was last fetched (shown as "Updated hh:mm").
+  static DateTime? get lastFetchedAt => _cachedAt;
+
+  /// Forget the cached report, for example after signing out.
+  static void clearCache() {
+    _cached = null;
+    _cachedAt = null;
+    _cachedFor = null;
+  }
 
   Future<ReportSummary> studentSummary({bool force = false}) async {
     final uid = _uid;
@@ -36,7 +46,7 @@ class ReportService {
     } catch (_) {
       try {
         final raw = await _db.rpc('student_report_data');
-        result = ReportSummary.fromMap(Map<String, dynamic>.from(raw as Map));
+        result = _fromJson(Map<String, dynamic>.from(raw as Map));
       } catch (_) {
         result = await _fromTables();
       }
@@ -55,6 +65,14 @@ class ReportService {
 
   DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
 
+  Map<String, int> _countMap(dynamic raw) {
+    final out = <String, int>{};
+    if (raw is Map) {
+      raw.forEach((k, v) => out[k.toString()] = _int(v));
+    }
+    return out;
+  }
+
   ProgressPoint _point(Map<String, dynamic> m) => ProgressPoint(
         weekNo: _int(m['week_no']),
         progress: _int(m['progress']),
@@ -66,7 +84,6 @@ class ReportService {
     required int approved,
     required int pending,
     required int rejected,
-    int completed = 0,
     required Map<String, int> docs,
     required List<ProgressPoint> history,
     required String? name,
@@ -83,7 +100,6 @@ class ReportService {
       approved: approved,
       pending: pending,
       rejected: rejected,
-      completed: completed,
       documentsUploaded: docs.values.fold<int>(0, (a, b) => a + b),
       latestProgress: latest,
       documentsByType: docs,
@@ -94,100 +110,43 @@ class ReportService {
     );
   }
 
+  // ---------- single-call path ----------
+
+  ReportSummary _fromJson(Map<String, dynamic> j) {
+    final history = <ProgressPoint>[];
+    final rawProgress = j['progress'];
+    if (rawProgress is List) {
+      for (final p in rawProgress) {
+        if (p is Map) history.add(_point(Map<String, dynamic>.from(p)));
+      }
+    }
+    return _build(
+      total: _int(j['total_applications']),
+      approved: _int(j['approved']),
+      pending: _int(j['pending']),
+      rejected: _int(j['rejected']),
+      docs: _countMap(j['documents_by_type']),
+      history: history,
+      name: j['student_name'] as String?,
+      unread: _int(j['unread_notifications']),
+      notifications: _countMap(j['notifications_by_type']),
+    );
+  }
+
   // ---------- fallback path ----------
 
   Future<ReportSummary> _fromTables() async {
-    final uid = _uid;
-    if (uid.isEmpty) return ReportSummary.empty();
-
-    List<Map<String, dynamic>> apps = [];
-    try {
-      final rows = await _db
-          .from('internships')
-          .select('status')
-          .eq('student_id', uid);
-      apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    } catch (_) {
-      try {
-        final rows = await _db
-            .from('applications')
-            .select('status')
-            .eq('student_id', uid);
-        apps = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-      } catch (_) {}
-    }
-
-    final docs = <String, int>{};
-    try {
-      final docRows = await _db
-          .from('internship_documents')
-          .select('file_name')
-          .eq('student_id', uid);
-      for (final d in docRows) {
-        final fileName = (d['file_name'] ?? '').toString().toLowerCase();
-        final type = fileName.endsWith('.pdf')
-            ? 'pdf'
-            : (RegExp(r'\.(png|jpe?g)$').hasMatch(fileName)
-                ? 'image'
-                : (RegExp(r'\.(docx?)$').hasMatch(fileName)
-                    ? 'doc'
-                    : 'other'));
-        docs[type] = (docs[type] ?? 0) + 1;
-      }
-    } catch (_) {
-      try {
-        final docRows = await _db
-            .from('documents')
-            .select('doc_type')
-            .eq('student_id', uid);
-        for (final d in docRows) {
-          final type = (d['doc_type'] ?? 'other').toString();
-          docs[type] = (docs[type] ?? 0) + 1;
-        }
-      } catch (_) {}
-    }
-
-    final history = <ProgressPoint>[];
-    try {
-      final progRows = await _db
-          .from('progress_updates')
-          .select('percent, captured_at, created_at')
-          .eq('student_id', uid)
-          .order('captured_at', ascending: true);
-      for (var i = 0; i < progRows.length; i++) {
-        final r = progRows[i];
-        history.add(ProgressPoint(
-          weekNo: i + 1,
-          progress: _int(r['percent'] ?? r['progress']),
-          recordedAt: _date(r['captured_at'] ?? r['created_at']),
-        ));
-      }
-    } catch (_) {
-      try {
-        final progRows = await _db
-            .from('progress_logs')
-            .select()
-            .eq('student_id', uid);
-        for (final r in progRows) {
-          history.add(_point(Map<String, dynamic>.from(r as Map)));
-        }
-      } catch (_) {}
-    }
+    final apps = await _db.from('applications').select('status').eq('student_id', _uid);
+    final docRows = await _db.from('documents').select('doc_type').eq('student_id', _uid);
+    final progRows = await _db.from('progress_logs').select().eq('student_id', _uid);
 
     String? name;
     var unread = 0;
     final notifications = <String, int>{};
     try {
-      final prof = await _db
-          .from('profiles')
-          .select('full_name')
-          .eq('id', uid)
-          .maybeSingle();
+      final prof = await _db.from('profiles').select('full_name').eq('id', _uid).maybeSingle();
       name = prof?['full_name'] as String?;
-      final notifRows = await _db
-          .from('notifications')
-          .select('type, is_read')
-          .eq('user_id', uid);
+      final notifRows = await _db.from('notifications').select('type, is_read').eq('user_id', _uid);
       for (final n in notifRows) {
         final type = (n['type'] ?? 'general').toString();
         notifications[type] = (notifications[type] ?? 0) + 1;
@@ -197,15 +156,21 @@ class ReportService {
       // Profile or notification tables unavailable: the rest of the report still works.
     }
 
-    int count(String status) =>
-        apps.where((a) => a['status'] == status).length;
+    int count(String status) => apps.where((a) => a['status'] == status).length;
+
+    final docs = <String, int>{};
+    for (final d in docRows) {
+      final type = (d['doc_type'] ?? 'other').toString();
+      docs[type] = (docs[type] ?? 0) + 1;
+    }
+    final history =
+        progRows.map<ProgressPoint>((r) => _point(Map<String, dynamic>.from(r))).toList();
 
     return _build(
       total: apps.length,
       approved: count('approved'),
       pending: count('pending'),
       rejected: count('rejected'),
-      completed: count('completed'),
       docs: docs,
       history: history,
       name: name,
