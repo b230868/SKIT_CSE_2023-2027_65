@@ -4,17 +4,13 @@ import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../core/widgets/status_chip.dart';
 import '../../screens/student/notification_screen.dart';
+import '../../screens/student/progress_analytics_screen.dart';
 import '../../screens/student/reports_screen.dart';
 import '../auth/models/app_user.dart';
 import '../internship/data/internship_service.dart';
 import '../internship/models/internship.dart';
 import '../internship/presentation/internship_detail_screen.dart';
 import '../internship/presentation/internship_form_screen.dart';
-
-import '../../screens/student/notification_screen.dart';
-import '../../screens/student/progress_analytics_screen.dart';
-import '../../screens/student/reports_screen.dart';
-
 
 class StudentDashboardScreen extends StatefulWidget {
   final AppUser user;
@@ -63,7 +59,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       appBar: AppBar(
         title: const Text('Prashikshan'),
         actions: [
-          const NotificationBell(),
           IconButton(
             tooltip: 'Progress Analytics',
             icon: const Icon(Icons.insights_outlined),
@@ -72,7 +67,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ),
           IconButton(
-tooltip: 'My Reports & Analytics',
+            tooltip: 'My Reports & Analytics',
             icon: const Icon(Icons.bar_chart_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ReportsScreen()),

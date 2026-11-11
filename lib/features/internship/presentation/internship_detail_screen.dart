@@ -156,25 +156,16 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   }
 
   Future<void> _addProgress() async {
-
-    if (_internship?.status != 'approved') {
-      showSnack(
-        context,
-        'Progress can only be tracked after the internship is approved by Faculty.',
-
     if (_submittingProgress) return;
     final st = _internship?.status.toLowerCase();
     if (st != 'approved' && st != 'completed') {
       showSnack(
         context,
-        'Progress updates can only be submitted once your internship is approved.',
-
+        'Progress can only be tracked once your internship is approved by Faculty.',
         error: true,
       );
       return;
     }
-
-    if (_submittingProgress) return;
 
     // Check internship date bounds if specified
     final now = DateTime.now();
@@ -193,7 +184,8 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
     final endDate = _internship?.endDate;
     if (endDate != null) {
       // End date until end of day + grace period (e.g. 7 days)
-      final expiryWithGrace = DateTime(endDate.year, endDate.month, endDate.day).add(const Duration(days: 7));
+      final expiryWithGrace = DateTime(endDate.year, endDate.month, endDate.day)
+          .add(const Duration(days: 7));
       if (now.isAfter(expiryWithGrace)) {
         showSnack(
           context,
@@ -203,8 +195,6 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
         return;
       }
     }
-
-
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _ProgressDialog(initial: _currentProgress),
@@ -238,7 +228,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        showSnack(context, 'Could not save progress: ', error: true);
+        showSnack(context, 'Could not save progress: $e', error: true);
       }
     } finally {
       if (mounted) setState(() => _submittingProgress = false);
@@ -438,7 +428,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                       children: [
                         _InfoRow(
                           'Duration',
-                          ' to ',
+                          '${fmtDate(i.startDate)} to ${fmtDate(i.endDate)}',
                         ),
                         _InfoRow(
                           'Work mode',
@@ -491,7 +481,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '%',
+                        '$_currentProgress%',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -514,11 +504,8 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                       style: TextStyle(color: Colors.grey.shade700),
                     )
                   else
-                    ..._updates.map((u) {
-                      final geoTag = (u.latitude != null && u.longitude != null)
-                          ? ' • 📍 ${u.latitude!.toStringAsFixed(4)}, ${u.longitude!.toStringAsFixed(4)}'
-                          : '';
-                      return ListTile(
+                    ..._updates.map(
+                      (u) => ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
                           backgroundColor: AppTheme.ink,
@@ -534,27 +521,42 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
                             const SizedBox(height: 2),
                             Text(
-                              '${fmtDate(u.capturedAt)}$geoTag',
+                              fmtDate(u.capturedAt),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade700,
                               ),
                             ),
-                            if (u.isPendingSync)
-
-                            Text(
-                              '${fmtDate(u.capturedAt)}${u.isPendingSync ? ' • Waiting to sync' : ''}',
-                            ),
                             if (u.latitude != null && u.longitude != null)
-
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Row(
                                   children: [
-
+                                    const Icon(
+                                      Icons.location_on,
+                                      size: 14,
+                                      color: Colors.blueGrey,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${u.latitude!.toStringAsFixed(4)}°, ${u.longitude!.toStringAsFixed(4)}°'
+                                      '${u.accuracyM != null ? ' (±${u.accuracyM!.toStringAsFixed(0)}m)' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blueGrey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (u.isPendingSync)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
                                     Icon(
                                       Icons.cloud_off,
                                       size: 13,
@@ -567,17 +569,6 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.orange.shade800,
-
-                                    const Icon(Icons.location_on, size: 14, color: Colors.blueGrey),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${u.latitude!.toStringAsFixed(4)}°, ${u.longitude!.toStringAsFixed(4)}°'
-                                      '${u.accuracyM != null ? ' (±${u.accuracyM!.toStringAsFixed(0)}m)' : ''}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blueGrey.shade700,
-                                        fontWeight: FontWeight.w500,
-
                                       ),
                                     ),
                                   ],
@@ -585,8 +576,8 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                               ),
                           ],
                         ),
-                      );
-                    }),
+                      ),
+                    ),
                   _sectionHeader(
                     'Documents',
                     action: TextButton.icon(
@@ -616,7 +607,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text('Added '),
+                        subtitle: Text('Added ${fmtDate(d.createdAt)}'),
                         onTap: () => _openDoc(d),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline),

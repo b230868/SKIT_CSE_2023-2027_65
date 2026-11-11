@@ -13,7 +13,6 @@ import erpRoutes from "./routes/erp.routes";
 import authRoutes from "./routes/auth.routes";
 import industryRoutes from "./routes/industry.routes";
 import itrRoutes from "./routes/itr.routes";
-import erpRoutes from "./routes/erp.routes";
 import { sendSuccess } from "./utils/response";
 
 const app = express();
