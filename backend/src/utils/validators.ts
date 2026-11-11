@@ -58,3 +58,31 @@ export const createApprovalReviewSchema = z.object({
   status: z.enum(["approved", "rejected", "pending", "changes_requested", "under_review"]),
   remarks: z.string().max(500).optional(),
 });
+
+export const createEvaluationSchema = z.object({
+  internship_id: z.string().regex(UUID_REGEX, "Invalid internship_id UUID"),
+  student_id: z.string().regex(UUID_REGEX, "Invalid student_id UUID").optional(),
+  technical_score: z.number().min(0).max(25),
+  work_quality_score: z.number().min(0).max(25),
+  punctuality_score: z.number().min(0).max(25),
+  presentation_score: z.number().min(0).max(25),
+  remarks: z.string().max(1000).optional(),
+  certificate_status: z.enum(["pending", "verified", "rejected"]).default("pending"),
+});
+
+export const reviewItrSchema = z.object({
+  status: z.enum(["draft", "submitted", "under_review", "approved", "rejected"]),
+  remarks: z.string().max(1000).optional(),
+  reviewer_name: z.string().max(150).optional(),
+  technical_score: z.number().min(0).max(25).optional(),
+  work_quality_score: z.number().min(0).max(25).optional(),
+  punctuality_score: z.number().min(0).max(25).optional(),
+  presentation_score: z.number().min(0).max(25).optional(),
+  certificate_status: z.enum(["pending", "verified", "rejected"]).optional(),
+});
+
+export const erpSyncGradesSchema = z.object({
+  batch_year: z.number().int().min(2000).max(2100).optional(),
+  department: z.string().max(100).optional(),
+  export_format: z.enum(["json", "csv"]).default("json"),
+});

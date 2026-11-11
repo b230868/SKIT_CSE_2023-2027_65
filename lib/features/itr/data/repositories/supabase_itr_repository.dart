@@ -34,23 +34,19 @@ class SupabaseItrRepository implements ItrRepository {
         .eq('user_id', user.id)
         .maybeSingle();
 
-    if (student == null) {
-      return [];
-    }
-
-    final studentId = student['id'].toString();
+    final studentId = student?['id']?.toString() ?? user.id;
 
     // Ensure every internship belonging to this student has at least a draft ITR record
     try {
       final internships = await _client
           .from('internships')
           .select('id')
-          .eq('student_id', studentId);
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}');
 
       final existingItrs = await _client
           .from('itrs')
           .select('internship_id')
-          .eq('student_id', studentId);
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}');
 
       final existingInternshipIds = (existingItrs as List)
           .map((e) => e['internship_id']?.toString())
@@ -77,86 +73,168 @@ class SupabaseItrRepository implements ItrRepository {
       // Non-blocking if auto-draft creation encounters a transient issue
     }
 
-    final data = await _client
-        .from('itrs')
-        .select('''
-          id,
-          internship_id,
-          student_id,
-          status,
-          content,
-          work_done,
-          technologies_used,
-          key_learnings,
-          challenges_faced,
-          document_path,
-          project_zip_path,
-          presentation_path,
-          submitted_at,
-          reviewer_id,
-          reviewer_name,
-          remarks,
-          internships (
-            internship_title,
-            industries (
-              name
-            ),
-            students (
-              profiles (
-                full_name
+    dynamic data;
+    try {
+      data = await _client
+          .from('itrs')
+          .select('''
+            id,
+            internship_id,
+            student_id,
+            status,
+            content,
+            work_done,
+            technologies_used,
+            key_learnings,
+            challenges_faced,
+            document_path,
+            project_zip_path,
+            presentation_path,
+            submitted_at,
+            reviewer_id,
+            reviewer_name,
+            remarks,
+            certificate_status,
+            certificate_url,
+            evaluation_score,
+            evaluation_grade,
+            internships (
+              internship_title,
+              title,
+              company_name,
+              industries (
+                name
               )
             )
-          )
-        ''')
-        .eq('student_id', studentId)
-        .order('created_at', ascending: false);
+          ''')
+          .or('student_id.eq.$studentId,student_id.eq.${user.id}')
+          .order('created_at', ascending: false);
+    } catch (_) {
+      try {
+        data = await _client
+            .from('itrs')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              status,
+              content,
+              work_done,
+              technologies_used,
+              key_learnings,
+              challenges_faced,
+              document_path,
+              project_zip_path,
+              presentation_path,
+              submitted_at,
+              reviewer_id,
+              reviewer_name,
+              remarks,
+              certificate_status,
+              certificate_url,
+              evaluation_score,
+              evaluation_grade,
+              internships (
+                internship_title,
+                title,
+                company_name
+              )
+            ''')
+            .or('student_id.eq.$studentId,student_id.eq.${user.id}')
+            .order('created_at', ascending: false);
+      } catch (_) {
+        return [];
+      }
+    }
+
+    if (data is! List) return [];
 
     return data.map<ItrModel>((item) {
-      return _mapItr(item);
+      return _mapItr(Map<String, dynamic>.from(item as Map));
     }).toList();
   }
 
   @override
   Future<ItrModel?> getItrById(String id) async {
-    final itr = await _client
-        .from('itrs')
-        .select('''
-          id,
-          internship_id,
-          student_id,
-          status,
-          content,
-          work_done,
-          technologies_used,
-          key_learnings,
-          challenges_faced,
-          document_path,
-          project_zip_path,
-          presentation_path,
-          submitted_at,
-          reviewer_id,
-          reviewer_name,
-          remarks,
-          internships (
-            internship_title,
-            industries (
-              name
-            ),
-            students (
-              profiles (
-                full_name
+    dynamic itr;
+    try {
+      itr = await _client
+          .from('itrs')
+          .select('''
+            id,
+            internship_id,
+            student_id,
+            status,
+            content,
+            work_done,
+            technologies_used,
+            key_learnings,
+            challenges_faced,
+            document_path,
+            project_zip_path,
+            presentation_path,
+            submitted_at,
+            reviewer_id,
+            reviewer_name,
+            remarks,
+            certificate_status,
+            certificate_url,
+            evaluation_score,
+            evaluation_grade,
+            internships (
+              internship_title,
+              title,
+              company_name,
+              industries (
+                name
               )
             )
-          )
-        ''')
-        .eq('id', id)
-        .maybeSingle();
+          ''')
+          .eq('id', id)
+          .maybeSingle();
+    } catch (_) {
+      try {
+        itr = await _client
+            .from('itrs')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              status,
+              content,
+              work_done,
+              technologies_used,
+              key_learnings,
+              challenges_faced,
+              document_path,
+              project_zip_path,
+              presentation_path,
+              submitted_at,
+              reviewer_id,
+              reviewer_name,
+              remarks,
+              certificate_status,
+              certificate_url,
+              evaluation_score,
+              evaluation_grade,
+              internships (
+                internship_title,
+                title,
+                company_name
+              )
+            ''')
+            .eq('id', id)
+            .maybeSingle();
+      } catch (_) {
+        return null;
+      }
+    }
 
     if (itr == null) {
       return null;
     }
 
-    return _mapItr(itr);
+    return _mapItr(Map<String, dynamic>.from(itr as Map));
   }
 
   ItrModel _mapItr(Map<String, dynamic> item) {
@@ -188,6 +266,15 @@ class SupabaseItrRepository implements ItrRepository {
         if (profileData is Map) {
           studentName =
               profileData['full_name']?.toString() ?? 'Unknown Student';
+        }
+      }
+      if (studentName == 'Unknown Student') {
+        final cur = _client.auth.currentUser;
+        if (cur != null) {
+          studentName = cur.userMetadata?['full_name']?.toString() ??
+              cur.userMetadata?['name']?.toString() ??
+              cur.email?.split('@').first ??
+              'Student';
         }
       }
     }
@@ -239,6 +326,9 @@ class SupabaseItrRepository implements ItrRepository {
           'document_path': itr.documentPath,
           'project_zip_path': itr.projectZipPath,
           'presentation_path': itr.presentationPath,
+          if (itr.certificateUrl != null) 'certificate_url': itr.certificateUrl,
+          if (itr.certificateUrl != null && (itr.certificateStatus == null || itr.certificateStatus == 'draft'))
+            'certificate_status': 'pending',
           'submitted_at': DateTime.now().toIso8601String(),
         })
         .eq('id', itr.id)
@@ -282,6 +372,25 @@ class SupabaseItrRepository implements ItrRepository {
     required Uint8List fileBytes,
   }) async {
     final path = '$itrId/presentation/$fileName';
+
+    await _client.storage
+        .from(_bucketName)
+        .uploadBinary(
+          path,
+          fileBytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    return path;
+  }
+
+  @override
+  Future<String> uploadCertificate({
+    required String itrId,
+    required String fileName,
+    required Uint8List fileBytes,
+  }) async {
+    final path = '$itrId/certificate/$fileName';
 
     await _client.storage
         .from(_bucketName)
@@ -389,11 +498,6 @@ class SupabaseItrRepository implements ItrRepository {
               company_name,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
@@ -426,11 +530,6 @@ class SupabaseItrRepository implements ItrRepository {
                 company_name,
                 industries (
                   name
-                ),
-                students (
-                  profiles (
-                    full_name
-                  )
                 )
               )
             ''')
@@ -452,43 +551,76 @@ class SupabaseItrRepository implements ItrRepository {
 
   @override
   Future<ItrModel?> getItrByInternshipId(String internshipId) async {
-    final data = await _client
-        .from('itrs')
-        .select('''
-          id,
-          internship_id,
-          student_id,
-          status,
-          content,
-          work_done,
-          technologies_used,
-          key_learnings,
-          challenges_faced,
-          document_path,
-          project_zip_path,
-          presentation_path,
-          submitted_at,
-          reviewer_id,
-          reviewer_name,
-          remarks,
-          internships (
-            internship_title,
-            industries (
-              name
-            ),
-            students (
-              profiles (
-                full_name
+    dynamic data;
+    try {
+      data = await _client
+          .from('itrs')
+          .select('''
+            id,
+            internship_id,
+            student_id,
+            status,
+            content,
+            work_done,
+            technologies_used,
+            key_learnings,
+            challenges_faced,
+            document_path,
+            project_zip_path,
+            presentation_path,
+            submitted_at,
+            reviewer_id,
+            reviewer_name,
+            remarks,
+            internships (
+              internship_title,
+              title,
+              company_name,
+              industries (
+                name
               )
             )
-          )
-        ''')
-        .eq('internship_id', internshipId)
-        .order('created_at', ascending: false)
-        .limit(1);
+          ''')
+          .eq('internship_id', internshipId)
+          .order('created_at', ascending: false)
+          .limit(1);
+    } catch (_) {
+      try {
+        data = await _client
+            .from('itrs')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              status,
+              content,
+              work_done,
+              technologies_used,
+              key_learnings,
+              challenges_faced,
+              document_path,
+              project_zip_path,
+              presentation_path,
+              submitted_at,
+              reviewer_id,
+              reviewer_name,
+              remarks,
+              internships (
+                internship_title,
+                title,
+                company_name
+              )
+            ''')
+            .eq('internship_id', internshipId)
+            .order('created_at', ascending: false)
+            .limit(1);
+      } catch (_) {
+        return null;
+      }
+    }
 
-    if (data.isEmpty) return null;
-    return _mapItr(data.first);
+    if (data is! List || data.isEmpty) return null;
+    return _mapItr(Map<String, dynamic>.from(data.first as Map));
   }
 
   @override

@@ -66,8 +66,9 @@ class SupabaseIndustryEvaluationRepository
       return [];
     }
 
+    dynamic data;
     try {
-      final data = await _client
+      data = await _client
           .from('evaluations')
           .select('''
             id,
@@ -89,48 +90,96 @@ class SupabaseIndustryEvaluationRepository
               internship_title,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
           .eq('industry_id', industryId)
           .order('created_at', ascending: false);
-
-      final result = <IndustryEvaluationModel>[];
-
-      for (final raw in (data as List)) {
-        final item = Map<String, dynamic>.from(raw);
-        final internship = item['internships'] as Map<String, dynamic>?;
-        final industry = internship?['industries'] as Map<String, dynamic>?;
-        final student = internship?['students'] as Map<String, dynamic>?;
-        final profile = student?['profiles'] as Map<String, dynamic>?;
-
-        result.add(
-          IndustryEvaluationModel.fromMap({
-            ...item,
-            'internship_title': internship?['internship_title'] ?? 'Internship',
-            'company_name': industry?['name'] ?? 'Company',
-            'student_name': profile?['full_name'] ?? 'Student',
-          }),
-        );
-      }
-
-      return result;
     } catch (_) {
-      return [];
+      try {
+        data = await _client
+            .from('evaluations')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              industry_id,
+              evaluator_id,
+              total_score,
+              score,
+              marks,
+              grade,
+              status,
+              feedback,
+              remarks,
+              evaluation_date,
+              submitted_at,
+              verified_at,
+              internships (
+                internship_title
+              )
+            ''')
+            .eq('industry_id', industryId)
+            .order('created_at', ascending: false);
+      } catch (_) {
+        return [];
+      }
     }
+
+    if (data is! List) return [];
+
+    final result = <IndustryEvaluationModel>[];
+    final evalList = data;
+
+    final studentIds = evalList
+        .map((raw) => (raw as Map)['student_id']?.toString())
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final Map<String, String> studentNames = {};
+    if (studentIds.isNotEmpty) {
+      try {
+        final profs = await _client
+            .from('profiles')
+            .select('id, full_name')
+            .inFilter('id', studentIds);
+        for (final p in (profs as List)) {
+          final id = p['id']?.toString();
+          final name = p['full_name']?.toString();
+          if (id != null && name != null) studentNames[id] = name;
+        }
+      } catch (_) {}
+    }
+
+    for (final raw in evalList) {
+      final item = Map<String, dynamic>.from(raw as Map);
+      final internship = item['internships'] as Map<String, dynamic>?;
+      final industry = internship?['industries'] as Map<String, dynamic>?;
+      final studentId = item['student_id']?.toString();
+      final studentName =
+          (studentId != null ? studentNames[studentId] : null) ?? 'Student';
+
+      result.add(
+        IndustryEvaluationModel.fromMap({
+          ...item,
+          'internship_title': internship?['internship_title'] ?? 'Internship',
+          'company_name': industry?['name'] ?? 'Company',
+          'student_name': studentName,
+        }),
+      );
+    }
+
+    return result;
   }
 
   @override
   Future<IndustryEvaluationModel?> getEvaluationByInternshipId(
     String internshipId,
   ) async {
+    dynamic data;
     try {
-      final data = await _client
+      data = await _client
           .from('evaluations')
           .select('''
             id,
@@ -152,38 +201,74 @@ class SupabaseIndustryEvaluationRepository
               internship_title,
               industries (
                 name
-              ),
-              students (
-                profiles (
-                  full_name
-                )
               )
             )
           ''')
           .eq('internship_id', internshipId)
           .order('created_at', ascending: false)
           .limit(1);
-
-      if ((data as List).isEmpty) return null;
-
-      final item = Map<String, dynamic>.from(data.first);
-      final internship = item['internships'] as Map<String, dynamic>?;
-      final industry = internship?['industries'] as Map<String, dynamic>?;
-      final student = internship?['students'] as Map<String, dynamic>?;
-      final profile = student?['profiles'] as Map<String, dynamic>?;
-
-      return IndustryEvaluationModel.fromMap({
-        ...item,
-        'internship_title': internship?['internship_title'] ?? 'Internship',
-        'company_name': industry?['name'] ?? 'Company',
-        'student_name': profile?['full_name'] ?? 'Student',
-      });
     } catch (_) {
-      return null;
+      try {
+        data = await _client
+            .from('evaluations')
+            .select('''
+              id,
+              internship_id,
+              student_id,
+              industry_id,
+              evaluator_id,
+              total_score,
+              score,
+              marks,
+              grade,
+              status,
+              feedback,
+              remarks,
+              evaluation_date,
+              submitted_at,
+              verified_at,
+              internships (
+                internship_title
+              )
+            ''')
+            .eq('internship_id', internshipId)
+            .order('created_at', ascending: false)
+            .limit(1);
+      } catch (_) {
+        return null;
+      }
     }
+
+    if (data is! List || data.isEmpty) return null;
+
+    final item = Map<String, dynamic>.from(data.first);
+    final internship = item['internships'] as Map<String, dynamic>?;
+    final industry = internship?['industries'] as Map<String, dynamic>?;
+    final studentId = item['student_id']?.toString();
+
+    String studentName = 'Student';
+    if (studentId != null) {
+      try {
+        final p = await _client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', studentId)
+            .maybeSingle();
+        if (p != null && p['full_name'] != null) {
+          studentName = p['full_name'].toString();
+        }
+      } catch (_) {}
+    }
+
+    return IndustryEvaluationModel.fromMap({
+      ...item,
+      'internship_title': internship?['internship_title'] ?? 'Internship',
+      'company_name': industry?['name'] ?? 'Company',
+      'student_name': studentName,
+    });
   }
 
-  @override
+    @override
   Future<void> saveEvaluation(IndustryEvaluationModel evaluation) async {
     // Enforce server-side company authorization check
     final industryId = await _requireAuthorizedInternship(

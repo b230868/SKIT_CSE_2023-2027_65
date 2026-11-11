@@ -7,6 +7,7 @@ import '../../../approval/domain/entities/approval_status.dart';
 import '../../../approval/presentation/screens/approval_list_screen.dart';
 import '../../../approval/presentation/screens/tp_approval_dashboard_screen.dart';
 import '../../../faculty_reports/presentation/screens/faculty_reports_screen.dart';
+import '../../../../screens/student/notification_screen.dart';
 import 'faculty_dashboard_screen.dart';
 import 'student_monitoring_screen.dart';
 import '../../data/models/dashboard_stat_item.dart';
@@ -127,6 +128,7 @@ class _TpDashboardScreenState extends State<TpDashboardScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
+          const NotificationBell(),
         ],
       ),
       body: _buildBody(),

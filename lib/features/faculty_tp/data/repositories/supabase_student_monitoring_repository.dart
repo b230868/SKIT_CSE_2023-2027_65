@@ -42,25 +42,7 @@ class SupabaseStudentMonitoringRepository
         company_name,
         progress,
         student_id,
-        company_name,
         created_at,
-        students (
-          id,
-          roll_number,
-          department,
-          batch_year,
-          user_id,
-          profiles:user_id (
-            full_name,
-            email,
-            department,
-            branch,
-            phone,
-            phone_number,
-            address,
-            avatar_url
-          )
-        ),
         itrs (
           id,
           status,
@@ -87,6 +69,39 @@ class SupabaseStudentMonitoringRepository
       final items = <StudentMonitoringItem>[];
       final internshipList = response as List;
       if (internshipList.isEmpty) return [];
+
+      final studentIds = internshipList
+          .map((e) => (e as Map)['student_id']?.toString())
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      final Map<String, Map<String, dynamic>> profilesMap = {};
+      final Map<String, Map<String, dynamic>> studentsMap = {};
+
+      if (studentIds.isNotEmpty) {
+        try {
+          final profs = await client
+              .from('profiles')
+              .select('id, full_name, email, department, branch, phone, phone_number, address, avatar_url, enrollment_no')
+              .inFilter('id', studentIds);
+          for (final p in (profs as List)) {
+            final id = p['id']?.toString();
+            if (id != null) profilesMap[id] = Map<String, dynamic>.from(p as Map);
+          }
+        } catch (_) {}
+
+        try {
+          final studs = await client
+              .from('students')
+              .select('id, roll_number, department, batch_year, user_id')
+              .inFilter('user_id', studentIds);
+          for (final s in (studs as List)) {
+            final uid = s['user_id']?.toString();
+            if (uid != null) studentsMap[uid] = Map<String, dynamic>.from(s as Map);
+          }
+        } catch (_) {}
+      }
 
       final internshipIds =
           internshipList.map((e) => (e as Map)['id']?.toString() ?? '').toList();
@@ -191,22 +206,16 @@ class SupabaseStudentMonitoringRepository
 
       for (final item in internshipList) {
         final map = Map<String, dynamic>.from(item as Map);
+        final studentId = map['student_id']?.toString() ?? '';
 
-        final student = map['students'] is Map
-            ? Map<String, dynamic>.from(map['students'] as Map)
-            : <String, dynamic>{};
-
-        final profile = student['profiles'] is Map
-            ? Map<String, dynamic>.from(student['profiles'] as Map)
-            : <String, dynamic>{};
+        final profile = profilesMap[studentId] ?? <String, dynamic>{};
+        final student = studentsMap[studentId] ?? <String, dynamic>{};
 
         final studentName =
             profile['full_name'] as String? ?? 'Unknown Student';
         final internshipTitle =
             map['internship_title'] as String? ?? 'Untitled Internship';
         final internshipId = map['id'] as String? ?? '';
-        final studentId =
-            map['student_id'] as String? ?? (student['id'] as String? ?? '');
 
         final reviews = (map['approval_reviews'] as List? ?? [])
             .map((r) => Map<String, dynamic>.from(r as Map))
@@ -267,10 +276,13 @@ class SupabaseStudentMonitoringRepository
             internshipTitle: internshipTitle,
             applicationStatus: status,
             studentEmail: profile['email'] as String?,
-            rollNumber: student['roll_number'] as String?,
+            rollNumber:
+                student['roll_number'] as String? ??
+                profile['enrollment_no'] as String?,
             department:
                 student['department'] as String? ??
-                profile['department'] as String?,
+                profile['department'] as String? ??
+                profile['branch'] as String?,
             batchYear: student['batch_year'] is int
                 ? student['batch_year'] as int
                 : int.tryParse(student['batch_year']?.toString() ?? ''),
@@ -331,29 +343,6 @@ class SupabaseStudentMonitoringRepository
           contact_email,
           contact_phone
         ),
-        students (
-          id,
-          roll_number,
-          department,
-          batch_year,
-          user_id,
-          created_at,
-          updated_at,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            department,
-            branch,
-            phone,
-            phone_number,
-            address,
-            avatar_url,
-            is_active,
-            created_at,
-            updated_at
-          )
-        ),
         itrs (
           id,
           status,
@@ -403,14 +392,28 @@ class SupabaseStudentMonitoringRepository
 
       if (response != null) {
         final map = Map<String, dynamic>.from(response);
+        final effectiveStudentId = map['student_id']?.toString() ?? studentId;
 
-        final student = map['students'] is Map
-            ? Map<String, dynamic>.from(map['students'] as Map)
-            : <String, dynamic>{};
+        Map<String, dynamic> profile = {};
+        Map<String, dynamic> student = {};
 
-        final profile = student['profiles'] is Map
-            ? Map<String, dynamic>.from(student['profiles'] as Map)
-            : <String, dynamic>{};
+        try {
+          final p = await client
+              .from('profiles')
+              .select('id, full_name, email, department, branch, phone, phone_number, address, avatar_url, is_active, created_at, updated_at, enrollment_no')
+              .eq('id', effectiveStudentId)
+              .maybeSingle();
+          if (p != null) profile = Map<String, dynamic>.from(p);
+        } catch (_) {}
+
+        try {
+          final s = await client
+              .from('students')
+              .select('id, roll_number, department, batch_year, user_id, created_at, updated_at')
+              .or('user_id.eq.$effectiveStudentId,id.eq.$studentId')
+              .maybeSingle();
+          if (s != null) student = Map<String, dynamic>.from(s);
+        } catch (_) {}
 
         final industry = map['industries'] is Map
             ? Map<String, dynamic>.from(map['industries'] as Map)
@@ -543,46 +546,34 @@ class SupabaseStudentMonitoringRepository
       }
 
       // If no internship found, fallback to loading student profile directly
-      final studentRes = await client
-          .from('students')
-          .select('''
-        id,
-        roll_number,
-        department,
-        batch_year,
-        user_id,
-        created_at,
-        updated_at,
-        profiles:user_id (
-          id,
-          full_name,
-          email,
-          department,
-          branch,
-          phone,
-          phone_number,
-          address,
-          avatar_url,
-          is_active,
-          created_at,
-          updated_at
-        )
-      ''')
-          .eq('id', studentId)
-          .maybeSingle();
+      Map<String, dynamic> sMap = {};
+      try {
+        final studentRes = await client
+            .from('students')
+            .select('id, roll_number, department, batch_year, user_id, created_at, updated_at')
+            .or('id.eq.$studentId,user_id.eq.$studentId')
+            .maybeSingle();
+        if (studentRes != null) sMap = Map<String, dynamic>.from(studentRes);
+      } catch (_) {}
 
-      if (studentRes != null) {
-        final sMap = Map<String, dynamic>.from(studentRes);
-        final profile = sMap['profiles'] is Map
-            ? Map<String, dynamic>.from(sMap['profiles'] as Map)
-            : <String, dynamic>{};
+      final effectiveUid = sMap['user_id']?.toString() ?? studentId;
+      Map<String, dynamic> profile = {};
+      try {
+        final profRes = await client
+            .from('profiles')
+            .select('id, full_name, email, department, branch, phone, phone_number, address, avatar_url, is_active, created_at, updated_at, enrollment_no')
+            .eq('id', effectiveUid)
+            .maybeSingle();
+        if (profRes != null) profile = Map<String, dynamic>.from(profRes);
+      } catch (_) {}
 
+      if (sMap.isNotEmpty || profile.isNotEmpty) {
         return StudentMonitoringDetail(
           studentId: studentId,
-          userId: sMap['user_id'] as String?,
+          userId: sMap['user_id'] as String? ?? profile['id'] as String?,
           studentName: profile['full_name'] as String? ?? 'Unknown Student',
           studentEmail: profile['email'] as String? ?? 'N/A',
-          rollNumber: sMap['roll_number'] as String?,
+          rollNumber: sMap['roll_number'] as String? ?? profile['enrollment_no'] as String?,
           department:
               sMap['department'] as String? ?? profile['department'] as String?,
           branch: profile['branch'] as String?,

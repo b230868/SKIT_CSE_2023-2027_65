@@ -17,7 +17,7 @@ migrate_working_dir/
 .env
 .env.*
 !.env.example
-.env.json
+.env.json.example
 # IntelliJ related
 *.iml
 *.ipr
@@ -65,3 +65,6 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 windows/flutter/generated_plugin_registrant.cc
 windows/flutter/generated_plugin_registrant.h
 windows/flutter/generated_plugins.cmake
+
+.kotlin/
+**/android/.kotlin/

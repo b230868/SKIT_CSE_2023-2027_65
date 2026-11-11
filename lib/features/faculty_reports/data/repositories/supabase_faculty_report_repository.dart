@@ -34,9 +34,6 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
         id,
         status,
         student_id,
-        students (
-          department
-        ),
         approval_reviews (
           id,
           status,
@@ -44,6 +41,29 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
           created_at
         )
       ''');
+
+      final studentIds = (response as List)
+          .map((e) => (e as Map)['student_id']?.toString())
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      final Map<String, String> deptMapByStudentId = {};
+      if (studentIds.isNotEmpty) {
+        try {
+          final profs = await client
+              .from('profiles')
+              .select('id, department, branch')
+              .inFilter('id', studentIds);
+          for (final p in (profs as List)) {
+            final id = p['id']?.toString();
+            final d = p['department']?.toString() ?? p['branch']?.toString();
+            if (id != null && d != null && d.isNotEmpty) {
+              deptMapByStudentId[id] = d;
+            }
+          }
+        } catch (_) {}
+      }
 
       int total = 0;
       int pending = 0;
@@ -58,10 +78,10 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
         total++;
         final map = Map<String, dynamic>.from(item as Map);
 
-        final student = map['students'] is Map
-            ? Map<String, dynamic>.from(map['students'] as Map)
-            : <String, dynamic>{};
-        final dept = student['department'] as String? ?? 'General';
+        final studentId = map['student_id']?.toString();
+        final dept =
+            (studentId != null ? deptMapByStudentId[studentId] : null) ??
+            'General';
         deptMap[dept] = (deptMap[dept] ?? 0) + 1;
 
         final reviews = (map['approval_reviews'] as List? ?? [])

@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../core/widgets/status_chip.dart';
+import '../../screens/student/notification_screen.dart';
+import '../../screens/student/reports_screen.dart';
 import '../auth/models/app_user.dart';
 import '../internship/data/internship_service.dart';
 import '../internship/models/internship.dart';
 import '../internship/presentation/internship_detail_screen.dart';
 import '../internship/presentation/internship_form_screen.dart';
+
 import '../../screens/student/notification_screen.dart';
 import '../../screens/student/progress_analytics_screen.dart';
 import '../../screens/student/reports_screen.dart';
+
 
 class StudentDashboardScreen extends StatefulWidget {
   final AppUser user;
@@ -68,11 +72,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'My report',
+tooltip: 'My Reports & Analytics',
             icon: const Icon(Icons.bar_chart_outlined),
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const ReportsScreen())),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ReportsScreen()),
+            ),
           ),
+          const NotificationBell(),
         ],
       ),
       body: RefreshIndicator(
@@ -133,11 +139,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    _Stat(label: 'Applied', value: '${items.length}'),
+                    _Stat(label: 'Applied', value: '${items.length}', onTap: widget.onApply),
                     const SizedBox(width: 10),
-                    _Stat(label: 'Pending', value: '$pending'),
+                    _Stat(label: 'Pending', value: '$pending', onTap: widget.onApply),
                     const SizedBox(width: 10),
-                    _Stat(label: 'Approved', value: '$approved'),
+                    _Stat(label: 'Approved', value: '$approved', onTap: widget.onApply),
                     const SizedBox(width: 10),
                     _Stat(
                       label: 'Avg progress',
@@ -238,45 +244,54 @@ class _Stat extends StatelessWidget {
   final String label;
   final String value;
   final bool highlight;
+  final VoidCallback? onTap;
 
   const _Stat({
     required this.label,
     required this.value,
     this.highlight = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: highlight ? AppTheme.ink : Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: highlight ? AppTheme.ink : Colors.grey.shade300,
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            decoration: BoxDecoration(
+              color: highlight ? AppTheme.ink : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: highlight ? AppTheme.ink : Colors.grey.shade300,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: highlight ? AppTheme.saffron : AppTheme.ink,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: highlight ? Colors.white70 : Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: highlight ? AppTheme.saffron : AppTheme.ink,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                color: highlight ? Colors.white70 : Colors.grey.shade700,
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -29,9 +29,11 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
   PlatformFile? _projectZipFile;
   PlatformFile? _presentationFile;
+  PlatformFile? _certificateFile;
 
   Uint8List? _projectZipBytes;
   Uint8List? _presentationBytes;
+  Uint8List? _certificateBytes;
 
   bool _submitting = false;
 
@@ -66,6 +68,7 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
   static const int _maxZipBytes = 50 * 1024 * 1024; // 50 MB
   static const int _maxPptBytes = 25 * 1024 * 1024; // 25 MB
+  static const int _maxCertBytes = 15 * 1024 * 1024; // 15 MB
 
   Future<void> _pickProjectZip() async {
     try {
@@ -147,6 +150,46 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     }
   }
 
+  Future<void> _pickCertificate() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (result.isEmpty) return;
+
+      final file = result.single;
+      final Uint8List bytes = await file.readAsBytes();
+
+      if (bytes.lengthInBytes > _maxCertBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Certificate exceeds the maximum allowed size of 15 MB.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _certificateFile = file;
+        _certificateBytes = bytes;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to select certificate: $e')),
+      );
+    }
+  }
+
   Future<void> _submitItr() async {
     final summaryText = _contentController.text.trim();
     final workDoneText = _workDoneController.text.trim();
@@ -183,6 +226,7 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     try {
       String? projectZipPath = widget.itr.projectZipPath;
       String? presentationPath = widget.itr.presentationPath;
+      String? certificateUrl = widget.itr.certificateUrl;
 
       if (_projectZipFile != null && _projectZipBytes != null) {
         projectZipPath = await widget.itrService.uploadProjectZip(
@@ -197,6 +241,14 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
           itrId: widget.itr.id,
           fileName: _presentationFile!.name,
           fileBytes: _presentationBytes!,
+        );
+      }
+
+      if (_certificateFile != null && _certificateBytes != null) {
+        certificateUrl = await widget.itrService.uploadCertificate(
+          itrId: widget.itr.id,
+          fileName: _certificateFile!.name,
+          fileBytes: _certificateBytes!,
         );
       }
 
@@ -225,6 +277,12 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
         submittedAt: DateTime.now(),
         reviewerName: widget.itr.reviewerName,
         remarks: widget.itr.remarks,
+        certificateStatus: certificateUrl != null
+            ? (widget.itr.certificateStatus ?? 'pending')
+            : widget.itr.certificateStatus,
+        certificateUrl: certificateUrl,
+        evaluationScore: widget.itr.evaluationScore,
+        evaluationGrade: widget.itr.evaluationGrade,
       );
 
       await widget.itrService.submitItr(updatedItr);
@@ -320,6 +378,12 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
         _presentationFile?.name ??
         (widget.itr.presentationPath != null
             ? 'Previously uploaded presentation'
+            : null);
+
+    final certificateFileName =
+        _certificateFile?.name ??
+        (widget.itr.certificateUrl != null
+            ? 'Previously uploaded certificate'
             : null);
 
     return Scaffold(
@@ -456,6 +520,24 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
                         setState(() {
                           _presentationFile = null;
                           _presentationBytes = null;
+                        });
+                      }
+                    : null,
+              ),
+
+              const SizedBox(height: 12),
+
+              _buildFileCard(
+                title: 'Internship Certificate',
+                description: 'Upload your completion certificate (PDF or Image).',
+                icon: Icons.verified,
+                fileName: certificateFileName,
+                onPick: _pickCertificate,
+                onRemove: _certificateFile != null
+                    ? () {
+                        setState(() {
+                          _certificateFile = null;
+                          _certificateBytes = null;
                         });
                       }
                     : null,

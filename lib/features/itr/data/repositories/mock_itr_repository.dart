@@ -143,6 +143,26 @@ class MockItrRepository implements ItrRepository {
   }
 
   @override
+  Future<String> uploadCertificate({
+    required String itrId,
+    required String fileName,
+    required Uint8List fileBytes,
+  }) async {
+    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final path = 'mock/$itrId/certificate/$fileName';
+
+    if (index != -1) {
+      final existingItr = _itrs[index];
+      _itrs[index] = existingItr.copyWith(
+        certificateUrl: path,
+        certificateStatus: existingItr.certificateStatus ?? 'pending',
+      );
+    }
+
+    return path;
+  }
+
+  @override
   Future<String?> getFileUrl(String filePath) async {
     return 'https://example.com/mock-storage/$filePath';
   }

@@ -61,6 +61,43 @@ class InternshipService {
     }
   }
 
+  Future<void> _ensureProfileExists() async {
+    try {
+      final user = _c.auth.currentUser;
+      if (user == null) return;
+      final existing = await _c
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (existing == null) {
+        final meta = user.userMetadata ?? {};
+        final fullName = (meta['full_name'] ?? meta['name'] ?? 'Student').toString().trim();
+        final role = meta['role']?.toString().trim() ?? 'student';
+        final enrollmentNo = meta['enrollment_no']?.toString().trim() ?? meta['roll_number']?.toString().trim();
+        final branch = meta['branch']?.toString().trim() ?? 'CSE';
+
+        final payload = <String, dynamic>{
+          'id': user.id,
+          'full_name': fullName,
+          'role': role,
+          'branch': branch,
+          'department': branch,
+        };
+        if (enrollmentNo != null && enrollmentNo.isNotEmpty) {
+          payload['enrollment_no'] = enrollmentNo;
+        }
+        if (user.email != null) {
+          payload['email'] = user.email;
+        }
+
+        await _c.from('profiles').upsert(payload);
+      }
+    } catch (_) {
+      // Non-blocking fallback: server-side auth trigger remains authoritative
+    }
+  }
+
   Future<void> create({
     required String companyName,
     required String title,
@@ -70,6 +107,7 @@ class InternshipService {
     required DateTime endDate,
     String status = 'pending',
   }) async {
+    await _ensureProfileExists();
     await _c.from('internships').insert({
       'student_id': _uid,
       'company_name': companyName,
