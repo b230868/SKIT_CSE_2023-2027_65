@@ -1,11 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../models/notification_models.dart';
 import '../../models/report_insights.dart';
-import '../../services/report_service.dart';
+import '../../services/analytics_service.dart';
 
 class ProgressAnalyticsScreen extends StatefulWidget {
   const ProgressAnalyticsScreen({super.key});
@@ -15,8 +12,7 @@ class ProgressAnalyticsScreen extends StatefulWidget {
 }
 
 class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
-  static const _boxName = 'progress_analytics_cache';
-  static const _cacheKey = 'student_analytics';
+  final _service = AnalyticsService();
 
   ReportSummary? _full;
   bool _loading = true;
@@ -32,69 +28,25 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
 
   // ---- data ----
 
-  Future<Box?> _box() async {
-    try {
-      return Hive.isBoxOpen(_boxName)
-          ? Hive.box(_boxName)
-          : await Hive.openBox(_boxName);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    try {
-      final summary = await ReportService().studentSummary();
-      final box = await _box();
-      await box?.put(_cacheKey, jsonEncode({
-        'total_applications': summary.totalApplications,
-        'approved': summary.approved,
-        'pending': summary.pending,
-        'rejected': summary.rejected,
-        'completed': summary.completed,
-        'documents_uploaded': summary.documentsUploaded,
-        'latest_progress': summary.latestProgress,
-        'student_name': summary.studentName,
-        'unread_notifications': summary.unreadNotifications,
-        'documents_by_type': summary.documentsByType,
-        'notifications_by_type': summary.notificationsByType,
-        'progress': [
-          for (final p in summary.progressHistory)
-            {
-              'week_no': p.weekNo,
-              'progress': p.progress,
-              'recorded_at': p.recordedAt?.toIso8601String(),
-            }
-        ],
-      }));
+    final result = await _service.loadReport();
+    if (!mounted) return;
 
-      if (!mounted) return;
-      setState(() {
-        _full = summary;
-        _offline = false;
-        _loading = false;
-      });
-    } catch (_) {
-      final box = await _box();
-      final raw = box?.get(_cacheKey) as String?;
-      if (!mounted) return;
-      setState(() {
-        if (raw != null) {
-          _full = ReportSummary.fromMap(
-              Map<String, dynamic>.from(jsonDecode(raw) as Map));
-          _offline = true;
-        } else {
-          _full = ReportSummary.sample();
-          _offline = true;
-        }
-        _loading = false;
-      });
-    }
+    setState(() {
+      if (result != null) {
+        _full = result.summary;
+        _offline = result.fromCache;
+      } else {
+        _full = ReportSummary.sample();
+        _offline = true;
+      }
+      _loading = false;
+    });
   }
 
   // ---- UI ----

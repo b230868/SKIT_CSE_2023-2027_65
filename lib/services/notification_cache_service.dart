@@ -260,13 +260,26 @@ class NotificationCacheService {
     if (pending.isEmpty) return;
 
     try {
-      await _client
-          .from('notifications')
-          .update({'is_read': true})
-          .inFilter('id', pending);
+      try {
+        // One server call for the whole queue (see 20261109 migration).
+        await _client.rpc('mark_notifications_read', params: {'p_ids': pending});
+      } catch (_) {
+        // Migration not applied yet: fall back to a plain update.
+        await _client
+            .from('notifications')
+            .update({'is_read': true})
+            .inFilter('id', pending);
+      }
       await box.delete(_pendingKey);
     } catch (_) {
       // Still offline: keep the queue for next time.
     }
+  }
+
+  /// Call on sign-out so the next user never sees this user's cached data.
+  Future<void> clear() async {
+    final box = await _box();
+    await box?.delete(_listKey);
+    await box?.delete(_pendingKey);
   }
 }
