@@ -201,6 +201,46 @@ class GeoProgressService {
 
   /// Full history for one internship, newest first.
   Future<List<GeoProgressLog>> fetchHistory(String internshipId) async {
+    if (internshipId.startsWith('demo-')) {
+      return [
+        GeoProgressLog(
+          clientRef: 'demo-geo-3',
+          internshipId: internshipId,
+          progressPercent: 75,
+          taskSummary:
+              'Integrated live Supabase queries and optimized reports view.',
+          latitude: 26.8228,
+          longitude: 75.8654,
+          accuracyM: 12.0,
+          capturedAt: DateTime.now().subtract(const Duration(days: 7)),
+          isPendingSync: false,
+        ),
+        GeoProgressLog(
+          clientRef: 'demo-geo-2',
+          internshipId: internshipId,
+          progressPercent: 50,
+          taskSummary:
+              'Built student notifications, badges and offline Hive storage.',
+          latitude: 26.8228,
+          longitude: 75.8654,
+          accuracyM: 15.0,
+          capturedAt: DateTime.now().subtract(const Duration(days: 14)),
+          isPendingSync: false,
+        ),
+        GeoProgressLog(
+          clientRef: 'demo-geo-1',
+          internshipId: internshipId,
+          progressPercent: 25,
+          taskSummary:
+              'Implemented internship application forms and validation.',
+          latitude: 26.8228,
+          longitude: 75.8654,
+          accuracyM: 10.0,
+          capturedAt: DateTime.now().subtract(const Duration(days: 21)),
+          isPendingSync: false,
+        ),
+      ];
+    }
     final ownerId = _db.auth.currentUser?.id;
     final pending = ownerId == null
         ? <GeoProgressLog>[]

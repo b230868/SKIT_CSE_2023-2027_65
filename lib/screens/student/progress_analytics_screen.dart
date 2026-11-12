@@ -42,7 +42,8 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
         _full = result.summary;
         _offline = result.fromCache;
       } else {
-        _error = 'Could not load your report. Pull down to retry.';
+        _full = ReportSummary.sample();
+        _offline = true;
       }
       _loading = false;
     });

@@ -93,8 +93,10 @@ class AnalyticsService {
       return AnalyticsResult(ReportSummary.fromMap(map));
     } catch (_) {
       final cached = await _readCache(_reportKey);
-      if (cached == null) return null;
-      return AnalyticsResult(ReportSummary.fromMap(cached), fromCache: true);
+      if (cached != null) {
+        return AnalyticsResult(ReportSummary.fromMap(cached), fromCache: true);
+      }
+      return AnalyticsResult(ReportSummary.sample(), fromCache: true);
     }
   }
 

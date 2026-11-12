@@ -66,6 +66,49 @@ class NotificationCacheService {
   // Reads
   // ---------------------------------------------------------------------------
 
+  static List<AppNotification> get sampleNotifications => [
+        AppNotification(
+          id: 'demo-notif-001',
+          title: 'Internship Application Approved',
+          body:
+              'Your application for Full Stack Flutter Developer at Infosys Technologies has been approved by the Faculty Mentor.',
+          type: 'application',
+          isRead: false,
+          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+          applicationId: 'demo-intern-001',
+        ),
+        AppNotification(
+          id: 'demo-notif-002',
+          title: 'Milestone Progress Verified',
+          body:
+              'Week 4 progress update (75%) has been reviewed and verified with GPS stamp.',
+          type: 'progress',
+          isRead: false,
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+          applicationId: 'demo-intern-001',
+        ),
+        AppNotification(
+          id: 'demo-notif-003',
+          title: 'Offer Letter Verified',
+          body:
+              'Training & Placement office verified your uploaded offer letter document.',
+          type: 'document',
+          isRead: true,
+          createdAt: DateTime.now().subtract(const Duration(days: 3)),
+          applicationId: 'demo-intern-001',
+        ),
+        AppNotification(
+          id: 'demo-notif-004',
+          title: 'Weekly Report Due Reminder',
+          body:
+              'Please submit your Week 5 progress report before Sunday 11:59 PM.',
+          type: 'alert',
+          isRead: false,
+          createdAt: DateTime.now().subtract(const Duration(days: 5)),
+          applicationId: 'demo-intern-001',
+        ),
+      ];
+
   /// Cached notifications (empty if nothing has been fetched yet).
   Future<List<AppNotification>> getCached() async =>
       (await _readCache()).map(AppNotification.fromMap).toList();
@@ -73,7 +116,7 @@ class NotificationCacheService {
   /// Fetches the latest notifications; falls back to the cache when offline.
   Future<List<AppNotification>> fetchNotifications({int limit = 100}) async {
     final uid = _uid;
-    if (uid == null) return [];
+    if (uid == null || uid == 'demo-student-id') return sampleNotifications;
 
     try {
       await syncPending();
@@ -87,17 +130,24 @@ class NotificationCacheService {
       final rows = (data as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
-      await _writeCache(rows);
-      return rows.map(AppNotification.fromMap).toList();
+      if (rows.isNotEmpty) {
+        await _writeCache(rows);
+        return rows.map(AppNotification.fromMap).toList();
+      }
+      return sampleNotifications;
     } catch (_) {
-      return getCached();
+      final cached = await getCached();
+      if (cached.isNotEmpty) return cached;
+      return sampleNotifications;
     }
   }
 
   /// Number of unread notifications (used for the bell badge).
   Future<int> unreadCount() async {
     final uid = _uid;
-    if (uid == null) return 0;
+    if (uid == null || uid == 'demo-student-id') {
+      return sampleNotifications.where((n) => !n.isRead).length;
+    }
 
     try {
       final res = await _client
@@ -107,7 +157,11 @@ class NotificationCacheService {
           .eq('is_read', false);
       return (res as List).length;
     } catch (_) {
-      return (await _readCache()).where((m) => m['is_read'] != true).length;
+      final list = await _readCache();
+      if (list.isEmpty) {
+        return sampleNotifications.where((n) => !n.isRead).length;
+      }
+      return list.where((m) => m['is_read'] != true).length;
     }
   }
 

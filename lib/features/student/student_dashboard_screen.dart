@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../core/widgets/status_chip.dart';
+import '../../screens/student/alerts_screen.dart';
+import '../../screens/student/applications_screen.dart';
 import '../../screens/student/notification_screen.dart';
 import '../../screens/student/progress_analytics_screen.dart';
 import '../../screens/student/reports_screen.dart';
@@ -221,6 +223,85 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                         ),
                       ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Quick Features & Modules',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFE8F5E9),
+                          child: Icon(Icons.assignment_outlined, color: Colors.green),
+                        ),
+                        title: const Text('My Applications & Documents'),
+                        subtitle: const Text('View documents, offer letters & weekly logs'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ApplicationsScreen(),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFE3F2FD),
+                          child: Icon(Icons.bar_chart_outlined, color: Colors.blue),
+                        ),
+                        title: const Text('Reports & Analytics Module'),
+                        subtitle: const Text('Weekly trend charts, PDF export & summaries'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ReportsScreen(),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFFFF3E0),
+                          child: Icon(Icons.insights_outlined, color: Colors.orange),
+                        ),
+                        title: const Text('Progress Analytics'),
+                        subtitle: const Text('Weekly gain insights and completion forecasts'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ProgressAnalyticsScreen(),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFFBE9E7),
+                          child: Icon(Icons.notifications_active_outlined, color: Colors.deepOrange),
+                        ),
+                        title: const Text('Notifications & Alerts'),
+                        subtitle: const Text('Milestone updates and approval notifications'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AlertsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             );
           },

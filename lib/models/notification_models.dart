@@ -90,6 +90,62 @@ class ReportSummary {
         latestProgress: 0,
       );
 
+  static ReportSummary sample() => ReportSummary(
+        totalApplications: 3,
+        approved: 2,
+        pending: 1,
+        rejected: 0,
+        completed: 1,
+        documentsUploaded: 5,
+        latestProgress: 85,
+        studentName: 'Vidhi Sharma',
+        unreadNotifications: 2,
+        documentsByType: const {
+          'offer_letter': 2,
+          'resume': 1,
+          'noc': 1,
+          'certificate': 1,
+        },
+        notificationsByType: const {
+          'application': 3,
+          'document': 2,
+          'progress': 3,
+          'alert': 1,
+        },
+        progressHistory: [
+          ProgressPoint(
+            weekNo: 1,
+            progress: 15,
+            recordedAt: DateTime.now().subtract(const Duration(days: 42)),
+          ),
+          ProgressPoint(
+            weekNo: 2,
+            progress: 30,
+            recordedAt: DateTime.now().subtract(const Duration(days: 35)),
+          ),
+          ProgressPoint(
+            weekNo: 3,
+            progress: 45,
+            recordedAt: DateTime.now().subtract(const Duration(days: 28)),
+          ),
+          ProgressPoint(
+            weekNo: 4,
+            progress: 60,
+            recordedAt: DateTime.now().subtract(const Duration(days: 21)),
+          ),
+          ProgressPoint(
+            weekNo: 5,
+            progress: 70,
+            recordedAt: DateTime.now().subtract(const Duration(days: 14)),
+          ),
+          ProgressPoint(
+            weekNo: 6,
+            progress: 85,
+            recordedAt: DateTime.now().subtract(const Duration(days: 7)),
+          ),
+        ],
+      );
+
   factory ReportSummary.fromMap(Map<String, dynamic> j) {
     int toInt(dynamic v) => (v as num?)?.toInt() ?? 0;
     DateTime? toDate(dynamic v) =>
