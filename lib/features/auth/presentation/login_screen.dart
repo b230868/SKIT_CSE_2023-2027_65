@@ -4,9 +4,55 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
+import '../../faculty_tp/presentation/screens/tp_dashboard_screen.dart';
+import '../../industry/presentation/screens/industry_shell.dart';
+import '../../student/student_shell.dart';
 import '../data/auth_service.dart';
+import '../models/app_user.dart';
 import '../utils/email_validator.dart';
 import 'register_screen.dart';
+
+const demoStudent = AppUser(
+  id: 'demo-student-id',
+  fullName: 'Vidhi Sharma',
+  email: 'vidhi.sharma@skit.ac.in',
+  role: 'student',
+  enrollmentNo: 'SKIT/2023/CSE/065',
+  branch: 'CSE',
+  phone: '+91 98765 43210',
+  designation: 'Student',
+);
+
+const demoFaculty = AppUser(
+  id: 'demo-faculty-id',
+  fullName: 'Dr. Ramesh Kumar',
+  email: 'ramesh.faculty@skit.ac.in',
+  role: 'faculty_mentor',
+  branch: 'CSE',
+  phone: '+91 98765 11111',
+  designation: 'Associate Professor',
+);
+
+const demoTp = AppUser(
+  id: 'demo-tp-id',
+  fullName: 'T&P Officer',
+  email: 'tp.officer@skit.ac.in',
+  role: 'tp_officer',
+  branch: 'T&P Cell',
+  phone: '+91 98765 22222',
+  designation: 'Training & Placement Officer',
+);
+
+const demoIndustry = AppUser(
+  id: 'demo-industry-id',
+  fullName: 'Vikram Mehta',
+  email: 'vikram@infosys.com',
+  role: 'industry_supervisor',
+  branch: 'IT & Software',
+  phone: '+91 98765 33333',
+  designation: 'Senior Project Manager',
+);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -292,6 +338,178 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                       child: const Text('New here? Create an account'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR EXPLORE DEMO ROLES',
+                            style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 0.8,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 0,
+                      color: const Color(0xFFF8F9FA),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Instant Feature Walkthrough:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.school, color: AppTheme.ink),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Student Portal (Vidhi - CSE)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Dashboard, Internships, Reports, Analytics & Alerts',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StudentShell(user: demoStudent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.co_present, color: Colors.teal),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Faculty Mentor Portal',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Student Monitoring, Approvals & Faculty Reports',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const FacultyDashboardScreen(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.business_center, color: Colors.deepOrange),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Training & Placement Officer',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'T&P Dashboard, Assignments & Final Approvals',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const TpDashboardScreen(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.factory, color: Colors.indigo),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Industry Supervisor Portal',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Student Evaluations & Document Verification',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const IndustryShell(user: demoIndustry),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -48,8 +48,18 @@ class ReportService {
         final raw = await _db.rpc('student_report_data');
         result = _fromJson(Map<String, dynamic>.from(raw as Map));
       } catch (_) {
-        result = await _fromTables();
+        try {
+          result = await _fromTables();
+        } catch (_) {
+          result = ReportSummary.sample();
+        }
       }
+    }
+    if ((uid.isEmpty || uid.startsWith('demo-')) &&
+        result.totalApplications == 0 &&
+        result.progressHistory.isEmpty &&
+        result.documentsUploaded == 0) {
+      result = ReportSummary.sample();
     }
     if (uid.isNotEmpty) {
       _cached = result;

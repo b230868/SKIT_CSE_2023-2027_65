@@ -248,6 +248,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             'Your report will appear here.',
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 20),
+          Center(
+            child: FilledButton.icon(
+              onPressed: () {
+                setState(() {
+                  _future = Future.value(ReportSummary.sample());
+                });
+              },
+              icon: const Icon(Icons.analytics_outlined),
+              label: const Text('Preview Sample Report & Analytics'),
+            ),
+          ),
         ],
       );
     }

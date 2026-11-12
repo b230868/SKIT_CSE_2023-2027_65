@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/notification_models.dart';
 import '../../models/report_insights.dart';
+import '../../services/report_service.dart';
 
 class ProgressAnalyticsScreen extends StatefulWidget {
   const ProgressAnalyticsScreen({super.key});
@@ -49,14 +49,33 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
     });
 
     try {
-      final res = await Supabase.instance.client.rpc('get_student_analytics');
-      final map = Map<String, dynamic>.from(res as Map);
+      final summary = await ReportService().studentSummary();
       final box = await _box();
-      await box?.put(_cacheKey, jsonEncode(map));
+      await box?.put(_cacheKey, jsonEncode({
+        'total_applications': summary.totalApplications,
+        'approved': summary.approved,
+        'pending': summary.pending,
+        'rejected': summary.rejected,
+        'completed': summary.completed,
+        'documents_uploaded': summary.documentsUploaded,
+        'latest_progress': summary.latestProgress,
+        'student_name': summary.studentName,
+        'unread_notifications': summary.unreadNotifications,
+        'documents_by_type': summary.documentsByType,
+        'notifications_by_type': summary.notificationsByType,
+        'progress': [
+          for (final p in summary.progressHistory)
+            {
+              'week_no': p.weekNo,
+              'progress': p.progress,
+              'recorded_at': p.recordedAt?.toIso8601String(),
+            }
+        ],
+      }));
 
       if (!mounted) return;
       setState(() {
-        _full = ReportSummary.fromMap(map);
+        _full = summary;
         _offline = false;
         _loading = false;
       });
@@ -70,7 +89,8 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
               Map<String, dynamic>.from(jsonDecode(raw) as Map));
           _offline = true;
         } else {
-          _error = 'Could not load your report. Pull down to retry.';
+          _full = ReportSummary.sample();
+          _offline = true;
         }
         _loading = false;
       });

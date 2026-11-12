@@ -6,6 +6,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../data/auth_service.dart';
 import '../models/app_user.dart';
 import '../utils/phone_validator.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AppUser user;
@@ -52,6 +53,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
+      if (widget.user.id.startsWith('demo-')) {
+        final updated = AppUser(
+          id: widget.user.id,
+          fullName: _name.text.trim(),
+          email: widget.user.email,
+          role: widget.user.role,
+          enrollmentNo: _nullIfEmpty(_enrollment.text),
+          branch: _nullIfEmpty(_branch.text),
+          phone: _nullIfEmpty(_phone.text),
+          designation: _nullIfEmpty(_designation.text),
+        );
+        widget.onUpdated?.call(updated);
+        if (mounted) showSnack(context, 'Profile saved');
+        return;
+      }
       final updated = await _auth.updateProfile(
         fullName: _name.text.trim(),
         enrollmentNo: _nullIfEmpty(_enrollment.text),
@@ -87,7 +103,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-    if (ok == true) await _auth.signOut(); // AuthGate returns to Login
+    if (ok == true) {
+      if (widget.user.id.startsWith('demo-')) {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (r) => false,
+        );
+      } else {
+        await _auth.signOut(); // AuthGate returns to Login
+      }
+    }
   }
 
   @override
