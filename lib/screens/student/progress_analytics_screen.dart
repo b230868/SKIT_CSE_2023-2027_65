@@ -1,11 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/notification_models.dart';
 import '../../models/report_insights.dart';
+import '../../services/analytics_service.dart';
 
 class ProgressAnalyticsScreen extends StatefulWidget {
   const ProgressAnalyticsScreen({super.key});
@@ -15,8 +12,7 @@ class ProgressAnalyticsScreen extends StatefulWidget {
 }
 
 class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
-  static const _boxName = 'progress_analytics_cache';
-  static const _cacheKey = 'student_analytics';
+  final _service = AnalyticsService();
 
   ReportSummary? _full;
   bool _loading = true;
@@ -32,49 +28,24 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
 
   // ---- data ----
 
-  Future<Box?> _box() async {
-    try {
-      return Hive.isBoxOpen(_boxName)
-          ? Hive.box(_boxName)
-          : await Hive.openBox(_boxName);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    try {
-      final res = await Supabase.instance.client.rpc('get_student_analytics');
-      final map = Map<String, dynamic>.from(res as Map);
-      final box = await _box();
-      await box?.put(_cacheKey, jsonEncode(map));
+    final result = await _service.loadReport();
+    if (!mounted) return;
 
-      if (!mounted) return;
-      setState(() {
-        _full = ReportSummary.fromMap(map);
-        _offline = false;
-        _loading = false;
-      });
-    } catch (_) {
-      final box = await _box();
-      final raw = box?.get(_cacheKey) as String?;
-      if (!mounted) return;
-      setState(() {
-        if (raw != null) {
-          _full = ReportSummary.fromMap(
-              Map<String, dynamic>.from(jsonDecode(raw) as Map));
-          _offline = true;
-        } else {
-          _error = 'Could not load your report. Pull down to retry.';
-        }
-        _loading = false;
-      });
-    }
+    setState(() {
+      if (result != null) {
+        _full = result.summary;
+        _offline = result.fromCache;
+      } else {
+        _error = 'Could not load your report. Pull down to retry.';
+      }
+      _loading = false;
+    });
   }
 
   // ---- UI ----
