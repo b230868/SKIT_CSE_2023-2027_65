@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/db";
 import { ApiError, sendSuccess } from "../utils/response";
+import { AuthUser } from "../middleware/auth";
 import {
   isValidUuid,
   parsePagination,
@@ -9,11 +10,64 @@ import {
   createProgressUpdateSchema,
 } from "../utils/validators";
 
+function getStudentIdentifiers(user?: AuthUser): string[] {
+  return [user?.studentId, user?.profileId].filter((v): v is string => Boolean(v));
+}
+
+async function resolveSupervisorScope(profileId: string): Promise<{
+  industryIds: string[];
+  companyNames: string[];
+}> {
+  const assignments = await prisma.industry_users.findMany({
+    where: { user_id: profileId },
+    include: { industries: { select: { id: true, name: true } } },
+  });
+  if (assignments.length > 0) {
+    return {
+      industryIds: assignments.map((a) => a.industry_id),
+      companyNames: assignments
+        .map((a) => a.industries?.name)
+        .filter((n): n is string => Boolean(n && n.trim())),
+    };
+  }
+  const direct = await prisma.industries.findUnique({
+    where: { id: profileId },
+    select: { id: true, name: true },
+  });
+  return direct
+    ? { industryIds: [direct.id], companyNames: direct.name ? [direct.name] : [] }
+    : { industryIds: [], companyNames: [] };
+}
+
+async function assertInternshipAccess(
+  user: AuthUser | undefined,
+  internship: { student_id: string; industry_id: string; company_name: string | null }
+) {
+  if (!user) throw ApiError.unauthorized();
+  if (user.role === "student") {
+    const ids = getStudentIdentifiers(user);
+    if (!ids.includes(internship.student_id)) {
+      throw ApiError.forbidden("Access denied: you can only access your own internship");
+    }
+  } else if (user.role === "industry_supervisor") {
+    const scope = await resolveSupervisorScope(user.profileId);
+    const matchesIndustryId = scope.industryIds.includes(internship.industry_id);
+    const matchesCompany =
+      Boolean(internship.company_name) &&
+      scope.companyNames.includes(internship.company_name!);
+    if (!matchesIndustryId && !matchesCompany) {
+      throw ApiError.forbidden(
+        "Access denied: internship does not belong to your assigned organization"
+      );
+    }
+  }
+}
+
 export class InternshipController {
   /**
    * GET /internships
    * List internships with status/student/department filtering and pagination.
-   * Enforces role scoping: students only see their own internships.
+   * Enforces role scoping: students only see their own; industry supervisors only see their company's.
    */
   static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
@@ -22,12 +76,26 @@ export class InternshipController {
 
       const where: any = {};
 
-      // Role-based scoping
       if (req.user?.role === "student") {
-        if (!req.user.studentId) {
+        const studentIds = getStudentIdentifiers(req.user);
+        if (studentIds.length === 0) {
           throw ApiError.forbidden("No student profile linked to your user account");
         }
-        where.student_id = req.user.studentId;
+        where.student_id = { in: studentIds };
+      } else if (req.user?.role === "industry_supervisor") {
+        const scope = await resolveSupervisorScope(req.user.profileId);
+        if (scope.industryIds.length === 0) {
+          return sendSuccess(res, [], {
+            count: 0,
+            pagination: { page, limit, total: 0, totalPages: 1 },
+          });
+        }
+        where.OR = [
+          { industry_id: { in: scope.industryIds } },
+          ...(scope.companyNames.length > 0
+            ? [{ company_name: { in: scope.companyNames } }]
+            : []),
+        ];
       } else if (typeof student_id === "string" && student_id.trim()) {
         if (!isValidUuid(student_id)) {
           throw ApiError.badRequest("Invalid student_id parameter: must be a valid UUID");
@@ -80,24 +148,54 @@ export class InternshipController {
         }),
       ]);
 
-      const formatted = internships.map((item) => ({
-        id: item.id,
-        student_id: item.student_id,
-        student_name: item.students?.profiles?.full_name || "Unknown",
-        roll_number: item.students?.roll_number || "",
-        department: item.students?.department || "",
-        industry_id: item.industry_id,
-        industry_name: item.industries?.name || item.company_name || "N/A",
-        internship_title: item.internship_title || item.title || "Untitled",
-        company_name: item.company_name,
-        mode: item.mode,
-        status: item.status,
-        progress: item.progress,
-        start_date: item.start_date,
-        end_date: item.end_date,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      }));
+      const missingStudentIds = internships
+        .filter((item) => !item.students)
+        .map((item) => item.student_id);
+      const fallbackProfiles = new Map<string, any>();
+      const fallbackStudents = new Map<string, any>();
+
+      if (missingStudentIds.length > 0) {
+        const [profiles, students] = await Promise.all([
+          prisma.profiles.findMany({
+            where: { id: { in: missingStudentIds } },
+            select: { id: true, full_name: true, enrollment_no: true, branch: true },
+          }),
+          prisma.students.findMany({
+            where: { user_id: { in: missingStudentIds } },
+            select: { user_id: true, roll_number: true, department: true },
+          }),
+        ]);
+        profiles.forEach((p) => fallbackProfiles.set(p.id, p));
+        students.forEach((s) => fallbackStudents.set(s.user_id, s));
+      }
+
+      const formatted = internships.map((item) => {
+        const fbProfile = fallbackProfiles.get(item.student_id);
+        const fbStudent = fallbackStudents.get(item.student_id);
+        return {
+          id: item.id,
+          student_id: item.student_id,
+          student_name: item.students?.profiles?.full_name || fbProfile?.full_name || "Unknown",
+          roll_number:
+            item.students?.roll_number ||
+            fbStudent?.roll_number ||
+            fbProfile?.enrollment_no ||
+            "",
+          department:
+            item.students?.department || fbStudent?.department || fbProfile?.branch || "",
+          industry_id: item.industry_id,
+          industry_name: item.industries?.name || item.company_name || "N/A",
+          internship_title: item.internship_title || item.title || "Untitled",
+          company_name: item.company_name,
+          mode: item.mode,
+          status: item.status,
+          progress: item.progress,
+          start_date: item.start_date,
+          end_date: item.end_date,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        };
+      });
 
       return sendSuccess(res, formatted, {
         count: formatted.length,
@@ -163,10 +261,7 @@ export class InternshipController {
         throw ApiError.notFound(`Internship with ID '${id}' was not found`);
       }
 
-      // Role check: student can only view their own internship
-      if (req.user?.role === "student" && req.user.studentId !== internship.student_id) {
-        throw ApiError.forbidden("Access denied: You can only view your own internship records");
-      }
+      await assertInternshipAccess(req.user, internship);
 
       return sendSuccess(res, internship);
     } catch (error) {
@@ -182,26 +277,25 @@ export class InternshipController {
     try {
       const validated = createInternshipSchema.parse(req.body);
 
-      // Determine student_id: if user is student, enforce their student ID
-      let studentId = validated.student_id;
+      let candidateStudentId = validated.student_id;
       if (req.user?.role === "student") {
-        if (!req.user.studentId) {
+        candidateStudentId = req.user.studentId || req.user.profileId;
+        if (!candidateStudentId) {
           throw ApiError.forbidden("No student profile linked to your user account");
         }
-        studentId = req.user.studentId;
-      } else if (!studentId) {
+      } else if (!candidateStudentId) {
         throw ApiError.badRequest("student_id is required when creating an internship as staff");
       }
 
-      // Verify student exists
-      const student = await prisma.students.findUnique({
-        where: { id: studentId },
+      const student = await prisma.students.findFirst({
+        where: {
+          OR: [{ id: candidateStudentId }, { user_id: candidateStudentId }],
+        },
       });
       if (!student) {
-        throw ApiError.notFound(`Student with ID '${studentId}' was not found`);
+        throw ApiError.notFound(`Student with ID '${candidateStudentId}' was not found`);
       }
 
-      // Verify industry exists
       const industry = await prisma.industries.findUnique({
         where: { id: validated.industry_id },
       });
@@ -211,7 +305,7 @@ export class InternshipController {
 
       const internship = await prisma.internships.create({
         data: {
-          student_id: studentId,
+          student_id: student.id,
           industry_id: validated.industry_id,
           start_date: new Date(validated.start_date),
           end_date: new Date(validated.end_date),
@@ -256,14 +350,14 @@ export class InternshipController {
         throw ApiError.notFound(`Internship with ID '${id}' was not found`);
       }
 
-      // Permission check: student can only update their own; status changes may require staff
-      if (req.user?.role === "student") {
-        if (req.user.studentId !== existing.student_id) {
-          throw ApiError.forbidden("Access denied: You can only update your own internship");
-        }
-        if (validated.status && validated.status !== existing.status) {
-          throw ApiError.forbidden("Students cannot directly change internship status");
-        }
+      await assertInternshipAccess(req.user, existing);
+
+      if (
+        req.user?.role === "student" &&
+        validated.status &&
+        validated.status !== existing.status
+      ) {
+        throw ApiError.forbidden("Students cannot directly change internship status");
       }
 
       const updateData: any = { ...validated, updated_at: new Date() };
@@ -293,16 +387,14 @@ export class InternshipController {
 
       const internship = await prisma.internships.findUnique({
         where: { id },
-        select: { id: true, student_id: true },
+        select: { id: true, student_id: true, industry_id: true, company_name: true },
       });
 
       if (!internship) {
         throw ApiError.notFound(`Internship with ID '${id}' was not found`);
       }
 
-      if (req.user?.role === "student" && req.user.studentId !== internship.student_id) {
-        throw ApiError.forbidden("Access denied: You can only view progress of your own internship");
-      }
+      await assertInternshipAccess(req.user, internship);
 
       const updates = await prisma.internship_progress_updates.findMany({
         where: { internship_id: id },
@@ -343,17 +435,14 @@ export class InternshipController {
 
       const internship = await prisma.internships.findUnique({
         where: { id },
-        select: { id: true, student_id: true },
+        select: { id: true, student_id: true, industry_id: true, company_name: true },
       });
 
       if (!internship) {
         throw ApiError.notFound(`Internship with ID '${id}' was not found`);
       }
 
-      // Check ownership
-      if (req.user.role === "student" && req.user.studentId !== internship.student_id) {
-        throw ApiError.forbidden("Access denied: You can only post progress for your own internship");
-      }
+      await assertInternshipAccess(req.user, internship);
 
       const [newUpdate] = await prisma.$transaction([
         prisma.internship_progress_updates.create({

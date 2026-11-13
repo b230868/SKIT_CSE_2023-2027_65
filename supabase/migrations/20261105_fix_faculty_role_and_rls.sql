@@ -117,20 +117,12 @@ WHERE p.id = u.id
   );
 
 -- 4. Ensure RLS policies on internships and approval_reviews permit faculty queries
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'public' 
-      AND tablename = 'internships' 
-      AND policyname = 'faculty_read_internships'
-  ) THEN
-    CREATE POLICY faculty_read_internships ON public.internships
-      FOR SELECT
-      USING (
-        public.current_role_of_user() IN ('faculty', 'tnp')
-        OR student_id = auth.uid()
-      );
-  END IF;
-END $$;
+DROP POLICY IF EXISTS faculty_read_internships ON public.internships;
+CREATE POLICY faculty_read_internships ON public.internships
+  FOR SELECT
+  USING (
+    public.current_role_of_user() IN ('faculty', 'tnp', 'admin')
+    OR student_id = auth.uid()
+    OR student_id IN (SELECT s.id FROM public.students s WHERE s.user_id = auth.uid())
+  );
 

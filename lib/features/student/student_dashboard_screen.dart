@@ -106,7 +106,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             final items = snap.data ?? [];
             final pending = items.where((i) => i.status == 'pending').length;
             final approved = items
-                .where((i) => i.status == 'approved' || i.status == 'completed')
+                .where(
+                  (i) =>
+                      i.status == 'approved' ||
+                      i.status == 'active' ||
+                      i.status == 'completed',
+                )
                 .length;
             final avg = items.isEmpty
                 ? 0

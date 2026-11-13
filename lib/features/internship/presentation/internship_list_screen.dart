@@ -119,12 +119,23 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
             }
 
             final pendingCount = allItems.where((i) => i.status == 'pending').length;
-            final approvedCount = allItems.where((i) => i.status == 'approved' || i.status == 'completed').length;
+            final approvedCount = allItems
+                .where(
+                  (i) =>
+                      i.status == 'approved' ||
+                      i.status == 'active' ||
+                      i.status == 'completed',
+                )
+                .length;
             final rejectedCount = allItems.where((i) => i.status == 'rejected').length;
 
             final items = allItems.where((i) {
               if (_selectedFilter == 'pending') return i.status == 'pending';
-              if (_selectedFilter == 'approved') return i.status == 'approved' || i.status == 'completed';
+              if (_selectedFilter == 'approved') {
+                return i.status == 'approved' ||
+                    i.status == 'active' ||
+                    i.status == 'completed';
+              }
               if (_selectedFilter == 'rejected') return i.status == 'rejected';
               return true;
             }).toList();

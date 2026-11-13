@@ -10,20 +10,22 @@ export class ReportsController {
   static async getFacultyReport(req: Request, res: Response, next: NextFunction) {
     try {
       const [
-        totalInternships,
-        pendingApprovals,
-        underReviewApprovals,
-        approvedInternships,
-        rejectedApplications,
+        internshipsWithLatestReview,
         facultyStageCount,
         tpStageCount,
         departmentsRaw,
       ] = await Promise.all([
-        prisma.internships.count(),
-        prisma.approval_reviews.count({ where: { status: "pending" } }),
-        prisma.approval_reviews.count({ where: { status: "under_review" } }),
-        prisma.approval_reviews.count({ where: { status: "approved" } }),
-        prisma.approval_reviews.count({ where: { status: "rejected" } }),
+        prisma.internships.findMany({
+          select: {
+            id: true,
+            status: true,
+            approval_reviews: {
+              orderBy: { created_at: "desc" },
+              take: 1,
+              select: { status: true },
+            },
+          },
+        }),
         prisma.approval_reviews.count({ where: { review_stage: "faculty" } }),
         prisma.approval_reviews.count({ where: { review_stage: "tp_admin" } }),
         prisma.students.groupBy({
@@ -31,6 +33,24 @@ export class ReportsController {
           _count: { id: true },
         }),
       ]);
+
+      const totalInternships = internshipsWithLatestReview.length;
+      let pendingApprovals = 0;
+      let underReviewApprovals = 0;
+      let approvedInternships = 0;
+      let rejectedApplications = 0;
+
+      for (const item of internshipsWithLatestReview) {
+        const latestStatus =
+          item.approval_reviews[0]?.status ||
+          (item.status === "planned" ? "pending" : item.status) ||
+          "pending";
+        if (latestStatus === "pending") pendingApprovals += 1;
+        else if (latestStatus === "under_review") underReviewApprovals += 1;
+        else if (latestStatus === "approved" || latestStatus === "active" || latestStatus === "completed")
+          approvedInternships += 1;
+        else if (latestStatus === "rejected") rejectedApplications += 1;
+      }
 
       const departmentSummary: Record<string, number> = {};
       departmentsRaw.forEach((d) => {

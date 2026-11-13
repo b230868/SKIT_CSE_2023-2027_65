@@ -158,7 +158,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
   Future<void> _addProgress() async {
     if (_submittingProgress) return;
     final st = _internship?.status.toLowerCase();
-    if (st != 'approved' && st != 'completed') {
+    if (st != 'approved' && st != 'active' && st != 'completed') {
       showSnack(
         context,
         'Progress can only be tracked once your internship is approved by Faculty.',
@@ -390,7 +390,7 @@ class _InternshipDetailScreenState extends State<InternshipDetailScreen> {
                         ],
                       ),
                     )
-                  else if (i.status == 'approved')
+                  else if (i.status == 'approved' || i.status == 'active')
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(

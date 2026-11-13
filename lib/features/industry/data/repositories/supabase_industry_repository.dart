@@ -116,40 +116,50 @@ class SupabaseIndustryRepository implements IndustryRepository {
         .map((e) => e['id'].toString())
         .toList();
 
-    final studentIds = internshipList
+    final rawIds = internshipList
         .map((e) => e['student_id']?.toString())
         .whereType<String>()
         .toSet()
         .toList();
 
     final Map<String, Map<String, dynamic>> profilesMap = {};
-    if (studentIds.isNotEmpty) {
+    final Map<String, Map<String, dynamic>> studentsMap = {};
+    if (rawIds.isNotEmpty) {
+      final joinedIds = rawIds.join(',');
       try {
-        final profRows = await _client
-            .from('profiles')
-            .select('id, full_name, enrollment_no, branch')
-            .inFilter('id', studentIds);
-        for (final p in (profRows as List)) {
-          final map = Map<String, dynamic>.from(p as Map);
-          final id = map['id']?.toString();
-          if (id != null) profilesMap[id] = map;
-        }
-      } catch (_) {}
-    }
-
-    final Map<String, String> rollNumberMap = {};
-    if (studentIds.isNotEmpty) {
-      try {
-        final studentRows = await _client
+        final studRows = await _client
             .from('students')
-            .select('user_id, roll_number')
-            .inFilter('user_id', studentIds);
-        for (final s in (studentRows as List)) {
-          final uid = s['user_id']?.toString();
-          final roll = s['roll_number']?.toString();
-          if (uid != null && roll != null) rollNumberMap[uid] = roll;
+            .select('id, user_id, roll_number, department')
+            .or('id.in.($joinedIds),user_id.in.($joinedIds)');
+        for (final s in (studRows as List)) {
+          final map = Map<String, dynamic>.from(s as Map);
+          final sid = map['id']?.toString();
+          final uid = map['user_id']?.toString();
+          if (sid != null) studentsMap[sid] = map;
+          if (uid != null) studentsMap[uid] = map;
         }
       } catch (_) {}
+
+      final allProfileIds = <String>{
+        ...rawIds,
+        ...studentsMap.values
+            .map((s) => s['user_id']?.toString())
+            .whereType<String>(),
+      }.toList();
+
+      if (allProfileIds.isNotEmpty) {
+        try {
+          final profRows = await _client
+              .from('profiles')
+              .select('id, full_name, enrollment_no, branch')
+              .inFilter('id', allProfileIds);
+          for (final p in (profRows as List)) {
+            final map = Map<String, dynamic>.from(p as Map);
+            final id = map['id']?.toString();
+            if (id != null) profilesMap[id] = map;
+          }
+        } catch (_) {}
+      }
     }
 
     final Map<String, String> latestItrStatus = {};
@@ -160,6 +170,21 @@ class SupabaseIndustryRepository implements IndustryRepository {
     final Map<String, String> certificateStatuses = {};
     final Map<String, String> certificateUrls = {};
     final Map<String, double> attendanceRates = {};
+
+    try {
+      final itrRows = await _client
+          .from('itrs')
+          .select('internship_id, status, created_at')
+          .inFilter('internship_id', internshipIds)
+          .order('created_at', ascending: false);
+
+      for (final row in (itrRows as List)) {
+        final id = row['internship_id']?.toString();
+        if (id != null && !latestItrStatus.containsKey(id)) {
+          latestItrStatus[id] = row['status']?.toString() ?? 'draft';
+        }
+      }
+    } catch (_) {}
 
     try {
       final evalRows = await _client
@@ -179,21 +204,26 @@ class SupabaseIndustryRepository implements IndustryRepository {
     try {
       final docRows = await _client
           .from('internship_documents')
-          .select('internship_id, document_type, file_url, created_at')
+          .select('*')
           .inFilter('internship_id', internshipIds)
           .order('created_at', ascending: false);
 
       for (final row in (docRows as List)) {
-        final id = row['internship_id']?.toString();
-        final type = row['document_type']?.toString();
-        final url = row['file_url']?.toString();
+        final map = Map<String, dynamic>.from(row as Map);
+        final id = map['internship_id']?.toString();
+        final type = (map['doc_type'] ?? map['document_type'])?.toString();
+        final path = map['file_path']?.toString();
+        String? url = map['file_url']?.toString();
+        if ((url == null || url.isEmpty) && path != null && path.isNotEmpty) {
+          url = path;
+        }
         if (id != null) {
           if (type == 'offer_letter' && !offerLetterStatuses.containsKey(id)) {
-            offerLetterStatuses[id] = 'issued';
+            offerLetterStatuses[id] = map['status']?.toString() ?? 'issued';
             if (url != null) offerLetterUrls[id] = url;
-          } else if (type == 'completion_certificate' &&
+          } else if ((type == 'completion_certificate' || type == 'certificate') &&
               !certificateStatuses.containsKey(id)) {
-            certificateStatuses[id] = 'issued';
+            certificateStatuses[id] = map['status']?.toString() ?? 'issued';
             if (url != null) certificateUrls[id] = url;
           }
         }
@@ -244,10 +274,13 @@ class SupabaseIndustryRepository implements IndustryRepository {
 
     for (final internship in internshipList) {
       final studentIdVal = internship['student_id']?.toString();
-      final profile = studentIdVal != null ? profilesMap[studentIdVal] : null;
-      final rollNoVal = (studentIdVal != null ? rollNumberMap[studentIdVal] : null) ??
+      final studentRow = studentIdVal != null ? studentsMap[studentIdVal] : null;
+      final profileLookupId = studentRow?['user_id']?.toString() ?? studentIdVal;
+      final profile = profileLookupId != null ? profilesMap[profileLookupId] : null;
+      final rollNoVal = studentRow?['roll_number']?.toString() ??
           profile?['enrollment_no']?.toString();
-      final branchVal = profile?['branch']?.toString();
+      final branchVal = profile?['branch']?.toString() ??
+          studentRow?['department']?.toString();
       final internshipId = internship['id'].toString();
 
       final evalStatus = latestEvaluationStatus[internshipId] ?? 'pending';
@@ -267,10 +300,7 @@ class SupabaseIndustryRepository implements IndustryRepository {
       result.add(
         IndustryInternshipModel(
           id: internshipId,
-          studentName:
-              profile?['full_name']?.toString() ??
-              internship['company_name']?.toString() ??
-              'Student',
+          studentName: profile?['full_name']?.toString() ?? 'Student',
           internshipTitle:
               internship['internship_title']?.toString() ??
               internship['title']?.toString() ??
@@ -302,7 +332,21 @@ class SupabaseIndustryRepository implements IndustryRepository {
     final industryId = await _getIndustryId();
 
     if (industryId == null) {
-      return IndustryDashboardData.empty();
+      return const IndustryDashboardData(
+        industryName: 'Unassigned Organization',
+        totalInterns: 0,
+        activeInterns: 0,
+        completedInternships: 0,
+        pendingAttendance: 0,
+        pendingEvaluations: 0,
+        completedEvaluations: 0,
+        pendingCertificates: 0,
+        issuedCertificates: 0,
+        pendingOfferLetters: 0,
+        issuedOfferLetters: 0,
+        pendingItrs: 0,
+        submittedItrs: 0,
+      );
     }
 
     String industryName = 'Industry Partner';
@@ -382,6 +426,13 @@ class SupabaseIndustryRepository implements IndustryRepository {
       pendingAtt = 0;
     }
 
+    final submittedItrsCount = internships
+        .where((i) => ['submitted', 'under_review', 'approved', 'verified'].contains(i.itrStatus))
+        .length;
+    final pendingItrsCount = internships
+        .where((i) => i.itrStatus == 'draft' || i.itrStatus == 'changes_requested')
+        .length;
+
     return IndustryDashboardData(
       industryName: industryName,
       totalInterns: internships.length,
@@ -394,8 +445,8 @@ class SupabaseIndustryRepository implements IndustryRepository {
       issuedCertificates: issuedCerts,
       pendingOfferLetters: pendingOffers,
       issuedOfferLetters: issuedOffers,
-      pendingItrs: 0,
-      submittedItrs: 0,
+      pendingItrs: pendingItrsCount,
+      submittedItrs: submittedItrsCount,
     );
   }
 
@@ -417,17 +468,37 @@ class SupabaseIndustryRepository implements IndustryRepository {
             status,
             marked_by,
             remarks,
-            created_at,
-            profiles:marked_by (
-              full_name
-            )
+            created_at
           ''')
           .eq('internship_id', internshipId)
           .order('date', ascending: false);
 
-      return (rows as List).map((raw) {
-        final map = Map<String, dynamic>.from(raw as Map);
-        final profile = map['profiles'] as Map<String, dynamic>?;
+      final rowList = (rows as List)
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .toList();
+
+      final markerIds = rowList
+          .map((m) => m['marked_by']?.toString())
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final Map<String, String> markerNames = {};
+      if (markerIds.isNotEmpty) {
+        try {
+          final profs = await _client
+              .from('profiles')
+              .select('id, full_name')
+              .inFilter('id', markerIds);
+          for (final p in (profs as List)) {
+            final id = p['id']?.toString();
+            final name = p['full_name']?.toString();
+            if (id != null && name != null) markerNames[id] = name;
+          }
+        } catch (_) {}
+      }
+
+      return rowList.map((map) {
+        final markedById = map['marked_by']?.toString();
         return IndustryAttendanceRecord(
           id: map['id']?.toString() ?? '',
           internshipId: map['internship_id']?.toString() ?? '',
@@ -436,8 +507,8 @@ class SupabaseIndustryRepository implements IndustryRepository {
               ? (DateTime.tryParse(map['date'].toString()) ?? DateTime.now())
               : DateTime.now(),
           status: map['status']?.toString() ?? 'present',
-          markedBy: map['marked_by']?.toString(),
-          markedByName: profile?['full_name']?.toString(),
+          markedBy: markedById,
+          markedByName: markedById != null ? markerNames[markedById] : null,
           markedAt: map['created_at'] != null
               ? DateTime.tryParse(map['created_at'].toString())
               : null,
@@ -479,6 +550,59 @@ class SupabaseIndustryRepository implements IndustryRepository {
         .upsert(payload, onConflict: 'internship_id,date');
   }
 
+  Future<void> _upsertInternshipDocument({
+    required String internshipId,
+    required String docType,
+    required String status,
+    String? fileUrl,
+  }) async {
+    final internshipRow = await _client
+        .from('internships')
+        .select('student_id')
+        .eq('id', internshipId)
+        .single();
+    final studentId = internshipRow['student_id']?.toString();
+    final rawPath = (fileUrl != null && fileUrl.trim().isNotEmpty)
+        ? fileUrl.trim()
+        : '$studentId/$internshipId/${docType}_record';
+    final fileName = rawPath.split('/').last.isNotEmpty
+        ? rawPath.split('/').last
+        : '$docType.pdf';
+
+    Map<String, dynamic>? existing;
+    try {
+      existing = await _client
+          .from('internship_documents')
+          .select('id')
+          .eq('internship_id', internshipId)
+          .eq('doc_type', docType)
+          .maybeSingle();
+    } catch (_) {
+      existing = null;
+    }
+
+    if (existing != null) {
+      await _client
+          .from('internship_documents')
+          .update({
+            'status': status,
+            'file_path': rawPath,
+            'file_name': fileName,
+          })
+          .eq('id', existing['id']);
+      return;
+    }
+
+    await _client.from('internship_documents').insert({
+      'internship_id': internshipId,
+      'student_id': ?studentId,
+      'doc_type': docType,
+      'file_name': fileName,
+      'file_path': rawPath,
+      'status': status,
+    });
+  }
+
   @override
   Future<void> updateOfferLetter({
     required String internshipId,
@@ -486,14 +610,12 @@ class SupabaseIndustryRepository implements IndustryRepository {
     String? fileUrl,
   }) async {
     await _requireAuthorizedInternship(internshipId);
-
-    if (fileUrl != null && fileUrl.isNotEmpty) {
-      await _client.from('internship_documents').upsert({
-        'internship_id': internshipId,
-        'document_type': 'offer_letter',
-        'file_url': fileUrl,
-      });
-    }
+    await _upsertInternshipDocument(
+      internshipId: internshipId,
+      docType: 'offer_letter',
+      status: status,
+      fileUrl: fileUrl,
+    );
   }
 
   @override
@@ -503,14 +625,12 @@ class SupabaseIndustryRepository implements IndustryRepository {
     String? fileUrl,
   }) async {
     await _requireAuthorizedInternship(internshipId);
-
-    if (fileUrl != null && fileUrl.isNotEmpty) {
-      await _client.from('internship_documents').upsert({
-        'internship_id': internshipId,
-        'document_type': 'completion_certificate',
-        'file_url': fileUrl,
-      });
-    }
+    await _upsertInternshipDocument(
+      internshipId: internshipId,
+      docType: 'certificate',
+      status: status,
+      fileUrl: fileUrl,
+    );
   }
 
   @override
@@ -523,50 +643,54 @@ class SupabaseIndustryRepository implements IndustryRepository {
     try {
       final rows = await _client
           .from('internship_documents')
-          .select('''
-            id,
-            internship_id,
-            student_id,
-            document_type,
-            file_name,
-            file_path,
-            file_url,
-            status,
-            rejection_reason,
-            remarks,
-            verified_by,
-            verified_at,
-            faculty_status,
-            faculty_rejection_reason,
-            faculty_remarks,
-            faculty_verified_by,
-            faculty_verified_at,
-            created_at,
-            profiles:verified_by (
-              full_name
-            ),
-            faculty_profiles:faculty_verified_by (
-              full_name
-            )
-          ''')
+          .select('*')
           .eq('internship_id', internshipId)
           .order('created_at', ascending: false);
 
+      final docList = (rows as List)
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .toList();
+
+      final profileIds = <String>{
+        ...docList.map((m) => m['verified_by']?.toString()).whereType<String>(),
+        ...docList
+            .map((m) => m['faculty_verified_by']?.toString())
+            .whereType<String>(),
+      }.toList();
+
+      final Map<String, String> verifierNames = {};
+      if (profileIds.isNotEmpty) {
+        try {
+          final profs = await _client
+              .from('profiles')
+              .select('id, full_name')
+              .inFilter('id', profileIds);
+          for (final p in (profs as List)) {
+            final id = p['id']?.toString();
+            final name = p['full_name']?.toString();
+            if (id != null && name != null) verifierNames[id] = name;
+          }
+        } catch (_) {}
+      }
+
       final list = <InternshipDocument>[];
-      for (final raw in (rows as List)) {
-        final map = Map<String, dynamic>.from(raw as Map);
-        final reviewerProfile = map['profiles'] as Map<String, dynamic>?;
-        final facultyProfile = map['faculty_profiles'] as Map<String, dynamic>?;
+      for (final map in docList) {
+        final verifiedById = map['verified_by']?.toString();
+        final facultyVerifiedById = map['faculty_verified_by']?.toString();
 
         String? signedUrl;
         final filePath = map['file_path']?.toString();
         if (filePath != null && filePath.isNotEmpty) {
-          try {
-            signedUrl = await _client.storage
-                .from('internship-docs')
-                .createSignedUrl(filePath, 3600);
-          } catch (_) {
-            signedUrl = map['file_url']?.toString();
+          if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            signedUrl = filePath;
+          } else {
+            try {
+              signedUrl = await _client.storage
+                  .from('internship-docs')
+                  .createSignedUrl(filePath, 3600);
+            } catch (_) {
+              signedUrl = map['file_url']?.toString();
+            }
           }
         } else {
           signedUrl = map['file_url']?.toString();
@@ -578,8 +702,8 @@ class SupabaseIndustryRepository implements IndustryRepository {
             internshipId: map['internship_id']?.toString() ?? '',
             studentId: map['student_id']?.toString(),
             docType:
-                map['document_type']?.toString() ??
                 map['doc_type']?.toString() ??
+                map['document_type']?.toString() ??
                 'other',
             fileName: map['file_name']?.toString() ?? 'Document',
             filePath: filePath ?? '',
@@ -587,16 +711,22 @@ class SupabaseIndustryRepository implements IndustryRepository {
             status: map['status']?.toString() ?? 'pending',
             rejectionReason: map['rejection_reason']?.toString(),
             remarks: map['remarks']?.toString(),
-            verifiedBy: map['verified_by']?.toString(),
-            verifiedByName: reviewerProfile?['full_name']?.toString(),
+            verifiedBy: verifiedById,
+            verifiedByName:
+                map['verified_by_name']?.toString() ??
+                (verifiedById != null ? verifierNames[verifiedById] : null),
             verifiedAt: map['verified_at'] != null
                 ? DateTime.tryParse(map['verified_at'].toString())
                 : null,
             facultyStatus: map['faculty_status']?.toString() ?? 'pending',
             facultyRejectionReason: map['faculty_rejection_reason']?.toString(),
             facultyRemarks: map['faculty_remarks']?.toString(),
-            facultyVerifiedBy: map['faculty_verified_by']?.toString(),
-            facultyVerifiedByName: facultyProfile?['full_name']?.toString(),
+            facultyVerifiedBy: facultyVerifiedById,
+            facultyVerifiedByName:
+                map['faculty_verified_by_name']?.toString() ??
+                (facultyVerifiedById != null
+                    ? verifierNames[facultyVerifiedById]
+                    : null),
             facultyVerifiedAt: map['faculty_verified_at'] != null
                 ? DateTime.tryParse(map['faculty_verified_at'].toString())
                 : null,

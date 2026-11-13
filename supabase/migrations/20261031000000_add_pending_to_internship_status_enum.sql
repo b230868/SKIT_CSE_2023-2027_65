@@ -125,16 +125,16 @@ END $$;
 -- 5. SECURE, SCOPED ROW LEVEL SECURITY POLICIES (NO WIDE-OPEN 'TRUE' POLICIES)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Users can read their own profile, or faculty/tnp/industry can read assigned student profiles
+-- Users can read their own profile, or faculty/tnp/industry/admin can read staff/student profiles
 DROP POLICY IF EXISTS "profiles read own or staff" ON public.profiles;
 CREATE POLICY "profiles read own or staff" ON public.profiles
   FOR SELECT TO authenticated
   USING (
     auth.uid() = id 
-    OR public.current_role_of_user() IN ('faculty', 'faculty_mentor', 'tnp', 'tp_officer', 'industry', 'industry_supervisor')
+    OR public.current_role_of_user() IN ('faculty', 'faculty_mentor', 'tnp', 'tp_officer', 'industry', 'industry_supervisor', 'admin')
   );
 
--- Users can only insert/update their own profile
+-- Users can only insert/update their own profile (prevent self role escalation)
 DROP POLICY IF EXISTS "profiles insert own" ON public.profiles;
 CREATE POLICY "profiles insert own" ON public.profiles
   FOR INSERT TO authenticated
@@ -144,29 +144,51 @@ DROP POLICY IF EXISTS "profiles update own" ON public.profiles;
 CREATE POLICY "profiles update own" ON public.profiles
   FOR UPDATE TO authenticated
   USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+  WITH CHECK (
+    auth.uid() = id
+    AND role = (SELECT p2.role FROM public.profiles p2 WHERE p2.id = auth.uid())
+  );
 
--- Internships RLS: strictly scoped to ownership
+-- Internships RLS: strictly scoped to ownership & company isolation
 ALTER TABLE public.internships ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "internships insert own" ON public.internships;
 CREATE POLICY "internships insert own" ON public.internships 
   FOR INSERT TO authenticated 
-  WITH CHECK (student_id = auth.uid() AND status = 'pending');
+  WITH CHECK (
+    (
+      student_id = auth.uid()
+      OR student_id IN (SELECT s.id FROM public.students s WHERE s.user_id = auth.uid())
+    )
+    AND status = 'pending'
+  );
 
 DROP POLICY IF EXISTS "internships read scoped" ON public.internships;
 CREATE POLICY "internships read scoped" ON public.internships 
   FOR SELECT TO authenticated 
   USING (
-    student_id = auth.uid() 
-    OR public.current_role_of_user() IN ('faculty', 'faculty_mentor', 'tnp', 'tp_officer', 'industry', 'industry_supervisor')
+    student_id = auth.uid()
+    OR student_id IN (SELECT s.id FROM public.students s WHERE s.user_id = auth.uid())
+    OR public.current_role_of_user() IN ('faculty', 'faculty_mentor', 'tnp', 'tp_officer', 'admin')
   );
 
 DROP POLICY IF EXISTS "internships update own pending" ON public.internships;
 CREATE POLICY "internships update own pending" ON public.internships 
   FOR UPDATE TO authenticated 
-  USING (student_id = auth.uid() AND status = 'pending')
-  WITH CHECK (student_id = auth.uid() AND status = 'pending');
+  USING (
+    (
+      student_id = auth.uid()
+      OR student_id IN (SELECT s.id FROM public.students s WHERE s.user_id = auth.uid())
+    )
+    AND status = 'pending'
+  )
+  WITH CHECK (
+    (
+      student_id = auth.uid()
+      OR student_id IN (SELECT s.id FROM public.students s WHERE s.user_id = auth.uid())
+    )
+    AND status = 'pending'
+  );
 
 -- 6. RELOAD POSTGREST SCHEMA CACHE
 NOTIFY pgrst, 'reload schema';

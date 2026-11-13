@@ -16,7 +16,9 @@ export class ErpController {
 
       const [internshipCount, evaluatedCount, studentCount] = await Promise.all([
         prisma.internships.count(),
-        prisma.evaluations.count({ where: { status: "submitted" } }),
+        prisma.evaluations.count({
+          where: { status: { in: ["submitted", "verified", "completed"] } },
+        }),
         prisma.students.count(),
       ]);
 
@@ -79,7 +81,7 @@ export class ErpController {
             },
           },
           evaluations: {
-            where: { status: "submitted" },
+            where: { status: { in: ["submitted", "verified", "completed"] } },
             select: { score: true, grade: true, submitted_at: true },
           },
           itrs: {
@@ -123,9 +125,9 @@ export class ErpController {
     try {
       const parsed = erpSyncGradesSchema.parse(req.body);
 
-      // Find all completed internships with submitted evaluations
+      // Find all completed/verified evaluations ready for ERP sync
       const readyForSync = await prisma.evaluations.findMany({
-        where: { status: "submitted" },
+        where: { status: { in: ["submitted", "verified", "completed"] } },
         include: {
           internships: {
             include: {

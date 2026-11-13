@@ -2,7 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
 import '../../../internship/models/internship.dart';
-import '../models/mock_student_monitoring_data.dart';
 import '../models/student_monitoring_detail.dart';
 import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
@@ -27,7 +26,7 @@ class SupabaseStudentMonitoringRepository
   Future<List<StudentMonitoringItem>> getStudents() async {
     final client = _client;
     if (client == null) {
-      return MockStudentMonitoringData.students;
+      throw StateError('Supabase client is not initialized.');
     }
 
     await AuthService.requireAuthenticatedClient(client: client);
@@ -38,6 +37,7 @@ class SupabaseStudentMonitoringRepository
           .select('''
         id,
         internship_title,
+        title,
         status,
         company_name,
         progress,
@@ -77,30 +77,49 @@ class SupabaseStudentMonitoringRepository
           .toList();
 
       final Map<String, Map<String, dynamic>> profilesMap = {};
-      final Map<String, Map<String, dynamic>> studentsMap = {};
+      final Map<String, Map<String, dynamic>> studentsByKey = {};
 
       if (studentIds.isNotEmpty) {
-        try {
-          final profs = await client
-              .from('profiles')
-              .select('id, full_name, email, department, branch, phone, phone_number, address, avatar_url, enrollment_no')
-              .inFilter('id', studentIds);
-          for (final p in (profs as List)) {
-            final id = p['id']?.toString();
-            if (id != null) profilesMap[id] = Map<String, dynamic>.from(p as Map);
-          }
-        } catch (_) {}
-
         try {
           final studs = await client
               .from('students')
               .select('id, roll_number, department, batch_year, user_id')
-              .inFilter('user_id', studentIds);
+              .or(
+                studentIds
+                    .expand((id) => ['id.eq.$id', 'user_id.eq.$id'])
+                    .join(','),
+              );
           for (final s in (studs as List)) {
-            final uid = s['user_id']?.toString();
-            if (uid != null) studentsMap[uid] = Map<String, dynamic>.from(s as Map);
+            final row = Map<String, dynamic>.from(s as Map);
+            final sid = row['id']?.toString();
+            final uid = row['user_id']?.toString();
+            if (sid != null) studentsByKey[sid] = row;
+            if (uid != null) studentsByKey[uid] = row;
           }
         } catch (_) {}
+
+        final profileLookupIds = <String>{
+          ...studentIds,
+          ...studentsByKey.values
+              .map((s) => s['user_id']?.toString())
+              .whereType<String>(),
+        }.toList();
+
+        if (profileLookupIds.isNotEmpty) {
+          try {
+            final profs = await client
+                .from('profiles')
+                .select(
+                  'id, full_name, email, department, branch, phone, phone_number, address, avatar_url, enrollment_no',
+                )
+                .inFilter('id', profileLookupIds);
+            for (final p in (profs as List)) {
+              final row = Map<String, dynamic>.from(p as Map);
+              final id = row['id']?.toString();
+              if (id != null) profilesMap[id] = row;
+            }
+          } catch (_) {}
+        }
       }
 
       final internshipIds =
@@ -109,33 +128,24 @@ class SupabaseStudentMonitoringRepository
       final Map<String, Map<String, dynamic>> evaluationsMap = {};
       final Map<String, double> attendanceRateMap = {};
       final Map<String, List<InternshipDocument>> docsMap = {};
+      final Set<String> helperProfileIds = {};
 
       try {
         final evalRows = await client
             .from('evaluations')
-            .select('''
-              internship_id,
-              total_score,
-              score,
-              marks,
-              grade,
-              status,
-              feedback,
-              remarks,
-              evaluator_id,
-              submitted_at,
-              profiles:evaluator_id (
-                full_name,
-                designation
-              )
-            ''')
+            .select(
+              'internship_id, total_score, score, marks, grade, status, feedback, remarks, evaluator_id, submitted_at',
+            )
             .inFilter('internship_id', internshipIds)
             .order('created_at', ascending: false);
 
         for (final row in (evalRows as List)) {
-          final id = row['internship_id']?.toString();
+          final map = Map<String, dynamic>.from(row as Map);
+          final id = map['internship_id']?.toString();
           if (id != null && !evaluationsMap.containsKey(id)) {
-            evaluationsMap[id] = Map<String, dynamic>.from(row as Map);
+            evaluationsMap[id] = map;
+            final eid = map['evaluator_id']?.toString();
+            if (eid != null && eid.isNotEmpty) helperProfileIds.add(eid);
           }
         }
       } catch (_) {}
@@ -164,57 +174,81 @@ class SupabaseStudentMonitoringRepository
         }
       } catch (_) {}
 
+      final List<Map<String, dynamic>> rawDocRows = [];
       try {
         final docRows = await client
             .from('internship_documents')
-            .select('''
-              id,
-              internship_id,
-              name,
-              file_url,
-              file_size,
-              doc_type,
-              status,
-              rejection_reason,
-              remarks,
-              verified_by,
-              verified_at,
-              faculty_status,
-              faculty_rejection_reason,
-              faculty_remarks,
-              faculty_verified_by,
-              faculty_verified_at,
-              uploaded_at,
-              profiles:verified_by (
-                full_name
-              )
-            ''')
+            .select('*')
             .inFilter('internship_id', internshipIds)
-            .order('uploaded_at', ascending: false);
+            .order('created_at', ascending: false);
 
         for (final row in (docRows as List)) {
           final map = Map<String, dynamic>.from(row as Map);
-          final internshipId = map['internship_id']?.toString() ?? '';
-          final verifierProfile = map['profiles'] as Map<String, dynamic>?;
-          if (verifierProfile != null && map['verified_by_name'] == null) {
-            map['verified_by_name'] = verifierProfile['full_name'];
-          }
-          final doc = InternshipDocument.fromMap(map);
-          docsMap.putIfAbsent(internshipId, () => []).add(doc);
+          rawDocRows.add(map);
+          final vBy = map['verified_by']?.toString();
+          final fvBy = map['faculty_verified_by']?.toString();
+          if (vBy != null && vBy.isNotEmpty) helperProfileIds.add(vBy);
+          if (fvBy != null && fvBy.isNotEmpty) helperProfileIds.add(fvBy);
         }
       } catch (_) {}
+
+      final Map<String, String> helperProfileNames = {};
+      if (helperProfileIds.isNotEmpty) {
+        try {
+          final helperRows = await client
+              .from('profiles')
+              .select('id, full_name')
+              .inFilter('id', helperProfileIds.toList());
+          for (final row in (helperRows as List)) {
+            final id = row['id']?.toString();
+            final name = row['full_name']?.toString();
+            if (id != null && name != null && name.isNotEmpty) {
+              helperProfileNames[id] = name;
+            }
+          }
+        } catch (_) {}
+      }
+
+      for (final map in rawDocRows) {
+        final internshipId = map['internship_id']?.toString() ?? '';
+        final vBy = map['verified_by']?.toString();
+        final fvBy = map['faculty_verified_by']?.toString();
+        if (map['verified_by_name'] == null && vBy != null) {
+          map['verified_by_name'] = helperProfileNames[vBy];
+        }
+        if (map['faculty_verified_by_name'] == null && fvBy != null) {
+          map['faculty_verified_by_name'] = helperProfileNames[fvBy];
+        }
+        final filePath = map['file_path']?.toString() ?? '';
+        if ((map['file_url'] == null ||
+                map['file_url'].toString().trim().isEmpty) &&
+            filePath.isNotEmpty) {
+          map['file_url'] = await getFileUrl(
+            bucket: 'internship-docs',
+            path: filePath,
+          );
+        }
+        final doc = InternshipDocument.fromMap(map);
+        docsMap.putIfAbsent(internshipId, () => []).add(doc);
+      }
 
       for (final item in internshipList) {
         final map = Map<String, dynamic>.from(item as Map);
         final studentId = map['student_id']?.toString() ?? '';
 
-        final profile = profilesMap[studentId] ?? <String, dynamic>{};
-        final student = studentsMap[studentId] ?? <String, dynamic>{};
+        final student = studentsByKey[studentId] ?? <String, dynamic>{};
+        final userId = student['user_id']?.toString();
+        final profile =
+            profilesMap[studentId] ??
+            (userId != null ? profilesMap[userId] : null) ??
+            <String, dynamic>{};
 
         final studentName =
             profile['full_name'] as String? ?? 'Unknown Student';
         final internshipTitle =
-            map['internship_title'] as String? ?? 'Untitled Internship';
+            map['internship_title'] as String? ??
+            map['title'] as String? ??
+            'Untitled Internship';
         final internshipId = map['id'] as String? ?? '';
 
         final reviews = (map['approval_reviews'] as List? ?? [])
@@ -264,6 +298,14 @@ class SupabaseStudentMonitoringRepository
           certStatus = (map['certificates'] as Map)['status'] as String?;
         }
 
+        final evalRow = evaluationsMap[internshipId];
+        final rawScore =
+            evalRow?['total_score'] ?? evalRow?['score'] ?? evalRow?['marks'];
+        final double? companyScore = rawScore is num
+            ? rawScore.toDouble()
+            : double.tryParse(rawScore?.toString() ?? '');
+        final evaluatorId = evalRow?['evaluator_id']?.toString();
+
         final int progressVal = map['progress'] is num
             ? (map['progress'] as num).toInt()
             : 0;
@@ -293,6 +335,15 @@ class SupabaseStudentMonitoringRepository
             certificateStatus: certStatus,
             progress: progressVal,
             hasPendingApprovals: hasPendingReview,
+            companyEvaluationScore: companyScore,
+            companyEvaluationGrade: evalRow?['grade']?.toString(),
+            attendanceRate: attendanceRateMap[internshipId],
+            companyRemarks:
+                evalRow?['remarks']?.toString() ??
+                evalRow?['feedback']?.toString(),
+            companyEvaluatorName:
+                evaluatorId != null ? helperProfileNames[evaluatorId] : null,
+            documents: docsMap[internshipId] ?? const [],
           ),
         );
       }
@@ -301,11 +352,11 @@ class SupabaseStudentMonitoringRepository
     } on PostgrestException catch (e) {
       if (e.code == '42501' ||
           e.message.toLowerCase().contains('permission denied')) {
-        return MockStudentMonitoringData.students;
+        throw const UnauthorizedException(
+          'Your account does not have permission to access student monitoring data.',
+        );
       }
       rethrow;
-    } catch (_) {
-      return MockStudentMonitoringData.students;
     }
   }
 
@@ -316,12 +367,24 @@ class SupabaseStudentMonitoringRepository
   }) async {
     final client = _client;
     if (client == null) {
-      return MockStudentMonitoringData.getDetails(studentId);
+      throw StateError('Supabase client is not initialized.');
     }
 
     await AuthService.requireAuthenticatedClient(client: client);
 
     try {
+      Map<String, dynamic> preloadedStudent = {};
+      if (internshipId == null || internshipId.isEmpty) {
+        try {
+          final s = await client
+              .from('students')
+              .select('id, roll_number, department, batch_year, user_id, created_at, updated_at')
+              .or('id.eq.$studentId,user_id.eq.$studentId')
+              .maybeSingle();
+          if (s != null) preloadedStudent = Map<String, dynamic>.from(s);
+        } catch (_) {}
+      }
+
       var query = client.from('internships').select('''
         id,
         internship_title,
@@ -385,34 +448,47 @@ class SupabaseStudentMonitoringRepository
       if (internshipId != null && internshipId.isNotEmpty) {
         query = query.eq('id', internshipId);
       } else {
-        query = query.eq('student_id', studentId);
+        final candidateIds = <String>{
+          studentId,
+          if (preloadedStudent['id'] != null) preloadedStudent['id'].toString(),
+          if (preloadedStudent['user_id'] != null)
+            preloadedStudent['user_id'].toString(),
+        }.toList();
+        query = query.inFilter('student_id', candidateIds);
       }
 
-      final response = await query.maybeSingle();
+      final response = await query
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
 
       if (response != null) {
         final map = Map<String, dynamic>.from(response);
         final effectiveStudentId = map['student_id']?.toString() ?? studentId;
 
         Map<String, dynamic> profile = {};
-        Map<String, dynamic> student = {};
+        Map<String, dynamic> student = preloadedStudent;
 
+        if (student.isEmpty) {
+          try {
+            final s = await client
+                .from('students')
+                .select('id, roll_number, department, batch_year, user_id, created_at, updated_at')
+                .or('user_id.eq.$effectiveStudentId,id.eq.$effectiveStudentId,id.eq.$studentId')
+                .maybeSingle();
+            if (s != null) student = Map<String, dynamic>.from(s);
+          } catch (_) {}
+        }
+
+        final profileId =
+            student['user_id']?.toString() ?? effectiveStudentId;
         try {
           final p = await client
               .from('profiles')
               .select('id, full_name, email, department, branch, phone, phone_number, address, avatar_url, is_active, created_at, updated_at, enrollment_no')
-              .eq('id', effectiveStudentId)
+              .eq('id', profileId)
               .maybeSingle();
           if (p != null) profile = Map<String, dynamic>.from(p);
-        } catch (_) {}
-
-        try {
-          final s = await client
-              .from('students')
-              .select('id, roll_number, department, batch_year, user_id, created_at, updated_at')
-              .or('user_id.eq.$effectiveStudentId,id.eq.$studentId')
-              .maybeSingle();
-          if (s != null) student = Map<String, dynamic>.from(s);
         } catch (_) {}
 
         final industry = map['industries'] is Map
@@ -598,11 +674,11 @@ class SupabaseStudentMonitoringRepository
     } on PostgrestException catch (e) {
       if (e.code == '42501' ||
           e.message.toLowerCase().contains('permission denied')) {
-        return MockStudentMonitoringData.getDetails(studentId);
+        throw const UnauthorizedException(
+          'Your account does not have permission to access student details.',
+        );
       }
       rethrow;
-    } catch (_) {
-      return MockStudentMonitoringData.getDetails(studentId);
     }
   }
 
@@ -643,13 +719,34 @@ class SupabaseStudentMonitoringRepository
       throw StateError('Supabase is not initialized.');
     }
 
+    await AuthService.requireAuthenticatedClient(client: client);
+    final currentUserId = client.auth.currentUser?.id;
+    String? verifierName;
+    if (currentUserId != null) {
+      try {
+        final prof = await client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', currentUserId)
+            .maybeSingle();
+        verifierName = prof?['full_name']?.toString();
+      } catch (_) {}
+    }
+
+    final normalizedStatus =
+        (status == 'approved' || status == 'verified') ? 'approved' : 'rejected';
+
     await client
         .from('internship_documents')
         .update({
-          'status': status,
-          'rejection_reason': status == 'rejected' ? rejectionReason : null,
-          'remarks': remarks,
-          'verified_at': DateTime.now().toIso8601String(),
+          'faculty_status': normalizedStatus,
+          'faculty_rejection_reason':
+              normalizedStatus == 'rejected' ? rejectionReason : null,
+          'faculty_remarks': remarks,
+          'faculty_verified_by': currentUserId,
+          if (verifierName != null && verifierName.isNotEmpty)
+            'faculty_verified_by_name': verifierName,
+          'faculty_verified_at': DateTime.now().toIso8601String(),
         })
         .eq('id', documentId);
   }

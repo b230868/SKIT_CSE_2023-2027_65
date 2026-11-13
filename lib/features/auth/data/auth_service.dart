@@ -72,6 +72,7 @@ class AuthService {
       sanitized.remove('role');
     }
     sanitized.remove('is_admin');
+    sanitized.remove('isAdmin');
     return sanitized;
   }
 
@@ -232,7 +233,13 @@ class AuthService {
       try {
         await _client.from('profiles').upsert(fallback);
       } catch (_) {
-        // Fallback gracefully without throwing
+        try {
+          final safeFallback = Map<String, dynamic>.from(fallback)
+            ..remove('designation');
+          await _client.from('profiles').upsert(safeFallback);
+        } catch (_) {
+          // Fallback gracefully without throwing
+        }
       }
       return AppUser.fromMap(fallback, email: user.email ?? '');
     }
@@ -285,12 +292,25 @@ class AuthService {
     if (designation != null) {
       updatePayload['designation'] = designation;
     }
-    final data = await _client
-        .from('profiles')
-        .update(updatePayload)
-        .eq('id', user.id)
-        .select()
-        .single();
+    Map<String, dynamic> data;
+    try {
+      data = await _client
+          .from('profiles')
+          .update(updatePayload)
+          .eq('id', user.id)
+          .select()
+          .single();
+    } catch (_) {
+      if (!updatePayload.containsKey('designation')) rethrow;
+      final safePayload = Map<String, dynamic>.from(updatePayload)
+        ..remove('designation');
+      data = await _client
+          .from('profiles')
+          .update(safePayload)
+          .eq('id', user.id)
+          .select()
+          .single();
+    }
     return AppUser.fromMap(data, email: user.email ?? '');
   }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
-import '../../data/models/approval_review_model.dart';
+import '../../data/models/approval_request_model.dart';
 import '../../data/repositories/approval_repository.dart';
 import '../../data/services/approval_repository_provider.dart';
 import '../../domain/entities/approval_review_stage.dart';
@@ -44,21 +44,13 @@ class _TpApprovalDashboardScreenState extends State<TpApprovalDashboardScreen> {
         stage: ApprovalReviewStage.tpAdmin,
       );
 
-      final reviews = await _repository.getReviews(
-        stage: ApprovalReviewStage.tpAdmin,
-      );
-
       if (!mounted) return;
 
       setState(() {
-        _pending = requests.length;
-
-        _underReview = _count(reviews, ApprovalStatus.underReview);
-
-        _approved = _count(reviews, ApprovalStatus.approved);
-
-        _rejected = _count(reviews, ApprovalStatus.rejected);
-
+        _pending = _count(requests, ApprovalStatus.pending);
+        _underReview = _count(requests, ApprovalStatus.underReview);
+        _approved = _count(requests, ApprovalStatus.approved);
+        _rejected = _count(requests, ApprovalStatus.rejected);
         _isLoading = false;
       });
     } catch (error) {
@@ -86,8 +78,8 @@ class _TpApprovalDashboardScreenState extends State<TpApprovalDashboardScreen> {
     }
   }
 
-  int _count(List<ApprovalReviewModel> reviews, ApprovalStatus status) {
-    return reviews.where((review) => review.status == status).length;
+  int _count(List<ApprovalRequestModel> requests, ApprovalStatus status) {
+    return requests.where((request) => request.approvalStatus == status).length;
   }
 
   Widget _statCard(

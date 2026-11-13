@@ -121,7 +121,9 @@ class InternshipDocument {
         docType: m['doc_type']?.toString() ??
             m['document_type']?.toString() ??
             'other',
-        fileName: m['file_name']?.toString() ?? 'Document',
+        fileName: m['file_name']?.toString() ??
+            m['name']?.toString() ??
+            'Document',
         filePath: m['file_path']?.toString() ?? '',
         fileUrl: m['file_url']?.toString(),
         status: m['status']?.toString() ?? 'pending',
@@ -140,8 +142,11 @@ class InternshipDocument {
         facultyVerifiedAt: m['faculty_verified_at'] != null
             ? DateTime.tryParse(m['faculty_verified_at'].toString())
             : null,
-        createdAt: m['created_at'] != null
-            ? (DateTime.tryParse(m['created_at'].toString()) ?? DateTime.now())
+        createdAt: (m['created_at'] ?? m['uploaded_at']) != null
+            ? (DateTime.tryParse(
+                      (m['created_at'] ?? m['uploaded_at']).toString(),
+                    ) ??
+                    DateTime.now())
                 .toLocal()
             : DateTime.now(),
       );

@@ -416,6 +416,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   title: 'Internship Status',
                   status: detail.internshipStatus ?? 'Not registered',
                   isGood:
+                      detail.internshipStatus == 'approved' ||
                       detail.internshipStatus == 'active' ||
                       detail.internshipStatus == 'completed',
                 ),
@@ -676,7 +677,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
   }
 
   Widget _buildFacultyGeoProgressSection(StudentMonitoringDetail detail) {
-    final isApproved = detail.internshipStatus?.toLowerCase() == 'approved';
+    final normalizedStatus = detail.internshipStatus?.toLowerCase();
+    final isApproved =
+        normalizedStatus == 'approved' ||
+        normalizedStatus == 'active' ||
+        normalizedStatus == 'completed';
 
     return Card(
       child: Padding(

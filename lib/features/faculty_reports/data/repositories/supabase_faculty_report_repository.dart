@@ -50,19 +50,57 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
 
       final Map<String, String> deptMapByStudentId = {};
       if (studentIds.isNotEmpty) {
+        final Map<String, String> userIdByStudentKey = {};
         try {
-          final profs = await client
-              .from('profiles')
-              .select('id, department, branch')
-              .inFilter('id', studentIds);
-          for (final p in (profs as List)) {
-            final id = p['id']?.toString();
-            final d = p['department']?.toString() ?? p['branch']?.toString();
-            if (id != null && d != null && d.isNotEmpty) {
-              deptMapByStudentId[id] = d;
+          final studs = await client
+              .from('students')
+              .select('id, user_id, department')
+              .or(
+                studentIds
+                    .expand((id) => ['id.eq.$id', 'user_id.eq.$id'])
+                    .join(','),
+              );
+          for (final s in (studs as List)) {
+            final sid = s['id']?.toString();
+            final uid = s['user_id']?.toString();
+            final dept = s['department']?.toString();
+            if (sid != null && uid != null) userIdByStudentKey[sid] = uid;
+            if (uid != null) userIdByStudentKey[uid] = uid;
+            if (dept != null && dept.isNotEmpty) {
+              if (sid != null) deptMapByStudentId[sid] = dept;
+              if (uid != null) deptMapByStudentId[uid] = dept;
             }
           }
         } catch (_) {}
+
+        final profileLookupIds = <String>{
+          ...studentIds,
+          ...userIdByStudentKey.values,
+        }.toList();
+
+        if (profileLookupIds.isNotEmpty) {
+          try {
+            final profs = await client
+                .from('profiles')
+                .select('id, department, branch')
+                .inFilter('id', profileLookupIds);
+            final Map<String, String> deptByProfileId = {};
+            for (final p in (profs as List)) {
+              final id = p['id']?.toString();
+              final d = p['department']?.toString() ?? p['branch']?.toString();
+              if (id != null && d != null && d.isNotEmpty) {
+                deptByProfileId[id] = d;
+                deptMapByStudentId.putIfAbsent(id, () => d);
+              }
+            }
+            for (final entry in userIdByStudentKey.entries) {
+              final d = deptByProfileId[entry.value];
+              if (d != null && d.isNotEmpty) {
+                deptMapByStudentId.putIfAbsent(entry.key, () => d);
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       int total = 0;
@@ -88,11 +126,15 @@ class SupabaseFacultyReportRepository implements FacultyReportRepository {
             .map((r) => Map<String, dynamic>.from(r as Map))
             .toList();
 
-        reviews.sort(
-          (a, b) =>
-              DateTime.parse(b['created_at'] as String)
-                  .compareTo(DateTime.parse(a['created_at'] as String)),
-        );
+        reviews.sort((a, b) {
+          final bDate =
+              DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+              DateTime(1970);
+          final aDate =
+              DateTime.tryParse(a['created_at']?.toString() ?? '') ??
+              DateTime(1970);
+          return bDate.compareTo(aDate);
+        });
 
         if (reviews.isNotEmpty) {
           final latest = reviews.first;

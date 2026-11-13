@@ -56,7 +56,7 @@ create policy "Industry supervisors can view their assigned industry"
   using (
     id in (select iu.industry_id from public.industry_users iu where iu.user_id = auth.uid())
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -66,7 +66,7 @@ create policy "Industry supervisors view own mapping"
   using (
     user_id = auth.uid()
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -76,7 +76,7 @@ create policy "Admin and TNP manage industry_users insert"
   on public.industry_users for insert
   with check (
     exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -85,12 +85,12 @@ create policy "Admin and TNP manage industry_users update"
   on public.industry_users for update
   using (
     exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('tp_officer', 'admin', 'tnp')
     )
   )
   with check (
     exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -99,7 +99,7 @@ create policy "Admin and TNP manage industry_users delete"
   on public.industry_users for delete
   using (
     exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -111,11 +111,12 @@ create policy "Industry supervisors can view only assigned company internships"
   using (
     -- Industry supervisors: view internships assigned strictly to their verified company
     public.is_internship_authorized_for_supervisor(id)
-    -- Students: view only their own internships
+    -- Students: view only their own internships (supports both auth.uid() and students.id)
     or auth.uid() = student_id
+    or student_id in (select s.id from public.students s where s.user_id = auth.uid())
     -- Faculty & T&P: view internships within academic scope
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -132,8 +133,9 @@ create policy "Industry supervisors view attendance for company interns only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or auth.uid() = student_id
+    or student_id in (select s.id from public.students s where s.user_id = auth.uid())
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -142,7 +144,7 @@ create policy "Industry supervisors insert attendance for company interns only"
   with check (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -151,13 +153,13 @@ create policy "Industry supervisors update attendance for company interns only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   )
   with check (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -171,8 +173,9 @@ create policy "Industry supervisors view company evaluations only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or auth.uid() = student_id
+    or student_id in (select s.id from public.students s where s.user_id = auth.uid())
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -181,7 +184,7 @@ create policy "Industry supervisors insert company evaluations only"
   with check (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -190,13 +193,13 @@ create policy "Industry supervisors update company evaluations only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   )
   with check (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -214,10 +217,15 @@ create policy "Industry supervisors view documents for company interns only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.internships i where i.id = internship_documents.internship_id and i.student_id = auth.uid()
+      select 1 from public.internships i
+      where i.id = internship_documents.internship_id
+        and (
+          i.student_id = auth.uid()
+          or i.student_id in (select s.id from public.students s where s.user_id = auth.uid())
+        )
     )
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -226,13 +234,13 @@ create policy "Industry supervisors update documents for company interns only"
   using (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   )
   with check (
     public.is_internship_authorized_for_supervisor(internship_id)
     or exists (
-      select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+      select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
     )
   );
 
@@ -250,11 +258,14 @@ create policy "Industry supervisors read documents for assigned interns only"
   using (
     bucket_id = 'internship-docs'
     and (
-      -- Student accessing own uploaded files: path starts with their user ID
+      -- Student accessing own uploaded files: path starts with their user ID or students.id
       (storage.foldername(name))[1] = auth.uid()::text
+      or (storage.foldername(name))[1] in (
+        select s.id::text from public.students s where s.user_id = auth.uid()
+      )
       -- Faculty, T&P Officer, Admin authorized roles
       or exists (
-        select 1 from public.profiles p where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin', 'tnp')
+        select 1 from public.profiles p where p.id = auth.uid() and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'admin', 'tnp')
       )
       -- Industry supervisor for the authorized internship:
       -- Enforces UUID regex syntax on segment 2 before casting and checks authorization

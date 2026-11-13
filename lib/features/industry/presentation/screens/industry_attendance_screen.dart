@@ -86,24 +86,26 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
   }
 
   Future<void> _loadDailyStatusesForDate() async {
-    for (final intern in _internships) {
-      try {
-        final history = await _service.getAttendanceRecords(intern.id);
-        final match = history.where(
-          (r) =>
-              r.date.year == _selectedDate.year &&
-              r.date.month == _selectedDate.month &&
-              r.date.day == _selectedDate.day,
-        );
-        if (match.isNotEmpty) {
-          _dailyStatusMap[intern.id] = match.first.status.toLowerCase();
-        } else {
-          _dailyStatusMap[intern.id] = null; // Unmarked
+    await Future.wait(
+      _internships.map((intern) async {
+        try {
+          final history = await _service.getAttendanceRecords(intern.id);
+          final match = history.where(
+            (r) =>
+                r.date.year == _selectedDate.year &&
+                r.date.month == _selectedDate.month &&
+                r.date.day == _selectedDate.day,
+          );
+          if (match.isNotEmpty) {
+            _dailyStatusMap[intern.id] = match.first.status.toLowerCase();
+          } else {
+            _dailyStatusMap[intern.id] = null; // Unmarked
+          }
+        } catch (_) {
+          _dailyStatusMap[intern.id] = null;
         }
-      } catch (_) {
-        _dailyStatusMap[intern.id] = null;
-      }
-    }
+      }),
+    );
     if (mounted) setState(() {});
   }
 
@@ -152,6 +154,19 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
       return;
     }
 
+    final studentId = internship.studentId?.trim() ?? '';
+    if (studentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot record attendance: Student identifier is missing for this internship.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _dailyStatusMap[internship.id] = status;
       _saving = true;
@@ -160,7 +175,7 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
     try {
       await _service.markAttendance(
         internshipId: internship.id,
-        studentId: internship.studentId ?? internship.id,
+        studentId: studentId,
         date: _selectedDate,
         status: status,
       );

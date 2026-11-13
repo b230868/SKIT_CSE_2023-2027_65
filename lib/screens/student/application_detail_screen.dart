@@ -283,7 +283,9 @@ class _ProgressTabState extends State<_ProgressTab> {
             const SizedBox(height: 8),
             LinearProgressIndicator(value: overall / 100, minHeight: 10),
             const SizedBox(height: 16),
-            if (widget.application.status == 'approved')
+            if (widget.application.status == 'approved' ||
+                widget.application.status == 'active' ||
+                widget.application.status == 'completed')
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),

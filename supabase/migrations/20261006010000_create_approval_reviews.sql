@@ -19,7 +19,7 @@ drop policy if exists "Approval staff read reviews"
   on public.approval_reviews;
 create policy "Approval staff read reviews"
   on public.approval_reviews for select to authenticated
-  using (public.current_role_of_user() in ('faculty', 'tnp'));
+  using (public.current_role_of_user() in ('faculty', 'tnp', 'admin'));
 
 drop policy if exists "Reviewers create their own stage reviews"
   on public.approval_reviews;
@@ -29,13 +29,18 @@ create policy "Reviewers create their own stage reviews"
     reviewer_id = auth.uid()
     and (
       (review_stage = 'faculty'
-        and public.current_role_of_user() = 'faculty')
+        and public.current_role_of_user() in ('faculty', 'admin'))
       or
       (review_stage = 'tp_admin'
-        and public.current_role_of_user() = 'tnp'
-        and exists (
-          select 1 from public.internships i
-          where i.id = internship_id and i.status = 'approved'
+        and (
+          public.current_role_of_user() = 'admin'
+          or (
+            public.current_role_of_user() = 'tnp'
+            and exists (
+              select 1 from public.internships i
+              where i.id = internship_id and i.status = 'approved'
+            )
+          )
         ))
     )
   );

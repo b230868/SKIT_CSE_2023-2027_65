@@ -1,5 +1,8 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/auth/auth_service.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../internship/models/internship.dart';
 import '../models/student_monitoring_detail.dart';
 import '../models/student_monitoring_item.dart';
 import 'student_monitoring_repository.dart';
@@ -27,6 +30,13 @@ class BackendStudentMonitoringRepository
 
       return list.map((item) {
         final map = Map<String, dynamic>.from(item as Map);
+        final rawDocs = map['documents'] is List ? map['documents'] as List : const [];
+        final docs = rawDocs
+            .whereType<Map>()
+            .map((d) => InternshipDocument.fromMap(Map<String, dynamic>.from(d)))
+            .toList();
+        final rawScore = map['companyEvaluationScore'];
+        final rawAtt = map['attendanceRate'];
         return StudentMonitoringItem(
           studentId: map['studentId'] as String? ?? '',
           studentName: map['studentName'] as String? ?? 'Unknown Student',
@@ -45,6 +55,14 @@ class BackendStudentMonitoringRepository
           certificateStatus: map['certificateStatus'] as String?,
           progress: map['progress'] as int? ?? 0,
           hasPendingApprovals: map['hasPendingApprovals'] as bool? ?? false,
+          companyEvaluationScore:
+              rawScore is num ? rawScore.toDouble() : double.tryParse('$rawScore'),
+          companyEvaluationGrade: map['companyEvaluationGrade'] as String?,
+          attendanceRate:
+              rawAtt is num ? rawAtt.toDouble() : double.tryParse('$rawAtt'),
+          companyRemarks: map['companyRemarks'] as String?,
+          companyEvaluatorName: map['companyEvaluatorName'] as String?,
+          documents: docs,
         );
       }).toList();
     } on ApiException catch (e) {
@@ -73,6 +91,25 @@ class BackendStudentMonitoringRepository
       final response = await _apiClient.get(endpoint);
       if (response is Map && response['data'] is Map) {
         final map = Map<String, dynamic>.from(response['data'] as Map);
+        final rawReviews = map['approvalReviews'] is List
+            ? map['approvalReviews'] as List
+            : const [];
+        final approvalReviews = rawReviews
+            .whereType<Map>()
+            .map((r) {
+              final rm = Map<String, dynamic>.from(r);
+              return StudentApprovalReviewItem(
+                id: rm['id']?.toString() ?? '',
+                reviewStage: rm['reviewStage']?.toString() ?? 'faculty',
+                status: rm['status']?.toString() ?? 'pending',
+                remarks: rm['remarks']?.toString(),
+                createdAt: rm['createdAt'] != null
+                    ? DateTime.tryParse(rm['createdAt'].toString())
+                    : null,
+              );
+            })
+            .toList();
+
         return StudentMonitoringDetail(
           studentId: map['studentId'] as String? ?? studentId,
           userId: map['userId'] as String?,
@@ -89,21 +126,46 @@ class BackendStudentMonitoringRepository
           internshipTitle: map['internshipTitle'] as String?,
           companyName: map['companyName'] as String?,
           internshipMode: map['internshipMode'] as String?,
+          startDate: map['startDate'] != null
+              ? DateTime.tryParse(map['startDate'].toString())
+              : null,
+          endDate: map['endDate'] != null
+              ? DateTime.tryParse(map['endDate'].toString())
+              : null,
           internshipStatus: map['internshipStatus'] as String?,
           progress: map['progress'] as int? ?? 0,
           description: map['description'] as String?,
+          industryName: map['industryName'] as String?,
+          industryAddress: map['industryAddress'] as String?,
+          industryEmail: map['industryEmail'] as String?,
+          industryPhone: map['industryPhone'] as String?,
           itrId: map['itrId'] as String?,
           itrStatus: map['itrStatus'] as String?,
           itrContent: map['itrContent'] as String?,
           itrProjectTitle: map['itrProjectTitle'] as String?,
+          itrProjectDescription: map['itrProjectDescription'] as String?,
           itrWorkDone: map['itrWorkDone'] as String?,
           itrTechnologiesUsed: map['itrTechnologiesUsed'] as String?,
           itrKeyLearnings: map['itrKeyLearnings'] as String?,
           itrChallengesFaced: map['itrChallengesFaced'] as String?,
           itrDocumentPath: map['itrDocumentPath'] as String?,
+          itrProjectZipPath: map['itrProjectZipPath'] as String?,
+          itrPresentationPath: map['itrPresentationPath'] as String?,
+          itrSubmittedAt: map['itrSubmittedAt'] != null
+              ? DateTime.tryParse(map['itrSubmittedAt'].toString())
+              : null,
+          itrReviewedAt: map['itrReviewedAt'] != null
+              ? DateTime.tryParse(map['itrReviewedAt'].toString())
+              : null,
+          itrVerifiedAt: map['itrVerifiedAt'] != null
+              ? DateTime.tryParse(map['itrVerifiedAt'].toString())
+              : null,
+          itrReviewerName: map['itrReviewerName'] as String?,
+          itrRemarks: map['itrRemarks'] as String?,
           certificateId: map['certificateId'] as String?,
           certificateFilePath: map['certificateFilePath'] as String?,
           certificateStatus: map['certificateStatus'] as String?,
+          approvalReviews: approvalReviews,
         );
       }
       return null;
@@ -126,7 +188,20 @@ class BackendStudentMonitoringRepository
     required String bucket,
     required String path,
   }) async {
-    return '${_apiClient.baseUrl}/files/$bucket/$path';
+    if (path.trim().isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    try {
+      final client = Supabase.instance.client;
+      return await client.storage.from(bucket).createSignedUrl(path, 3600);
+    } catch (_) {
+      try {
+        return Supabase.instance.client.storage.from(bucket).getPublicUrl(path);
+      } catch (_) {
+        return null;
+      }
+    }
   }
 
   @override

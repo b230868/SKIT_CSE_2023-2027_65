@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/auth/auth_service.dart';
 import '../../../approval/domain/entities/approval_review_stage.dart';
 import '../../domain/entities/dashboard_statistics.dart';
-import '../models/mock_dashboard_data.dart';
 import 'faculty_dashboard_repository.dart';
 
 class SupabaseFacultyDashboardRepository implements FacultyDashboardRepository {
@@ -27,7 +26,7 @@ class SupabaseFacultyDashboardRepository implements FacultyDashboardRepository {
   }) async {
     final client = _client;
     if (client == null) {
-      return MockDashboardData.statistics;
+      throw StateError('Supabase client is not initialized.');
     }
 
     await AuthService.requireAuthenticatedClient(client: client);
@@ -68,11 +67,15 @@ class SupabaseFacultyDashboardRepository implements FacultyDashboardRepository {
             .map((r) => Map<String, dynamic>.from(r as Map))
             .toList();
 
-        reviews.sort(
-          (a, b) =>
-              DateTime.parse(b['created_at'] as String)
-                  .compareTo(DateTime.parse(a['created_at'] as String)),
-        );
+        reviews.sort((a, b) {
+          final bDate =
+              DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+              DateTime(1970);
+          final aDate =
+              DateTime.tryParse(a['created_at']?.toString() ?? '') ??
+              DateTime(1970);
+          return bDate.compareTo(aDate);
+        });
 
         if (effectiveStage == ApprovalReviewStage.faculty) {
           final hasTpReview = reviews.any(
@@ -153,13 +156,11 @@ class SupabaseFacultyDashboardRepository implements FacultyDashboardRepository {
     } on PostgrestException catch (e) {
       if (e.code == '42501' ||
           e.message.toLowerCase().contains('permission denied')) {
-        // Fall back gracefully to mock dashboard statistics so the faculty user
-        // can view and use the dashboard without being blocked by RLS policies
-        return MockDashboardData.statistics;
+        throw const UnauthorizedException(
+          'Your account does not have permission to access dashboard statistics.',
+        );
       }
       rethrow;
-    } catch (_) {
-      return MockDashboardData.statistics;
     }
   }
 }

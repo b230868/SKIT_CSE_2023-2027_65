@@ -100,7 +100,7 @@ class _ApprovalDetailsScreenState extends State<ApprovalDetailsScreen> {
     }
 
     return widget.stage == ApprovalReviewStage.tpAdmin &&
-        (widget.request.approvalStatus == ApprovalStatus.approved ||
+        (widget.request.approvalStatus == ApprovalStatus.pending ||
             widget.request.approvalStatus == ApprovalStatus.underReview);
   }
 

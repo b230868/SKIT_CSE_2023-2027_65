@@ -24,7 +24,7 @@ ON public.students (department, batch_year);
 
 -- 4. Indexing on faculty assignments
 CREATE INDEX IF NOT EXISTS idx_faculty_assignments_lookup 
-ON public.faculty_mentor_assignments (faculty_id, student_id);
+ON public.faculty_mentor_assignments (mentor_id, student_id);
 
 -- 5. Indexing on certificates
 CREATE INDEX IF NOT EXISTS idx_certificates_internship_status 
@@ -40,8 +40,14 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
+  IF public.current_role_of_user() NOT IN ('faculty', 'tnp', 'admin') THEN
+    RAISE EXCEPTION 'Access denied: staff role required for faculty dashboard statistics'
+      USING ERRCODE = '42501';
+  END IF;
+
   RETURN QUERY
   SELECT
     COUNT(i.id)::BIGINT AS total_internships,
@@ -49,7 +55,7 @@ BEGIN
     COUNT(CASE WHEN ar.status = 'approved' THEN 1 END)::BIGINT AS approved_internships,
     COUNT(CASE WHEN i.status = 'active' THEN 1 END)::BIGINT AS active_internships
   FROM public.internships i
-  LEFT JOIN public.students s ON s.id = i.student_id
+  LEFT JOIN public.students s ON (s.id = i.student_id OR s.user_id = i.student_id)
   LEFT JOIN LATERAL (
     SELECT ar_inner.id, ar_inner.status
     FROM public.approval_reviews ar_inner

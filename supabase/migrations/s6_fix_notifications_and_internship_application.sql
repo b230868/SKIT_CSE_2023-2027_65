@@ -58,11 +58,18 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_user_id uuid;
 begin
   begin
+    v_user_id := coalesce(
+      (select s.user_id from public.students s where s.id = new.student_id limit 1),
+      new.student_id
+    );
+
     insert into public.notifications (user_id, title, body, type, internship_id)
     values (
-      new.student_id,
+      v_user_id,
       'Application received',
       'Your application for ' || coalesce(new.title, 'the internship') || ' was submitted.',
       'application',
@@ -88,13 +95,20 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_user_id uuid;
 begin
   if new.status is distinct from old.status
      and new.status in ('approved', 'rejected', 'completed') then
     begin
+      v_user_id := coalesce(
+        (select s.user_id from public.students s where s.id = new.student_id limit 1),
+        new.student_id
+      );
+
       insert into public.notifications (user_id, title, body, type, internship_id)
       values (
-        new.student_id,
+        v_user_id,
         case new.status
           when 'approved' then 'Application approved'
           when 'rejected' then 'Application update'
@@ -177,12 +191,14 @@ begin
     (count(*) filter (where status = 'completed'))::integer
   into v_total, v_approved, v_pending, v_rejected, v_completed
   from public.internships
-  where student_id = v_user_id;
+  where student_id = v_user_id
+     or student_id in (select s.id from public.students s where s.user_id = v_user_id);
 
   select count(*)::integer
   into v_documents
   from public.internship_documents
-  where student_id = v_user_id;
+  where student_id = v_user_id
+     or student_id in (select s.id from public.students s where s.user_id = v_user_id);
 
   select coalesce(jsonb_object_agg(document_type, document_count), '{}'::jsonb)
   into v_documents_by_type
@@ -198,6 +214,7 @@ begin
       count(*)::integer as document_count
     from public.internship_documents
     where student_id = v_user_id
+       or student_id in (select s.id from public.students s where s.user_id = v_user_id)
     group by 1
   ) as document_counts;
 
@@ -205,6 +222,7 @@ begin
   into v_latest_progress
   from public.progress_updates
   where student_id = v_user_id
+     or student_id in (select s.id from public.students s where s.user_id = v_user_id)
   order by captured_at desc, created_at desc
   limit 1;
 
@@ -227,6 +245,7 @@ begin
       captured_at
     from public.progress_updates
     where student_id = v_user_id
+       or student_id in (select s.id from public.students s where s.user_id = v_user_id)
   ) as progress_history;
 
   select count(*)::integer

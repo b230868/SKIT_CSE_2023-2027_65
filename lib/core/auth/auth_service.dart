@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
-import '../../features/faculty_tp/presentation/screens/student_dashboard_screen.dart';
 import '../../features/faculty_tp/presentation/screens/tp_dashboard_screen.dart';
+import '../../features/home/role_home.dart';
 
 enum AppRole { student, facultyMentor, tpOfficer, industrySupervisor, admin }
 
@@ -243,7 +243,7 @@ class AuthService {
     try {
       await client.rpc(
         'admin_assign_user_role',
-        params: {'target_user_id': trimmedId, 'new_role': newRole.name},
+        params: {'target_user_id': trimmedId, 'new_role': newRole.value},
       );
     } catch (e) {
       throw AuthException(parseAuthErrorMessage(e));
@@ -781,13 +781,13 @@ class AuthService {
       case AppRole.tpOfficer:
         targetScreen = const TpDashboardScreen();
         break;
-      case AppRole.student:
-        targetScreen = const StudentDashboardScreen();
-        break;
       case AppRole.facultyMentor:
-      case AppRole.admin:
-      case AppRole.industrySupervisor:
         targetScreen = const FacultyDashboardScreen();
+        break;
+      case AppRole.student:
+      case AppRole.industrySupervisor:
+      case AppRole.admin:
+        targetScreen = const RoleHome();
         break;
     }
 

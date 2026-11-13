@@ -43,7 +43,16 @@ export const updateInternshipSchema = z.object({
   mode: z.enum(["onsite", "remote", "hybrid"]).optional(),
   description: z.string().max(1000).optional().nullable(),
   status: z
-    .enum(["planned", "active", "completed", "cancelled"])
+    .enum([
+      "planned",
+      "active",
+      "completed",
+      "cancelled",
+      "pending",
+      "approved",
+      "rejected",
+      "under_review",
+    ])
     .optional(),
   progress: z.number().int().min(0).max(100).optional(),
 });

@@ -23,8 +23,16 @@ create index if not exists idx_internship_docs_internship_id on public.internshi
 create index if not exists idx_internship_docs_status on public.internship_documents(status);
 create index if not exists idx_internship_docs_faculty_status on public.internship_documents(faculty_status);
 
+-- 2b. Ensure prerequisite columns referenced by initial policies exist safely
+alter table if exists public.profiles
+  add column if not exists company_name text;
+
+alter table if exists public.internships
+  add column if not exists company_id uuid;
+
 -- 3. RLS Policies for Industry Representatives:
 -- An industry representative can view documents of internships assigned to their company
+drop policy if exists "Industry reps can view assigned students documents" on public.internship_documents;
 create policy "Industry reps can view assigned students documents"
   on public.internship_documents for select
   using (
@@ -38,6 +46,7 @@ create policy "Industry reps can view assigned students documents"
   );
 
 -- An industry representative can update verification status for assigned students documents
+drop policy if exists "Industry reps can update assigned students documents verification" on public.internship_documents;
 create policy "Industry reps can update assigned students documents verification"
   on public.internship_documents for update
   using (
@@ -61,65 +70,84 @@ create policy "Industry reps can update assigned students documents verification
 
 -- 4. RLS Policies for Faculty Members:
 -- Faculty members can view student documents for monitoring
+drop policy if exists "Faculty can view monitored students documents" on public.internship_documents;
 create policy "Faculty can view monitored students documents"
   on public.internship_documents for select
   using (
     exists (
       select 1 from public.profiles p 
-      where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin')
+      where p.id = auth.uid()
+        and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'tnp', 'admin')
     )
   );
 
 -- Faculty members can update faculty verification on student documents
+drop policy if exists "Faculty can update students documents verification" on public.internship_documents;
 create policy "Faculty can update students documents verification"
   on public.internship_documents for update
   using (
     exists (
       select 1 from public.profiles p 
-      where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin')
+      where p.id = auth.uid()
+        and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'tnp', 'admin')
     )
   )
   with check (
     exists (
       select 1 from public.profiles p 
-      where p.id = auth.uid() and p.role in ('faculty', 'tp_officer', 'admin')
+      where p.id = auth.uid()
+        and p.role::text in ('faculty', 'faculty_mentor', 'tp_officer', 'tnp', 'admin')
     )
   );
 
--- 5. Attendance RLS Policies:
+-- 5. Attendance RLS Policies (guarded if attendance table is created in a later migration):
 -- Industry reps can manage attendance only for internships assigned to their company
-create policy "Industry reps can view attendance of assigned students"
-  on public.attendance for select
-  using (
-    internship_id in (
-      select id from public.internships i
-      where i.company_id = auth.uid()
-         or i.company_name in (
-           select company_name from public.profiles p where p.id = auth.uid()
-         )
-    )
-  );
+do $$
+begin
+  if to_regclass('public.attendance') is not null then
+    execute 'drop policy if exists "Industry reps can view attendance of assigned students" on public.attendance';
+    execute $pol$
+      create policy "Industry reps can view attendance of assigned students"
+        on public.attendance for select
+        using (
+          internship_id in (
+            select id from public.internships i
+            where i.company_id = auth.uid()
+               or i.company_name in (
+                 select company_name from public.profiles p where p.id = auth.uid()
+               )
+          )
+        )
+    $pol$;
 
-create policy "Industry reps can insert/update attendance of assigned students"
-  on public.attendance for insert
-  with check (
-    internship_id in (
-      select id from public.internships i
-      where i.company_id = auth.uid()
-         or i.company_name in (
-           select company_name from public.profiles p where p.id = auth.uid()
-         )
-    )
-  );
+    execute 'drop policy if exists "Industry reps can insert/update attendance of assigned students" on public.attendance';
+    execute $pol$
+      create policy "Industry reps can insert/update attendance of assigned students"
+        on public.attendance for insert
+        with check (
+          internship_id in (
+            select id from public.internships i
+            where i.company_id = auth.uid()
+               or i.company_name in (
+                 select company_name from public.profiles p where p.id = auth.uid()
+               )
+          )
+        )
+    $pol$;
 
-create policy "Industry reps can update attendance records of assigned students"
-  on public.attendance for update
-  using (
-    internship_id in (
-      select id from public.internships i
-      where i.company_id = auth.uid()
-         or i.company_name in (
-           select company_name from public.profiles p where p.id = auth.uid()
-         )
-    )
-  );
+    execute 'drop policy if exists "Industry reps can update attendance records of assigned students" on public.attendance';
+    execute $pol$
+      create policy "Industry reps can update attendance records of assigned students"
+        on public.attendance for update
+        using (
+          internship_id in (
+            select id from public.internships i
+            where i.company_id = auth.uid()
+               or i.company_name in (
+                 select company_name from public.profiles p where p.id = auth.uid()
+               )
+          )
+        )
+    $pol$;
+  end if;
+end $$;

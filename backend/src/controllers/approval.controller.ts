@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { internship_status } from "../../generated/prisma/client";
 import { prisma } from "../config/db";
 import { ApiError, sendSuccess } from "../utils/response";
 import {
@@ -193,31 +194,47 @@ export class ApprovalController {
         throw ApiError.notFound(`Internship with ID '${internshipId}' was not found`);
       }
 
-      // Determine stage based on role or explicit payload
+      // Determine stage strictly from role (only admin may specify stage explicitly)
       let reviewStage = "faculty";
       if (req.user.role === "tp_officer") {
         reviewStage = "tp_admin";
-      } else if (validated.stage) {
+      } else if (req.user.role === "admin" && validated.stage) {
         reviewStage = validated.stage;
       }
 
-      // Execute in transaction: record review and optionally update internship status
+      // Normalize status against approval_reviews_status_check ('pending','under_review','approved','rejected')
+      const normalizedReviewStatus =
+        validated.status === "changes_requested" ? "under_review" : validated.status;
+
+      // Keep internship status synchronized when approved/rejected/under_review
+      let nextInternshipStatus: internship_status | null = null;
+      if (normalizedReviewStatus === "rejected") {
+        nextInternshipStatus = "rejected";
+      } else if (normalizedReviewStatus === "under_review") {
+        nextInternshipStatus = "under_review";
+      } else if (reviewStage === "tp_admin" && normalizedReviewStatus === "approved") {
+        nextInternshipStatus = "active";
+      } else if (reviewStage === "faculty" && normalizedReviewStatus === "approved") {
+        nextInternshipStatus = "approved";
+      }
+
+      // Execute in transaction: record review and update internship status
       const [newReview] = await prisma.$transaction([
         prisma.approval_reviews.create({
           data: {
             internship_id: internshipId,
-            reviewer_id: req.user.id,
+            reviewer_id: req.user.profileId,
             review_stage: reviewStage,
-            status: validated.status,
+            status: normalizedReviewStatus,
             remarks: validated.remarks?.trim() || null,
           },
         }),
-        ...(reviewStage === "tp_admin" && validated.status === "approved"
+        ...(nextInternshipStatus
           ? [
               prisma.internships.update({
                 where: { id: internshipId },
                 data: {
-                  status: "active",
+                  status: nextInternshipStatus,
                   updated_at: new Date(),
                 },
               }),

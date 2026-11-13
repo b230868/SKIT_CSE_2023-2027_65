@@ -130,10 +130,6 @@ class SupabaseItrRepository implements ItrRepository {
               reviewer_id,
               reviewer_name,
               remarks,
-              certificate_status,
-              certificate_url,
-              evaluation_score,
-              evaluation_grade,
               internships (
                 internship_title,
                 title,
@@ -149,9 +145,17 @@ class SupabaseItrRepository implements ItrRepository {
 
     if (data is! List) return [];
 
-    return data.map<ItrModel>((item) {
-      return _mapItr(Map<String, dynamic>.from(item as Map));
-    }).toList();
+    final rowList = data
+        .map<Map<String, dynamic>>(
+          (item) => Map<String, dynamic>.from(item as Map),
+        )
+        .toList();
+    final studentNames = await _resolveStudentNames(
+      rowList.map((r) => r['student_id']?.toString()).whereType<String>(),
+    );
+    return rowList
+        .map<ItrModel>((item) => _mapItr(item, studentNames: studentNames))
+        .toList();
   }
 
   @override
@@ -213,10 +217,6 @@ class SupabaseItrRepository implements ItrRepository {
               reviewer_id,
               reviewer_name,
               remarks,
-              certificate_status,
-              certificate_url,
-              evaluation_score,
-              evaluation_grade,
               internships (
                 internship_title,
                 title,
@@ -234,14 +234,71 @@ class SupabaseItrRepository implements ItrRepository {
       return null;
     }
 
-    return _mapItr(Map<String, dynamic>.from(itr as Map));
+    final map = Map<String, dynamic>.from(itr as Map);
+    final studentNames = await _resolveStudentNames([
+      if (map['student_id'] != null) map['student_id'].toString(),
+    ]);
+    return _mapItr(map, studentNames: studentNames);
   }
 
-  ItrModel _mapItr(Map<String, dynamic> item) {
+  Future<Map<String, String>> _resolveStudentNames(
+    Iterable<String> rawStudentIds,
+  ) async {
+    final ids = rawStudentIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return {};
+
+    final Map<String, String> studentToUser = {};
+    try {
+      final studs = await _client
+          .from('students')
+          .select('id, user_id')
+          .inFilter('id', ids);
+      for (final s in (studs as List)) {
+        final sid = s['id']?.toString();
+        final uid = s['user_id']?.toString();
+        if (sid != null && uid != null) studentToUser[sid] = uid;
+      }
+    } catch (_) {}
+
+    final profileIds = <String>{...ids, ...studentToUser.values}.toList();
+    final Map<String, String> profileNames = {};
+    if (profileIds.isNotEmpty) {
+      try {
+        final profs = await _client
+            .from('profiles')
+            .select('id, full_name')
+            .inFilter('id', profileIds);
+        for (final p in (profs as List)) {
+          final id = p['id']?.toString();
+          final name = p['full_name']?.toString();
+          if (id != null && name != null && name.trim().isNotEmpty) {
+            profileNames[id] = name.trim();
+          }
+        }
+      } catch (_) {}
+    }
+
+    final Map<String, String> resolved = {};
+    for (final rawId in ids) {
+      final name =
+          profileNames[rawId] ??
+          (studentToUser[rawId] != null
+              ? profileNames[studentToUser[rawId]]
+              : null);
+      if (name != null) resolved[rawId] = name;
+    }
+    return resolved;
+  }
+
+  ItrModel _mapItr(
+    Map<String, dynamic> item, {
+    Map<String, String> studentNames = const {},
+  }) {
     final internshipData = item['internships'];
 
     String internshipTitle = 'Unknown Internship';
-    String studentName = 'Unknown Student';
+    final rawStudentId = item['student_id']?.toString() ?? '';
+    String studentName = studentNames[rawStudentId] ?? 'Student';
     String companyName = 'Unknown Company';
 
     if (internshipData is Map) {
@@ -263,18 +320,8 @@ class SupabaseItrRepository implements ItrRepository {
       if (studentData is Map) {
         final profileData = studentData['profiles'];
 
-        if (profileData is Map) {
-          studentName =
-              profileData['full_name']?.toString() ?? 'Unknown Student';
-        }
-      }
-      if (studentName == 'Unknown Student') {
-        final cur = _client.auth.currentUser;
-        if (cur != null) {
-          studentName = cur.userMetadata?['full_name']?.toString() ??
-              cur.userMetadata?['name']?.toString() ??
-              cur.email?.split('@').first ??
-              'Student';
+        if (profileData is Map && profileData['full_name'] != null) {
+          studentName = profileData['full_name'].toString();
         }
       }
     }
@@ -542,10 +589,16 @@ class SupabaseItrRepository implements ItrRepository {
 
     if (data is! List) return [];
 
-    return data
-        .map<ItrModel>(
-          (item) => _mapItr(Map<String, dynamic>.from(item as Map)),
+    final rowList = data
+        .map<Map<String, dynamic>>(
+          (item) => Map<String, dynamic>.from(item as Map),
         )
+        .toList();
+    final studentNames = await _resolveStudentNames(
+      rowList.map((r) => r['student_id']?.toString()).whereType<String>(),
+    );
+    return rowList
+        .map<ItrModel>((item) => _mapItr(item, studentNames: studentNames))
         .toList();
   }
 
@@ -620,7 +673,11 @@ class SupabaseItrRepository implements ItrRepository {
     }
 
     if (data is! List || data.isEmpty) return null;
-    return _mapItr(Map<String, dynamic>.from(data.first as Map));
+    final map = Map<String, dynamic>.from(data.first as Map);
+    final studentNames = await _resolveStudentNames([
+      if (map['student_id'] != null) map['student_id'].toString(),
+    ]);
+    return _mapItr(map, studentNames: studentNames);
   }
 
   @override
@@ -667,16 +724,28 @@ class SupabaseItrRepository implements ItrRepository {
     }
 
     final evalData = evaluation.toMap();
+    if (evalData['id'] == null || evalData['id'].toString().isEmpty) {
+      evalData.remove('id');
+    }
     if (user != null && evaluation.evaluatorId.isEmpty) {
       evalData['evaluator_id'] = user.id;
     }
 
-    try {
-      await _client.from('evaluations').upsert(evalData, onConflict: 'itr_id');
-    } catch (_) {
-      try {
-        await _client.from('evaluations').insert(evalData);
-      } catch (_) {}
+    final existingByInternship = await _client
+        .from('evaluations')
+        .select('id')
+        .eq('internship_id', evaluation.internshipId)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (existingByInternship != null && existingByInternship['id'] != null) {
+      await _client
+          .from('evaluations')
+          .update(evalData)
+          .eq('id', existingByInternship['id'].toString());
+    } else {
+      await _client.from('evaluations').insert(evalData);
     }
 
     try {
@@ -721,6 +790,25 @@ class SupabaseItrRepository implements ItrRepository {
       if (res != null) {
         return EvaluationModel.fromMap(res);
       }
+
+      final itr = await _client
+          .from('itrs')
+          .select('internship_id')
+          .eq('id', itrId)
+          .maybeSingle();
+      final internshipId = itr?['internship_id']?.toString();
+      if (internshipId != null) {
+        final byInternship = await _client
+            .from('evaluations')
+            .select()
+            .eq('internship_id', internshipId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        if (byInternship != null) {
+          return EvaluationModel.fromMap(byInternship);
+        }
+      }
     } catch (_) {}
     return null;
   }
@@ -743,16 +831,43 @@ class SupabaseItrRepository implements ItrRepository {
       await _client.from('itrs').update(updates).eq('id', itrId);
     } catch (_) {}
 
+    String? internshipId;
     try {
-      await _client
-          .from('evaluations')
-          .update({
-            'certificate_status': status,
-            'certificate_verified_at': status == 'verified'
-                ? DateTime.now().toIso8601String()
-                : null,
-          })
-          .eq('itr_id', itrId);
+      final itrRow = await _client
+          .from('itrs')
+          .select('internship_id')
+          .eq('id', itrId)
+          .maybeSingle();
+      internshipId = itrRow?['internship_id']?.toString();
     } catch (_) {}
+
+    try {
+      final evalQuery = _client.from('evaluations').update({
+        'certificate_status': status,
+        'certificate_verified_at': status == 'verified'
+            ? DateTime.now().toIso8601String()
+            : null,
+      });
+      if (internshipId != null) {
+        await evalQuery.eq('internship_id', internshipId);
+      } else {
+        await evalQuery.eq('itr_id', itrId);
+      }
+    } catch (_) {}
+
+    if (internshipId != null) {
+      try {
+        await _client
+            .from('certificates')
+            .update({
+              'status': status == 'verified' || status == 'approved'
+                  ? 'generated'
+                  : 'pending',
+              'file_path': ?certificateUrl,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('internship_id', internshipId);
+      } catch (_) {}
+    }
   }
 }

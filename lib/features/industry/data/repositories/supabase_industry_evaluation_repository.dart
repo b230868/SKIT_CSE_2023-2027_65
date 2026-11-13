@@ -139,15 +139,46 @@ class SupabaseIndustryEvaluationRepository
 
     final Map<String, String> studentNames = {};
     if (studentIds.isNotEmpty) {
+      final Map<String, String> studentToUserId = {};
+      try {
+        final studs = await _client
+            .from('students')
+            .select('id, user_id')
+            .inFilter('id', studentIds);
+        for (final s in (studs as List)) {
+          final sid = s['id']?.toString();
+          final uid = s['user_id']?.toString();
+          if (sid != null && uid != null) {
+            studentToUserId[sid] = uid;
+          }
+        }
+      } catch (_) {}
+
+      final profileIds = <String>{
+        ...studentIds,
+        ...studentToUserId.values,
+      }.toList();
+
       try {
         final profs = await _client
             .from('profiles')
             .select('id, full_name')
-            .inFilter('id', studentIds);
+            .inFilter('id', profileIds);
+        final Map<String, String> namesByProfileId = {};
         for (final p in (profs as List)) {
           final id = p['id']?.toString();
           final name = p['full_name']?.toString();
-          if (id != null && name != null) studentNames[id] = name;
+          if (id != null && name != null) namesByProfileId[id] = name;
+        }
+        for (final sid in studentIds) {
+          final resolvedName =
+              namesByProfileId[sid] ??
+              (studentToUserId[sid] != null
+                  ? namesByProfileId[studentToUserId[sid]]
+                  : null);
+          if (resolvedName != null) {
+            studentNames[sid] = resolvedName;
+          }
         }
       } catch (_) {}
     }
@@ -249,10 +280,19 @@ class SupabaseIndustryEvaluationRepository
     String studentName = 'Student';
     if (studentId != null) {
       try {
+        String lookupProfileId = studentId;
+        final stud = await _client
+            .from('students')
+            .select('user_id')
+            .eq('id', studentId)
+            .maybeSingle();
+        if (stud != null && stud['user_id'] != null) {
+          lookupProfileId = stud['user_id'].toString();
+        }
         final p = await _client
             .from('profiles')
             .select('full_name')
-            .eq('id', studentId)
+            .eq('id', lookupProfileId)
             .maybeSingle();
         if (p != null && p['full_name'] != null) {
           studentName = p['full_name'].toString();
@@ -304,9 +344,22 @@ class SupabaseIndustryEvaluationRepository
     if (evaluation.id.isNotEmpty && !evaluation.id.startsWith('eval-')) {
       await _client.from('evaluations').update(payload).eq('id', evaluation.id);
     } else {
-      await _client
+      final existing = await _client
           .from('evaluations')
-          .upsert(payload, onConflict: 'internship_id');
+          .select('id')
+          .eq('internship_id', evaluation.internshipId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (existing != null && existing['id'] != null) {
+        await _client
+            .from('evaluations')
+            .update(payload)
+            .eq('id', existing['id'].toString());
+      } else {
+        await _client.from('evaluations').insert(payload);
+      }
     }
   }
 
@@ -321,39 +374,37 @@ class SupabaseIndustryEvaluationRepository
 
     final user = _client.auth.currentUser;
 
-    // 1. Record verification in verifications table
+    // 1. Record verification audit in verifications table (verification_status enum uses 'approved')
     try {
       await _client.from('verifications').insert({
         'internship_id': internshipId,
         'itr_id': itrId,
         'verifier_id': user?.id,
-        'status': 'verified',
+        'status': 'approved',
         'remarks': remarks,
         'verified_at': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
 
     // 2. Mark evaluation as verified
-    try {
-      if (evaluationId != null && evaluationId.isNotEmpty) {
-        await _client
-            .from('evaluations')
-            .update({
-              'status': 'verified',
-              'remarks': remarks,
-              'verified_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', evaluationId);
-      } else {
-        await _client
-            .from('evaluations')
-            .update({
-              'status': 'verified',
-              'remarks': remarks,
-              'verified_at': DateTime.now().toIso8601String(),
-            })
-            .eq('internship_id', internshipId);
-      }
-    } catch (_) {}
+    if (evaluationId != null && evaluationId.isNotEmpty) {
+      await _client
+          .from('evaluations')
+          .update({
+            'status': 'verified',
+            'remarks': remarks,
+            'verified_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', evaluationId);
+    } else {
+      await _client
+          .from('evaluations')
+          .update({
+            'status': 'verified',
+            'remarks': remarks,
+            'verified_at': DateTime.now().toIso8601String(),
+          })
+          .eq('internship_id', internshipId);
+    }
   }
 }

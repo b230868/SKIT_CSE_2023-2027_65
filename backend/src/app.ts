@@ -77,7 +77,6 @@ app.use("/erp", erpRoutes);
 app.use("/auth", authRoutes);
 app.use("/industry", industryRoutes);
 app.use("/itr", itrRoutes);
-app.use("/erp", erpRoutes);
 
 // 404 handler for unknown routes
 app.use(notFoundHandler);

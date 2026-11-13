@@ -613,16 +613,22 @@ class _StudentMonitoringScreenState
     InternshipDocument doc, {
     String? statusOverride,
   }) {
-    final effectiveStatus = statusOverride ?? doc.status;
     Color indColor = Colors.orange;
-    if (effectiveStatus == 'approved' || effectiveStatus == 'verified') {
+    if (doc.status == 'approved' || doc.status == 'verified') {
       indColor = Colors.green;
     }
-    if (effectiveStatus == 'rejected') indColor = Colors.red;
+    if (doc.status == 'rejected') indColor = Colors.red;
 
+    final effectiveFacultyStatus = statusOverride ?? doc.facultyStatus;
     Color facColor = Colors.orange;
-    if (doc.facultyStatus == 'approved') facColor = Colors.green;
-    if (doc.facultyStatus == 'rejected') facColor = Colors.red;
+    if (effectiveFacultyStatus == 'approved' ||
+        effectiveFacultyStatus == 'verified') {
+      facColor = Colors.green;
+    }
+    if (effectiveFacultyStatus == 'rejected') facColor = Colors.red;
+
+    final isCertificate = doc.docType == 'certificate' ||
+        doc.docType == 'completion_certificate';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -638,9 +644,7 @@ class _StudentMonitoringScreenState
           Row(
             children: [
               Icon(
-                doc.docType == 'certificate'
-                    ? Icons.workspace_premium
-                    : Icons.description,
+                isCertificate ? Icons.workspace_premium : Icons.description,
                 size: 20,
                 color: Colors.indigo,
               ),
@@ -656,12 +660,26 @@ class _StudentMonitoringScreenState
                 icon: const Icon(Icons.open_in_new, size: 18),
                 tooltip: 'Open / Download Document',
                 onPressed: () async {
-                  final url = doc.fileUrl;
+                  String? url = doc.fileUrl;
+                  if ((url == null || url.isEmpty) && doc.filePath.isNotEmpty) {
+                    url = await _service.getFileUrl(
+                      bucket: 'internship-docs',
+                      path: doc.filePath,
+                    );
+                  }
                   if (url != null && url.isNotEmpty) {
                     final uri = Uri.tryParse(url);
                     if (uri != null) {
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      return;
                     }
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Document URL is unavailable.'),
+                      ),
+                    );
                   }
                 },
               ),
@@ -677,7 +695,7 @@ class _StudentMonitoringScreenState
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  doc.docType == 'certificate'
+                  isCertificate
                       ? 'CERTIFICATE'
                       : doc.docType == 'offer_letter'
                           ? 'OFFER LETTER'
@@ -716,7 +734,7 @@ class _StudentMonitoringScreenState
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        effectiveStatus.toUpperCase(),
+                        doc.status.toUpperCase(),
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: indColor),
                       ),
                     ),
@@ -759,7 +777,7 @@ class _StudentMonitoringScreenState
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        doc.facultyStatus.toUpperCase(),
+                        effectiveFacultyStatus.toUpperCase(),
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: facColor),
                       ),
                     ),

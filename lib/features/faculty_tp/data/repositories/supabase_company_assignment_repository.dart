@@ -65,12 +65,21 @@ class SupabaseCompanyAssignmentRepository
   Future<List<CompanyAssignmentUser>> getIndustrySupervisors() async {
     await _requireAdminOrTnp();
 
-    // 1. Fetch all profiles where role is industry or industry_supervisor
-    final profileRows = await _client
-        .from('profiles')
-        .select('id, full_name, role, company_name')
-        .inFilter('role', ['industry', 'industry_supervisor'])
-        .order('full_name', ascending: true);
+    // 1. Fetch all profiles with industry_supervisor role
+    List<dynamic> profileRows;
+    try {
+      profileRows = await _client
+          .from('profiles')
+          .select('id, full_name, email, role, company_name')
+          .eq('role', 'industry_supervisor')
+          .order('full_name', ascending: true);
+    } catch (_) {
+      profileRows = await _client
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .eq('role', 'industry_supervisor')
+          .order('full_name', ascending: true);
+    }
 
     // 2. Fetch existing mappings in industry_users with industry name
     final mappingRows = await _client
@@ -82,7 +91,8 @@ class SupabaseCompanyAssignmentRepository
       final m = Map<String, dynamic>.from(r as Map);
       final userId = m['user_id']?.toString();
       final industryId = m['industry_id']?.toString();
-      final indObj = m['industries'] as Map<String, dynamic>?;
+      final rawInd = m['industries'];
+      final indObj = rawInd is Map ? Map<String, dynamic>.from(rawInd) : null;
       final industryName = indObj?['name']?.toString() ?? '';
       if (userId != null && industryId != null) {
         assignedMap[userId] = {
@@ -92,7 +102,7 @@ class SupabaseCompanyAssignmentRepository
       }
     }
 
-    return (profileRows as List).map((r) {
+    return profileRows.map((r) {
       final m = Map<String, dynamic>.from(r as Map);
       final uid = m['id'].toString();
       final assigned = assignedMap[uid];
@@ -100,7 +110,7 @@ class SupabaseCompanyAssignmentRepository
       return CompanyAssignmentUser(
         id: uid,
         fullName: m['full_name']?.toString() ?? 'Supervisor',
-        email: '', // email is stored in auth.users, profile has name and requested company
+        email: m['email']?.toString() ?? '',
         requestedCompanyName: m['company_name']?.toString(),
         assignedIndustryId: assigned?['industry_id'],
         assignedIndustryName: assigned?['industry_name'],
