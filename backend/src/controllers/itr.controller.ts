@@ -310,12 +310,184 @@ export class ItrController {
         }
       }
 
+      // Trigger student notification on status update
+      try {
+        const studentRow = await prisma.students.findFirst({
+          where: {
+            OR: [{ id: existing.student_id }, { user_id: existing.student_id }],
+          },
+          select: { user_id: true, id: true },
+        });
+        const recipientUserId = studentRow?.user_id || existing.student_id;
+
+        let notifType: any = "system";
+        if (parsed.status === "approved") notifType = "itr_approved";
+        else if (parsed.status === "rejected") notifType = "itr_rejected";
+        else if (parsed.status === "changes_requested") notifType = "itr_changes_requested";
+
+        await prisma.notifications.create({
+          data: {
+            recipient_id: recipientUserId,
+            type: notifType,
+            title:
+              parsed.status === "approved"
+                ? "ITR Approved"
+                : parsed.status === "rejected"
+                ? "ITR Rejected"
+                : "ITR Changes Requested",
+            message: `Your ITR for ${
+              existing.internships.company_name || "your internship"
+            } has been updated to '${parsed.status}'. ${
+              parsed.remarks ? `Remarks: ${parsed.remarks}` : ""
+            }`,
+            reference_type: "itr",
+            reference_id: existing.id,
+          },
+        });
+      } catch (notifErr) {
+        console.warn("Failed to create student notification for ITR review:", notifErr);
+      }
+
       return sendSuccess(res, {
         id: updated.id,
         status: updated.status,
         remarks: updated.remarks,
         reviewedAt: updated.reviewed_at,
         message: "ITR reviewed successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /itr/:id/submit
+   * Submit or resubmit an ITR with strict validation and reviewer notifications.
+   */
+  static async submit(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+
+      const id = typeof req.params.id === "string" ? req.params.id : String(req.params.id || "");
+      if (!isValidUuid(id)) {
+        throw ApiError.badRequest("Invalid ITR UUID");
+      }
+
+      const existing = await prisma.itrs.findUnique({
+        where: { id },
+        include: {
+          internships: {
+            select: { id: true, industry_id: true, company_name: true, student_id: true },
+          },
+        },
+      });
+
+      if (!existing) {
+        throw ApiError.notFound("ITR not found");
+      }
+
+      // Verification of student ownership
+      if (user.role === "student") {
+        const studentIds = [user.studentId, user.profileId].filter(
+          (v): v is string => Boolean(v)
+        );
+        if (!studentIds.includes(existing.student_id)) {
+          throw ApiError.forbidden("Access denied: you can only submit your own ITR");
+        }
+      }
+
+      const {
+        content,
+        workDone,
+        technologiesUsed,
+        keyLearnings,
+        challengesFaced,
+        projectZipPath,
+        presentationPath,
+        certificateUrl,
+      } = req.body;
+
+      const effectiveContent = (content || workDone || "").trim();
+      if (!effectiveContent || effectiveContent.length < 20) {
+        throw ApiError.badRequest(
+          "Work done description is required and must be at least 20 characters long."
+        );
+      }
+
+      // Validate file formats if provided
+      if (projectZipPath && typeof projectZipPath === "string") {
+        const cleanPath = projectZipPath.split("?")[0].toLowerCase();
+        if (!cleanPath.endsWith(".zip")) {
+          throw ApiError.badRequest("Project file must be a .zip archive.");
+        }
+      }
+
+      if (presentationPath && typeof presentationPath === "string") {
+        const cleanPath = presentationPath.split("?")[0].toLowerCase();
+        if (!cleanPath.endsWith(".ppt") && !cleanPath.endsWith(".pptx")) {
+          throw ApiError.badRequest("Presentation must be a .ppt or .pptx file.");
+        }
+      }
+
+      if (certificateUrl && typeof certificateUrl === "string") {
+        const cleanPath = certificateUrl.split("?")[0].toLowerCase();
+        const validCert = [".pdf", ".png", ".jpg", ".jpeg"].some((ext) => cleanPath.endsWith(ext));
+        if (!validCert) {
+          throw ApiError.badRequest(
+            "Certificate must be a PDF or image file (.pdf, .png, .jpg, .jpeg)."
+          );
+        }
+      }
+
+      const now = new Date();
+      const updated = await prisma.itrs.update({
+        where: { id },
+        data: {
+          status: "submitted",
+          content: effectiveContent,
+          work_done: (workDone || effectiveContent).trim(),
+          technologies_used: technologiesUsed || existing.technologies_used,
+          key_learnings: keyLearnings || existing.key_learnings,
+          challenges_faced: challengesFaced || existing.challenges_faced,
+          project_zip_path: projectZipPath || existing.project_zip_path,
+          presentation_path: presentationPath || existing.presentation_path,
+          document_path: certificateUrl || existing.document_path,
+          submitted_at: now,
+          updated_at: now,
+        },
+      });
+
+      // Notify industry supervisor / reviewer on resubmission or submission
+      try {
+        const supervisors = await prisma.industry_users.findMany({
+          where: { industry_id: existing.internships.industry_id },
+          select: { user_id: true },
+        });
+
+        for (const sup of supervisors) {
+          await prisma.notifications.create({
+            data: {
+              recipient_id: sup.user_id,
+              type: "itr_submitted",
+              title: "ITR Submitted for Review",
+              message: `An ITR has been submitted/resubmitted for ${
+                existing.internships.company_name || "your company"
+              } and requires review.`,
+              reference_type: "itr",
+              reference_id: existing.id,
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn("Failed to notify supervisors of ITR submission:", notifErr);
+      }
+
+      return sendSuccess(res, {
+        id: updated.id,
+        status: updated.status,
+        submittedAt: updated.submitted_at,
+        message: "ITR submitted successfully",
       });
     } catch (error) {
       next(error);

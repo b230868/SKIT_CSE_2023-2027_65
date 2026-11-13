@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import 'package:prashikshan/features/itr/data/models/itr_model.dart';
 import 'package:prashikshan/features/itr/data/services/itr_service.dart';
@@ -274,6 +275,121 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
     }
   }
 
+  Future<void> _showEvaluationHistoryDialog() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: () async {
+          try {
+            final client = Supabase.instance.client;
+            final rows = await client
+                .from('evaluation_history')
+                .select('*')
+                .eq('internship_id', widget.itr.internshipId)
+                .order('changed_at', ascending: false);
+            return List<Map<String, dynamic>>.from(rows as List);
+          } catch (e) {
+            return <Map<String, dynamic>>[];
+          }
+        }(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AlertDialog(
+              content: SizedBox(
+                height: 100,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+
+          final history = snapshot.data ?? [];
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.history, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('Evaluation Audit Trail'),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: history.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No previous evaluation history records found for this internship.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final item = history[index];
+                        final changedAt = item['changed_at'] != null
+                            ? DateTime.tryParse(
+                                item['changed_at'].toString(),
+                              )?.toLocal()
+                            : null;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Score: ${item['new_score'] ?? 'N/A'} (Grade ${item['new_grade'] ?? '-'})',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (item['previous_score'] != null)
+                                Text(
+                                  'Prev: ${item['previous_score']}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                'Evaluator: ${item['evaluator_name'] ?? 'Supervisor'}',
+                              ),
+                              if (item['remarks'] != null &&
+                                  item['remarks'].toString().isNotEmpty)
+                                Text('Remarks: ${item['remarks']}'),
+                              if (changedAt != null)
+                                Text(
+                                  'Date: ${changedAt.day}/${changedAt.month}/${changedAt.year} ${changedAt.hour.toString().padLeft(2, '0')}:${changedAt.minute.toString().padLeft(2, '0')}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _infoCard({
     required IconData icon,
     required String title,
@@ -370,7 +486,16 @@ class _IndustryItrReviewScreenState extends State<IndustryItrReviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Review Student ITR')),
+      appBar: AppBar(
+        title: const Text('Review Student ITR'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'View Evaluation History',
+            onPressed: _showEvaluationHistoryDialog,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

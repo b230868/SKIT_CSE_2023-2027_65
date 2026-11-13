@@ -225,6 +225,85 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
     }
   }
 
+  Future<void> _markAllPresent() async {
+    if (_isUnassigned) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot record attendance: Your account is pending company assignment.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_internships.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark All Present?'),
+        content: Text(
+          'Are you sure you want to mark all ${_internships.length} intern(s) as PRESENT for ${_formatDate(_selectedDate)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+
+    try {
+      final ids = _internships.map((i) => i.id).toList();
+      await _service.markBatchAttendance(
+        date: _selectedDate,
+        internshipIds: ids,
+        status: 'present',
+      );
+
+      for (final id in ids) {
+        _dailyStatusMap[id] = 'present';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Successfully marked all ${_internships.length} interns as PRESENT for ${_formatDate(_selectedDate)}',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      if (_selectedInternship != null) {
+        await _loadHistoryForInternship(_selectedInternship!);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to mark batch attendance: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   String _formatDate(DateTime dt) {
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   }
@@ -244,6 +323,14 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Mark All Present',
+            onPressed:
+                _isUnassigned || _saving || _internships.isEmpty
+                    ? null
+                    : _markAllPresent,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -348,13 +435,35 @@ class _IndustryAttendanceScreenState extends State<IndustryAttendanceScreen> {
               'Mark Daily Attendance',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Text(
-              'Auto-saves on select',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-                fontStyle: FontStyle.italic,
-              ),
+            Row(
+              children: [
+                if (!_isUnassigned && _internships.isNotEmpty)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: _saving ? null : _markAllPresent,
+                    icon: const Icon(Icons.done_all, size: 16),
+                    label: const Text(
+                      'Mark All Present',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  'Auto-saves on select',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -80,7 +80,14 @@ export const createEvaluationSchema = z.object({
 });
 
 export const reviewItrSchema = z.object({
-  status: z.enum(["draft", "submitted", "under_review", "approved", "rejected"]),
+  status: z.enum([
+    "draft",
+    "submitted",
+    "under_review",
+    "changes_requested",
+    "approved",
+    "rejected",
+  ]),
   remarks: z.string().max(1000).optional(),
   reviewer_name: z.string().max(150).optional(),
   technical_score: z.number().min(0).max(25).optional(),

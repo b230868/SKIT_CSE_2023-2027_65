@@ -778,4 +778,71 @@ class SupabaseIndustryRepository implements IndustryRepository {
         })
         .eq('id', documentId);
   }
+
+  @override
+  Future<void> markBatchAttendance({
+    required DateTime date,
+    required List<String> internshipIds,
+    required String status,
+  }) async {
+    final user = _client.auth.currentUser;
+    final dateStr =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    for (final id in internshipIds) {
+      try {
+        final intern = await _client
+            .from('internships')
+            .select('student_id')
+            .eq('id', id)
+            .maybeSingle();
+        final studentId = intern?['student_id']?.toString() ?? user?.id;
+
+        await _client.from('attendance').upsert({
+          'internship_id': id,
+          'student_id': studentId,
+          'date': dateStr,
+          'status': status.toLowerCase(),
+          'marked_by': user?.id,
+          'remarks': 'Batch marked',
+        }, onConflict: 'internship_id,date');
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getEvaluationHistory(String internshipId) async {
+    try {
+      final rows = await _client
+          .from('evaluation_history')
+          .select('*')
+          .eq('internship_id', internshipId)
+          .order('changed_at', ascending: false);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<void> submitAffiliationRequest({
+    required String companyName,
+    String? designation,
+    String? contactEmail,
+    String? contactPhone,
+    String? website,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    await _client.from('company_affiliation_requests').insert({
+      'user_id': user.id,
+      'company_name': companyName,
+      'designation': designation ?? 'Supervisor',
+      'contact_email': contactEmail ?? user.email,
+      'contact_phone': contactPhone,
+      'website': website,
+      'status': 'pending',
+    });
+  }
 }

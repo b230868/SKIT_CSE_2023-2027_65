@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:prashikshan/features/industry/data/models/industry_dashboard_data.dart';
 import 'package:prashikshan/features/industry/data/models/industry_internship_model.dart';
@@ -30,12 +31,32 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
   String? _error;
   IndustryDashboardData? _dashboardData;
   List<IndustryInternshipModel> _internships = [];
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _service = widget.service ?? IndustryService();
     _loadData();
+    _loadUnreadNotifications();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) return;
+      final rows = await client
+          .from('notifications')
+          .select('id')
+          .eq('recipient_id', user.id)
+          .eq('is_read', false);
+      if (mounted) {
+        setState(() {
+          _unreadCount = (rows as List).length;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -74,6 +95,260 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
     }
   }
 
+  Future<void> _showNotificationsDialog() async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: () async {
+          try {
+            final client = Supabase.instance.client;
+            final user = client.auth.currentUser;
+            if (user == null) return <Map<String, dynamic>>[];
+            final rows = await client
+                .from('notifications')
+                .select('*')
+                .eq('recipient_id', user.id)
+                .order('created_at', ascending: false)
+                .limit(20);
+            return List<Map<String, dynamic>>.from(rows as List);
+          } catch (_) {
+            return <Map<String, dynamic>>[];
+          }
+        }(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AlertDialog(
+              content: SizedBox(
+                height: 100,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+
+          final list = snapshot.data ?? [];
+          return AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.notifications, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Notifications'),
+                  ],
+                ),
+                if (list.isNotEmpty)
+                  TextButton(
+                    onPressed: () async {
+                      try {
+                        final client = Supabase.instance.client;
+                        final user = client.auth.currentUser;
+                        if (user != null) {
+                          await client
+                              .from('notifications')
+                              .update({'is_read': true})
+                              .eq('recipient_id', user.id);
+                        }
+                      } catch (_) {}
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        _loadUnreadNotifications();
+                      }
+                    },
+                    child: const Text(
+                      'Mark all read',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+            content: SizedBox(
+              width: 450,
+              child: list.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No notifications yet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: list.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final notif = list[index];
+                        final isRead = notif['is_read'] == true;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: isRead
+                                ? Colors.grey.shade200
+                                : Colors.blue.shade100,
+                            child: Icon(
+                              isRead ? Icons.done : Icons.notifications_active,
+                              size: 18,
+                              color: isRead ? Colors.grey : Colors.blue,
+                            ),
+                          ),
+                          title: Text(
+                            notif['title']?.toString() ?? 'Notification',
+                            style: TextStyle(
+                              fontWeight: isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(notif['message']?.toString() ?? ''),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    _loadUnreadNotifications();
+  }
+
+  Future<void> _showAffiliationRequestDialog() async {
+    final companyController = TextEditingController();
+    final designationController = TextEditingController(text: 'Supervisor');
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final websiteController = TextEditingController();
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.business, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Request Company Affiliation'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Submit your company affiliation request for review by administrators or T&P officers.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: companyController,
+                decoration: const InputDecoration(
+                  labelText: 'Company / Organization Name *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.corporate_fare),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: designationController,
+                decoration: const InputDecoration(
+                  labelText: 'Your Designation',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Official Contact Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Contact Phone Number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: websiteController,
+                decoration: const InputDecoration(
+                  labelText: 'Company Website (optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.language),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (companyController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter company name')),
+                );
+                return;
+              }
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('Submit Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (submitted == true) {
+      try {
+        await _service.submitAffiliationRequest(
+          companyName: companyController.text.trim(),
+          designation: designationController.text.trim(),
+          contactEmail: emailController.text.trim().isNotEmpty
+              ? emailController.text.trim()
+              : null,
+          contactPhone: phoneController.text.trim().isNotEmpty
+              ? phoneController.text.trim()
+              : null,
+          website: websiteController.text.trim().isNotEmpty
+              ? websiteController.text.trim()
+              : null,
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Company affiliation request submitted successfully! Awaiting T&P administrator approval.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +356,15 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
         title: const Text('Industry Dashboard'),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _unreadCount > 0,
+              label: Text('$_unreadCount'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            tooltip: 'Notifications',
+            onPressed: _showNotificationsDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -213,6 +497,23 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                           style: TextStyle(
                             color: Colors.amber.shade900,
                             fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.amber.shade200,
+                            foregroundColor: Colors.amber.shade900,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: _showAffiliationRequestDialog,
+                          icon: const Icon(Icons.business, size: 16),
+                          label: const Text(
+                            'Request Company Affiliation',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],

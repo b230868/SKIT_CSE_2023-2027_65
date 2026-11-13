@@ -193,11 +193,25 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
   Future<void> _submitItr() async {
     final summaryText = _contentController.text.trim();
     final workDoneText = _workDoneController.text.trim();
+    final effectiveText = workDoneText.isNotEmpty ? workDoneText : summaryText;
 
-    if (summaryText.isEmpty && workDoneText.isEmpty) {
+    if (effectiveText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter your internship work details.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (effectiveText.length < 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Work details must be at least 20 characters in length.',
+          ),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -205,7 +219,10 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
 
     if (_projectZipFile == null && widget.itr.projectZipPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload your project ZIP file.')),
+        const SnackBar(
+          content: Text('Please upload your project ZIP file (.zip).'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -213,10 +230,56 @@ class _ItrSubmissionScreenState extends State<ItrSubmissionScreen> {
     if (_presentationFile == null && widget.itr.presentationPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please upload your project presentation.'),
+          content: Text(
+            'Please upload your project presentation (.ppt, .pptx).',
+          ),
+          backgroundColor: Colors.red,
         ),
       );
       return;
+    }
+
+    // Verify file extensions
+    if (_projectZipFile != null &&
+        !_projectZipFile!.name.toLowerCase().endsWith('.zip')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Project file must be a .zip archive.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_presentationFile != null) {
+      final name = _presentationFile!.name.toLowerCase();
+      if (!name.endsWith('.ppt') && !name.endsWith('.pptx')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Presentation file must be in .ppt or .pptx format.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (_certificateFile != null) {
+      final name = _certificateFile!.name.toLowerCase();
+      final valid = ['.pdf', '.png', '.jpg', '.jpeg'].any(
+        (ext) => name.endsWith(ext),
+      );
+      if (!valid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Certificate must be a PDF or image (.pdf, .png, .jpg, .jpeg).',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {

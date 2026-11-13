@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../config/db";
 import { ApiError, sendSuccess } from "../utils/response";
-import { parsePagination, createEvaluationSchema } from "../utils/validators";
+import { parsePagination, createEvaluationSchema, isValidUuid } from "../utils/validators";
 
 async function resolveSupervisorScope(profileId: string): Promise<{
   industryIds: string[];
@@ -342,7 +342,7 @@ export class IndustryController {
       const existing = await prisma.evaluations.findFirst({
         where: { internship_id: parsed.internship_id },
         orderBy: { created_at: "desc" },
-        select: { id: true },
+        select: { id: true, score: true, total_score: true, grade: true, status: true },
       });
 
       const now = new Date();
@@ -378,6 +378,32 @@ export class IndustryController {
               submitted_at: now,
             },
           });
+
+      // Audit Log: Record evaluation history
+      try {
+        await prisma.$executeRaw`
+          INSERT INTO public.evaluation_history (
+            evaluation_id, internship_id, student_id, evaluator_id, evaluator_name,
+            previous_score, new_score, previous_grade, new_grade, previous_status, new_status, remarks, changed_at
+          ) VALUES (
+            ${evaluation.id}::uuid,
+            ${parsed.internship_id}::uuid,
+            ${studentRow?.id ?? null}::uuid,
+            ${user.profileId}::uuid,
+            ${user.email || 'Supervisor'},
+            ${existing ? Number(existing.total_score ?? existing.score) : null},
+            ${totalScore},
+            ${existing ? existing.grade : null},
+            ${grade},
+            ${existing ? existing.status : null},
+            'submitted',
+            ${parsed.remarks || 'Evaluation submitted'},
+            NOW()
+          )
+        `;
+      } catch (histErr) {
+        console.warn("Failed to write to evaluation_history:", histErr);
+      }
 
       return sendSuccess(
         res,
@@ -482,6 +508,340 @@ export class IndustryController {
         averageAttendanceRate,
         averageEvaluationScore,
         gradeDistribution,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /industry/evaluations/:internshipId/history
+   * Retrieve audit history of evaluations for a specific internship.
+   */
+  static async getEvaluationHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+      const internshipId = typeof req.params.internshipId === "string" ? req.params.internshipId : String(req.params.internshipId || "");
+
+      if (!isValidUuid(internshipId)) {
+        throw ApiError.badRequest("Invalid internship ID");
+      }
+
+      // Scope check if industry supervisor
+      if (user.role === "industry_supervisor") {
+        const scope = await resolveSupervisorScope(user.profileId);
+        const internship = await prisma.internships.findUnique({
+          where: { id: internshipId },
+          select: { id: true, industry_id: true, company_name: true },
+        });
+        if (!internship) throw ApiError.notFound("Internship not found");
+
+        const matchesIndustryId = scope.industryIds.includes(internship.industry_id);
+        const matchesCompanyName =
+          Boolean(internship.company_name) &&
+          scope.companyNames.includes(internship.company_name!);
+        if (!matchesIndustryId && !matchesCompanyName) {
+          throw ApiError.forbidden("Access denied: internship not in your organization");
+        }
+      }
+
+      const historyRows = await prisma.$queryRaw<any[]>`
+        SELECT
+          id,
+          evaluation_id AS "evaluationId",
+          internship_id AS "internshipId",
+          student_id AS "studentId",
+          evaluator_id AS "evaluatorId",
+          evaluator_name AS "evaluatorName",
+          previous_score AS "previousScore",
+          new_score AS "newScore",
+          previous_grade AS "previousGrade",
+          new_grade AS "newGrade",
+          previous_status AS "previousStatus",
+          new_status AS "newStatus",
+          remarks,
+          changed_at AS "changedAt"
+        FROM public.evaluation_history
+        WHERE internship_id = ${internshipId}::uuid
+        ORDER BY changed_at DESC
+      `;
+
+      return sendSuccess(res, historyRows);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /industry/attendance/batch
+   * Mark batch attendance for multiple interns on a specific date.
+   */
+  static async submitBatchAttendance(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+
+      const { date, status = "present", records, internshipIds } = req.body;
+      const attendanceDate = date ? new Date(date) : new Date();
+      const formattedDate = attendanceDate.toISOString().split("T")[0];
+
+      let targets: Array<{ internshipId: string; status: string; remarks?: string }> = [];
+      if (Array.isArray(records) && records.length > 0) {
+        targets = records.map((r: any) => ({
+          internshipId: r.internshipId,
+          status: r.status || status || "present",
+          remarks: r.remarks || "",
+        }));
+      } else if (Array.isArray(internshipIds) && internshipIds.length > 0) {
+        targets = internshipIds.map((id: string) => ({
+          internshipId: id,
+          status: status || "present",
+          remarks: "Batch attendance marked",
+        }));
+      } else {
+        throw ApiError.badRequest("Either 'records' or 'internshipIds' must be provided");
+      }
+
+      // Supervisor scope verification
+      if (user.role === "industry_supervisor") {
+        const scope = await resolveSupervisorScope(user.profileId);
+        const scopedInternships = await prisma.internships.findMany({
+          where: {
+            id: { in: targets.map((t) => t.internshipId) },
+            ...buildInternshipScopeWhere(scope.industryIds, scope.companyNames),
+          },
+          select: { id: true, student_id: true },
+        });
+        const allowedIds = new Set(scopedInternships.map((s) => s.id));
+        targets = targets.filter((t) => allowedIds.has(t.internshipId));
+      }
+
+      if (targets.length === 0) {
+        return sendSuccess(res, {
+          processedCount: 0,
+          message: "No eligible internships found for batch attendance",
+        });
+      }
+
+      let processedCount = 0;
+      for (const target of targets) {
+        const intern = await prisma.internships.findUnique({
+          where: { id: target.internshipId },
+          select: { student_id: true },
+        });
+        if (!intern) continue;
+
+        const existing = await prisma.$queryRaw<any[]>`
+          SELECT id, remarks FROM public.attendance
+          WHERE internship_id = ${target.internshipId}::uuid
+            AND date = ${formattedDate}::date
+          LIMIT 1
+        `;
+
+        if (existing && existing.length > 0) {
+          await prisma.$executeRaw`
+            UPDATE public.attendance
+            SET status = ${target.status},
+                remarks = ${target.remarks || existing[0].remarks || "Batch marked"},
+                updated_at = NOW()
+            WHERE id = ${existing[0].id}::uuid
+          `;
+        } else {
+          await prisma.$executeRaw`
+            INSERT INTO public.attendance (
+              internship_id, student_id, date, status, remarks, created_at, updated_at
+            ) VALUES (
+              ${target.internshipId}::uuid,
+              ${intern.student_id}::uuid,
+              ${formattedDate}::date,
+              ${target.status},
+              ${target.remarks || "Batch marked"},
+              NOW(),
+              NOW()
+            )
+          `;
+        }
+        processedCount++;
+      }
+
+      return sendSuccess(res, {
+        processedCount,
+        date: formattedDate,
+        message: `Successfully processed batch attendance for ${processedCount} intern(s)`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /industry/affiliation/request
+   * Submit an affiliation request to link supervisor account with a company.
+   */
+  static async submitAffiliationRequest(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+
+      const { companyName, companyAddress, contactEmail, contactPhone, designation, website } = req.body;
+      if (!companyName || typeof companyName !== "string" || !companyName.trim()) {
+        throw ApiError.badRequest("Company name is required");
+      }
+
+      const rows = await prisma.$queryRaw<any[]>`
+        INSERT INTO public.company_affiliation_requests (
+          user_id, company_name, company_address, contact_email, contact_phone, designation, website, status, created_at, updated_at
+        ) VALUES (
+          ${user.profileId}::uuid,
+          ${companyName.trim()},
+          ${companyAddress || null},
+          ${contactEmail || user.email || null},
+          ${contactPhone || null},
+          ${designation || "Supervisor"},
+          ${website || null},
+          'pending',
+          NOW(),
+          NOW()
+        )
+        RETURNING id, user_id AS "userId", company_name AS "companyName", status, created_at AS "createdAt"
+      `;
+
+      return sendSuccess(res, rows[0], { statusCode: 201 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /industry/affiliation/requests
+   * View pending and historical company affiliation requests.
+   */
+  static async getAffiliationRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+
+      let requests: any[];
+      if (["admin", "tp_officer"].includes(user.role)) {
+        requests = await prisma.$queryRaw<any[]>`
+          SELECT
+            r.id,
+            r.user_id AS "userId",
+            p.full_name AS "userName",
+            p.email AS "userEmail",
+            r.company_name AS "companyName",
+            r.company_address AS "companyAddress",
+            r.contact_email AS "contactEmail",
+            r.contact_phone AS "contactPhone",
+            r.designation,
+            r.website,
+            r.status,
+            r.review_remarks AS "reviewRemarks",
+            r.reviewed_at AS "reviewedAt",
+            r.created_at AS "createdAt"
+          FROM public.company_affiliation_requests r
+          LEFT JOIN public.profiles p ON p.id = r.user_id
+          ORDER BY r.created_at DESC
+        `;
+      } else {
+        requests = await prisma.$queryRaw<any[]>`
+          SELECT
+            id,
+            user_id AS "userId",
+            company_name AS "companyName",
+            company_address AS "companyAddress",
+            contact_email AS "contactEmail",
+            contact_phone AS "contactPhone",
+            designation,
+            website,
+            status,
+            review_remarks AS "reviewRemarks",
+            reviewed_at AS "reviewedAt",
+            created_at AS "createdAt"
+          FROM public.company_affiliation_requests
+          WHERE user_id = ${user.profileId}::uuid
+          ORDER BY created_at DESC
+        `;
+      }
+
+      return sendSuccess(res, requests);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /industry/affiliation/requests/:id
+   * Admin / T&P review and approve/reject supervisor affiliation request.
+   */
+  static async reviewAffiliationRequest(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user) throw ApiError.unauthorized();
+      if (!["admin", "tp_officer"].includes(user.role)) {
+        throw ApiError.forbidden("Only Administrators or T&P Officers can review affiliation requests");
+      }
+
+      const id = typeof req.params.id === "string" ? req.params.id : String(req.params.id || "");
+      const { status, remarks } = req.body;
+      if (!["approved", "rejected"].includes(status)) {
+        throw ApiError.badRequest("Status must be 'approved' or 'rejected'");
+      }
+
+      const existing = await prisma.$queryRaw<any[]>`
+        SELECT * FROM public.company_affiliation_requests WHERE id = ${id}::uuid LIMIT 1
+      `;
+      if (!existing || existing.length === 0) {
+        throw ApiError.notFound("Affiliation request not found");
+      }
+
+      const request = existing[0];
+      await prisma.$executeRaw`
+        UPDATE public.company_affiliation_requests
+        SET status = ${status},
+            reviewed_by = ${user.profileId}::uuid,
+            review_remarks = ${remarks || null},
+            reviewed_at = NOW(),
+            updated_at = NOW()
+        WHERE id = ${id}::uuid
+      `;
+
+      if (status === "approved") {
+        let industry = await prisma.industries.findFirst({
+          where: { name: { equals: request.company_name, mode: "insensitive" } },
+        });
+        if (!industry) {
+          industry = await prisma.industries.create({
+            data: {
+              name: request.company_name,
+              website: request.website || null,
+              address: request.company_address || null,
+              contact_email: request.contact_email || null,
+              contact_phone: request.contact_phone || null,
+              status: "approved",
+            },
+          });
+        }
+
+        const existingLink = await prisma.industry_users.findFirst({
+          where: { user_id: request.user_id, industry_id: industry.id },
+        });
+        if (!existingLink) {
+          await prisma.industry_users.create({
+            data: {
+              user_id: request.user_id,
+              industry_id: industry.id,
+              designation: request.designation || "Supervisor",
+            },
+          });
+        }
+      }
+
+      return sendSuccess(res, {
+        id,
+        status,
+        message: `Affiliation request ${status} successfully`,
       });
     } catch (error) {
       next(error);

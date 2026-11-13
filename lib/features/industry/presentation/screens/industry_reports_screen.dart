@@ -2,6 +2,9 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import 'package:prashikshan/features/industry/data/models/industry_dashboard_data.dart';
 import 'package:prashikshan/features/industry/data/models/industry_internship_model.dart';
@@ -79,6 +82,146 @@ class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
         .toList();
   }
 
+  void _exportCsv() {
+    final buffer = StringBuffer();
+    buffer.writeln(
+      'Student Name,Roll Number,Branch,Internship Title,Company,Status,Progress,Evaluation Status,Attendance Rate',
+    );
+    for (final i in _filteredInternships) {
+      buffer.writeln(
+        '"${i.studentName}","${i.studentRollNo ?? ''}","${i.branch ?? ''}","${i.internshipTitle}","${i.companyName}","${i.status}","${i.progress}%","${i.evaluationStatus}","${i.attendanceRate?.toStringAsFixed(1) ?? ''}%"',
+      );
+    }
+
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'CSV / Excel tabular data copied to clipboard! Paste into Excel (.xlsx) or Sheets.',
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final doc = pw.Document();
+    final now = DateTime.now();
+    final data = _dashboardData;
+    final interns = _filteredInternships;
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Prashikshan Industry Report',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+                pw.Text(
+                  '${now.day}/${now.month}/${now.year}',
+                  style: const pw.TextStyle(color: PdfColors.grey700),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Text(
+            'Organization: ${data?.industryName ?? "Industry Partner"}',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 14),
+          pw.Text(
+            'Executive Summary',
+            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.TableHelper.fromTextArray(
+            headers: ['Metric', 'Count / Rate'],
+            data: [
+              ['Total Interns Enrolled', '${data?.totalInterns ?? 0}'],
+              ['Active Internships', '${data?.activeInterns ?? 0}'],
+              ['Completed Internships', '${data?.completedInternships ?? 0}'],
+              ['Pending Daily Attendance', '${data?.pendingAttendance ?? 0}'],
+              ['Evaluations Completed', '${data?.completedEvaluations ?? 0}'],
+              ['Evaluations Pending', '${data?.pendingEvaluations ?? 0}'],
+              [
+                'Completion Rate',
+                '${data?.completionRate.toStringAsFixed(1) ?? "0.0"}%',
+              ],
+            ],
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+            cellAlignment: pw.Alignment.centerLeft,
+            cellPadding: const pw.EdgeInsets.all(6),
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Intern Records (${interns.length})',
+            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.TableHelper.fromTextArray(
+            headers: [
+              'Student Name',
+              'Role',
+              'Status',
+              'Progress',
+              'Evaluation',
+            ],
+            data: interns
+                .map(
+                  (i) => [
+                    i.studentName,
+                    i.internshipTitle,
+                    i.status.toUpperCase(),
+                    '${i.progress.toStringAsFixed(0)}%',
+                    i.evaluationStatus.toUpperCase(),
+                  ],
+                )
+                .toList(),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+            cellAlignment: pw.Alignment.centerLeft,
+            cellPadding: const pw.EdgeInsets.all(6),
+          ),
+        ],
+      ),
+    );
+
+    try {
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename:
+            'prashikshan_industry_report_${now.millisecondsSinceEpoch}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to export PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _exportReportSummary() {
     final buffer = StringBuffer();
     buffer.writeln('=== PRASHIKSHAN INDUSTRY INTERNSHIP REPORT ===');
@@ -150,12 +293,51 @@ class _IndustryReportsScreenState extends State<IndustryReportsScreen> {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Copy Report Summary',
-            onPressed: _loading || _dashboardData == null
-                ? null
-                : _exportReportSummary,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export Reports',
+            enabled: !_loading && _dashboardData != null,
+            onSelected: (value) {
+              if (value == 'pdf') {
+                _exportPdf();
+              } else if (value == 'csv') {
+                _exportCsv();
+              } else if (value == 'summary') {
+                _exportReportSummary();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'pdf',
+                child: Row(
+                  children: [
+                    Icon(Icons.picture_as_pdf, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Export as PDF'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'csv',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Export as Excel / CSV'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'summary',
+                child: Row(
+                  children: [
+                    Icon(Icons.copy, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Copy Summary'),
+                  ],
+                ),
+              ),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.refresh),

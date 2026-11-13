@@ -4,18 +4,29 @@ import { authenticate, requireRole } from "../middleware/auth";
 
 const router = Router();
 
-// Staff authentication and authorization required
+// Staff and Industry authentication required
 router.use(authenticate);
-router.use(requireRole(["faculty_mentor", "tp_officer", "admin"]));
 
 // Faculty department and monitoring reports
-router.get("/faculty", ReportsController.getFacultyReport);
+router.get(
+  "/faculty",
+  requireRole(["faculty_mentor", "tp_officer", "admin"]),
+  ReportsController.getFacultyReport
+);
 
 // T&P college-wide placement and training statistics
-router.get("/tp", ReportsController.getTpReport);
+router.get(
+  "/tp",
+  requireRole(["tp_officer", "admin"]),
+  ReportsController.getTpReport
+);
 
-// Export report in JSON or CSV
-router.get("/export", ReportsController.exportReport);
+// Export report in JSON, CSV, or XLSX format
+router.get(
+  "/export",
+  requireRole(["faculty_mentor", "tp_officer", "industry_supervisor", "admin"]),
+  ReportsController.exportReport
+);
 
 export default router;
 

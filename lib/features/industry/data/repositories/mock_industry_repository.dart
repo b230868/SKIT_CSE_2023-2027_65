@@ -403,4 +403,42 @@ class MockIndustryRepository implements IndustryRepository {
       }
     }
   }
+
+  final List<Map<String, dynamic>> _mockEvaluationHistory = [];
+
+  @override
+  Future<void> markBatchAttendance({
+    required DateTime date,
+    required List<String> internshipIds,
+    required String status,
+  }) async {
+    for (final id in internshipIds) {
+      await markAttendance(
+        internshipId: id,
+        studentId: 'mock-student-$id',
+        date: date,
+        status: status,
+        remarks: 'Batch marked',
+      );
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getEvaluationHistory(String internshipId) async {
+    await Future.delayed(const Duration(milliseconds: 10));
+    return _mockEvaluationHistory
+        .where((e) => e['internship_id'] == internshipId)
+        .toList();
+  }
+
+  @override
+  Future<void> submitAffiliationRequest({
+    required String companyName,
+    String? designation,
+    String? contactEmail,
+    String? contactPhone,
+    String? website,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 10));
+  }
 }

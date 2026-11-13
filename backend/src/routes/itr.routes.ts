@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get("/", ItrController.getAll);
 router.get("/:id", ItrController.getById);
+router.post("/:id/submit", ItrController.submit);
 router.patch(
   "/:id/review",
   requireRole(["industry_supervisor", "faculty_mentor", "tp_officer", "admin"]),

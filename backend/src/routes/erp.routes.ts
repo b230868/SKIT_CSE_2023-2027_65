@@ -22,5 +22,19 @@ router.post(
   ErpController.syncGrades
 );
 
+router.post(
+  "/auto-sync",
+  authenticate,
+  requireRole(["tp_officer", "admin"]),
+  ErpController.autoSync
+);
+
+router.get(
+  "/sync-history",
+  authenticate,
+  requireRole(["tp_officer", "admin"]),
+  ErpController.getSyncHistory
+);
+
 export default router;
 

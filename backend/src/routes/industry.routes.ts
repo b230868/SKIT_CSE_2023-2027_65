@@ -26,6 +26,39 @@ router.post(
   IndustryController.submitEvaluation
 );
 
+// Evaluation history / audit trail
+router.get(
+  "/evaluations/:internshipId/history",
+  requireRole(["industry_supervisor", "faculty_mentor", "tp_officer", "admin"]),
+  IndustryController.getEvaluationHistory
+);
+
+// Batch attendance marking
+router.post(
+  "/attendance/batch",
+  requireRole(["industry_supervisor", "admin"]),
+  IndustryController.submitBatchAttendance
+);
+
+// Company affiliation requests
+router.post(
+  "/affiliation/request",
+  requireRole(["industry_supervisor"]),
+  IndustryController.submitAffiliationRequest
+);
+
+router.get(
+  "/affiliation/requests",
+  requireRole(["industry_supervisor", "tp_officer", "admin"]),
+  IndustryController.getAffiliationRequests
+);
+
+router.patch(
+  "/affiliation/requests/:id",
+  requireRole(["tp_officer", "admin"]),
+  IndustryController.reviewAffiliationRequest
+);
+
 router.get(
   "/analytics",
   requireRole(["industry_supervisor", "faculty_mentor", "tp_officer", "admin"]),

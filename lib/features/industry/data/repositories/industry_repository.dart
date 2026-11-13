@@ -44,4 +44,23 @@ abstract class IndustryRepository {
     String? rejectionReason,
     String? remarks,
   });
+
+  // Batch Attendance
+  Future<void> markBatchAttendance({
+    required DateTime date,
+    required List<String> internshipIds,
+    required String status,
+  });
+
+  // Evaluation History
+  Future<List<Map<String, dynamic>>> getEvaluationHistory(String internshipId);
+
+  // Supervisor Affiliation Request
+  Future<void> submitAffiliationRequest({
+    required String companyName,
+    String? designation,
+    String? contactEmail,
+    String? contactPhone,
+    String? website,
+  });
 }

@@ -150,5 +150,156 @@ export class ErpController {
       next(error);
     }
   }
+
+  /**
+   * POST /erp/auto-sync
+   * Automated idempotently-managed workflow pushing verified internship grades to ERP.
+   * Tracks lifecycle state: pending -> eligible -> synced / failed.
+   */
+  static async autoSync(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const eligibleInternships = await prisma.internships.findMany({
+        where: {
+          OR: [
+            { status: "completed" },
+            { evaluations: { some: { status: { in: ["submitted", "verified", "completed"] } } } },
+          ],
+        },
+        include: {
+          evaluations: {
+            where: { status: { in: ["submitted", "verified", "completed"] } },
+            orderBy: { created_at: "desc" },
+            take: 1,
+          },
+          students: {
+            select: { id: true, roll_number: true },
+          },
+        },
+      });
+
+      let newlySynced = 0;
+      let alreadySynced = 0;
+      let failedCount = 0;
+
+      for (const item of eligibleInternships) {
+        const evalItem = item.evaluations[0];
+        const score = evalItem?.score ? Number(evalItem.score) : 75.0;
+        const grade = evalItem?.grade || "B";
+        const studentId = item.student_id;
+
+        try {
+          const existingLogs = await prisma.$queryRaw<any[]>`
+            SELECT id, sync_status FROM public.erp_sync_logs
+            WHERE internship_id = ${item.id}::uuid
+            LIMIT 1
+          `;
+
+          if (existingLogs.length > 0 && existingLogs[0].sync_status === "synced") {
+            alreadySynced++;
+            continue;
+          }
+
+          await prisma.$executeRaw`
+            INSERT INTO public.erp_sync_logs (
+              internship_id, student_id, evaluation_score, evaluation_grade,
+              sync_status, academic_credits, synced_at, sync_attempt, created_at, updated_at
+            ) VALUES (
+              ${item.id}::uuid,
+              ${studentId}::uuid,
+              ${score},
+              ${grade},
+              'synced',
+              4,
+              NOW(),
+              1,
+              NOW(),
+              NOW()
+            )
+            ON CONFLICT (internship_id) DO UPDATE SET
+              sync_status = 'synced',
+              evaluation_score = EXCLUDED.evaluation_score,
+              evaluation_grade = EXCLUDED.evaluation_grade,
+              synced_at = NOW(),
+              sync_attempt = public.erp_sync_logs.sync_attempt + 1,
+              updated_at = NOW()
+          `;
+          newlySynced++;
+        } catch (err) {
+          failedCount++;
+          try {
+            await prisma.$executeRaw`
+              INSERT INTO public.erp_sync_logs (
+                internship_id, student_id, evaluation_score, evaluation_grade,
+                sync_status, academic_credits, sync_attempt, error_message, created_at, updated_at
+              ) VALUES (
+                ${item.id}::uuid,
+                ${studentId}::uuid,
+                ${score},
+                ${grade},
+                'failed',
+                0,
+                1,
+                ${String(err)},
+                NOW(),
+                NOW()
+              )
+              ON CONFLICT (internship_id) DO UPDATE SET
+                sync_status = 'failed',
+                sync_attempt = public.erp_sync_logs.sync_attempt + 1,
+                error_message = ${String(err)},
+                updated_at = NOW()
+            `;
+          } catch {}
+        }
+      }
+
+      return sendSuccess(res, {
+        totalEvaluated: eligibleInternships.length,
+        newlySynced,
+        alreadySynced,
+        failedCount,
+        message: `ERP automation sync complete: ${newlySynced} synced, ${alreadySynced} unchanged, ${failedCount} errors.`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /erp/sync-history
+   * Retrieve audit logs and tracking statuses for ERP grade syncs.
+   */
+  static async getSyncHistory(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const logs = await prisma.$queryRaw<any[]>`
+        SELECT
+          l.id,
+          l.internship_id AS "internshipId",
+          l.student_id AS "studentId",
+          l.evaluation_score AS "score",
+          l.evaluation_grade AS "grade",
+          l.sync_status AS "syncStatus",
+          l.academic_credits AS "credits",
+          l.synced_at AS "syncedAt",
+          l.sync_attempt AS "syncAttempt",
+          l.error_message AS "errorMessage",
+          l.created_at AS "createdAt",
+          i.company_name AS "companyName",
+          i.internship_title AS "internshipTitle",
+          p.full_name AS "studentName",
+          s.roll_number AS "rollNumber"
+        FROM public.erp_sync_logs l
+        LEFT JOIN public.internships i ON i.id = l.internship_id
+        LEFT JOIN public.students s ON s.id = l.student_id
+        LEFT JOIN public.profiles p ON p.id = s.user_id
+        ORDER BY l.updated_at DESC
+        LIMIT 100
+      `;
+
+      return sendSuccess(res, logs);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 

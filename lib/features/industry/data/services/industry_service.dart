@@ -54,6 +54,38 @@ class IndustryService {
     );
   }
 
+  Future<void> markBatchAttendance({
+    required DateTime date,
+    required List<String> internshipIds,
+    required String status,
+  }) {
+    return _repository.markBatchAttendance(
+      date: date,
+      internshipIds: internshipIds,
+      status: status,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getEvaluationHistory(String internshipId) {
+    return _repository.getEvaluationHistory(internshipId);
+  }
+
+  Future<void> submitAffiliationRequest({
+    required String companyName,
+    String? designation,
+    String? contactEmail,
+    String? contactPhone,
+    String? website,
+  }) {
+    return _repository.submitAffiliationRequest(
+      companyName: companyName,
+      designation: designation,
+      contactEmail: contactEmail,
+      contactPhone: contactPhone,
+      website: website,
+    );
+  }
+
   // Document APIs
   Future<void> issueOfferLetter({
     required String internshipId,
