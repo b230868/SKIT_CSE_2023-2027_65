@@ -37,13 +37,17 @@ begin
   insert into public.profiles (id, full_name, role, enrollment_no, branch, phone)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', ''),
-    case when new.raw_user_meta_data->>'role' in ('student','faculty','industry')
-         then new.raw_user_meta_data->>'role' else 'student' end,   -- 'tnp' is assigned manually by an admin
+    coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), 'Student'),
+    case when lower(trim(coalesce(new.raw_user_meta_data->>'role', 'student'))) in ('student','faculty','tnp','industry')
+         then lower(trim(coalesce(new.raw_user_meta_data->>'role', 'student'))) else 'student' end,
     new.raw_user_meta_data->>'enrollment_no',
     new.raw_user_meta_data->>'branch',
     new.raw_user_meta_data->>'phone'
-  );
+  )
+  on conflict (id) do nothing;
+  return new;
+exception when others then
+  -- Fail-safe: never block user signup in auth.users if profile insert fails
   return new;
 end;
 $$;
@@ -53,7 +57,13 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+grant execute on function public.handle_new_user() to anon, authenticated, service_role, supabase_auth_admin;
+
 alter table public.profiles enable row level security;
+
+drop policy if exists "profiles insert own" on public.profiles;
+create policy "profiles insert own" on public.profiles for insert to authenticated
+  with check (auth.uid() = id);
 
 drop policy if exists "profiles read" on public.profiles;
 create policy "profiles read" on public.profiles for select to authenticated

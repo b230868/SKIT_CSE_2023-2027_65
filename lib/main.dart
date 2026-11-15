@@ -16,7 +16,12 @@ Future<void> main() async {
   await Hive.openBox<Map>(GeoProgressQueue.boxName);
   await CacheService.init();
 
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Graceful fallback: on web or environments where .env asset isn't bundled,
+    // configuration will be loaded from dart-define or defaults.
+  }
 
   final supabaseUrl = SupabaseConfig.url.isNotEmpty
       ? SupabaseConfig.url
