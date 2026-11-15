@@ -1,15 +1,122 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase_config.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
+import '../../industry/presentation/screens/industry_shell.dart';
+import '../../student/student_shell.dart';
 import '../data/auth_service.dart';
+import '../models/app_user.dart';
 import '../utils/password_validator.dart';
 import '../utils/phone_validator.dart';
+
+const String _supabaseFixSql = '''-- Prashikshan Database Trigger Fix (Run in Supabase > SQL Editor)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS \$\$
+DECLARE
+  v_name text;
+  v_role_raw text;
+  v_role_normalized text;
+BEGIN
+  v_name := COALESCE(
+    NULLIF(TRIM(NEW.raw_user_meta_data->>'full_name'), ''),
+    NULLIF(TRIM(NEW.raw_user_meta_data->>'name'), ''),
+    'Student'
+  );
+
+  v_role_raw := LOWER(TRIM(COALESCE(
+    NEW.raw_app_meta_data->>'role',
+    NEW.raw_user_meta_data->>'role',
+    'student'
+  )));
+
+  IF v_role_raw IN ('faculty', 'faculty_mentor') THEN
+    v_role_normalized := 'faculty_mentor';
+  ELSIF v_role_raw IN ('tnp', 'tp_officer') THEN
+    v_role_normalized := 'tp_officer';
+  ELSIF v_role_raw IN ('industry', 'industry_supervisor') THEN
+    v_role_normalized := 'industry_supervisor';
+  ELSE
+    v_role_normalized := 'student';
+  END IF;
+
+  BEGIN
+    EXECUTE \$dyn\$
+      INSERT INTO public.profiles (
+        id, full_name, email, role, enrollment_no, branch, department, phone, phone_number, is_active, created_at, updated_at
+      )
+      VALUES (
+        \$1, \$2, COALESCE(\$3, ''), \$4::public.app_role, \$5, \$6, \$6, \$7, \$7, true, now(), now()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        email = COALESCE(NULLIF(EXCLUDED.email, ''), public.profiles.email),
+        enrollment_no = COALESCE(EXCLUDED.enrollment_no, public.profiles.enrollment_no),
+        branch = COALESCE(EXCLUDED.branch, public.profiles.branch),
+        phone = COALESCE(EXCLUDED.phone, public.profiles.phone),
+        updated_at = now()
+    \$dyn\$
+    USING
+      NEW.id,
+      v_name,
+      NEW.email,
+      v_role_normalized,
+      NULLIF(TRIM(NEW.raw_user_meta_data->>'enrollment_no'), ''),
+      NULLIF(TRIM(NEW.raw_user_meta_data->>'branch'), ''),
+      NULLIF(TRIM(NEW.raw_user_meta_data->>'phone'), '');
+  EXCEPTION WHEN OTHERS THEN
+    BEGIN
+      INSERT INTO public.profiles (
+        id, full_name, email, role, enrollment_no, branch, department, phone, phone_number, is_active, created_at, updated_at
+      )
+      VALUES (
+        NEW.id, v_name, COALESCE(NEW.email, ''),
+        CASE
+          WHEN v_role_normalized = 'faculty_mentor' THEN 'faculty'
+          WHEN v_role_normalized = 'tp_officer' THEN 'tnp'
+          WHEN v_role_normalized = 'industry_supervisor' THEN 'industry'
+          ELSE 'student'
+        END,
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'enrollment_no'), ''),
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'branch'), ''),
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'branch'), ''),
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'phone'), ''),
+        NULLIF(TRIM(NEW.raw_user_meta_data->>'phone'), ''),
+        true, now(), now()
+      )
+      ON CONFLICT (id) DO NOTHING;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END;
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+\$\$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO anon, authenticated, service_role, supabase_auth_admin;
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "profiles insert own" ON public.profiles;
+CREATE POLICY "profiles insert own" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+''';
 
 class RegisterScreen extends StatefulWidget {
   final AuthService? authService;
@@ -212,8 +319,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _continueAsDemoUser() {
+    final trimmedEmail = _email.text.trim().toLowerCase();
+    final name = _name.text.trim().isNotEmpty ? _name.text.trim() : 'Student User';
+    final role = _role;
+    final isStudent = role == 'student';
+    final isFaculty = role == 'faculty';
+    final isIndustry = role == 'industry' || role == 'industry_supervisor';
 
+    final demoUser = AppUser(
+      id: 'student-demo-${DateTime.now().millisecondsSinceEpoch}',
+      fullName: name,
+      email: trimmedEmail.isNotEmpty ? trimmedEmail : 'student@skit.ac.in',
+      role: isStudent ? 'student' : (isFaculty ? 'faculty_mentor' : 'industry_supervisor'),
+      enrollmentNo: isStudent
+          ? (_enrollment.text.trim().isNotEmpty ? _enrollment.text.trim() : 'B230888')
+          : null,
+      branch: isStudent ? (_branch ?? 'CSE') : null,
+      phone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : '+91 70144 93739',
+      designation: isIndustry
+          ? (_company.text.trim().isNotEmpty ? _company.text.trim() : 'Industry Partner')
+          : (isFaculty ? 'Faculty Mentor' : 'Student'),
+    );
 
+    if (isFaculty) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const FacultyDashboardScreen()),
+      );
+    } else if (isIndustry) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => IndustryShell(user: demoUser)),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => StudentShell(user: demoUser)),
+      );
+    }
+  }
+
+  void _showSqlGuideDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.terminal, color: AppTheme.saffron),
+            SizedBox(width: 8),
+            Text('Supabase SQL Trigger Fix', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'To permanently fix user registration on your Supabase project, execute this SQL script in the Supabase Dashboard SQL Editor:',
+                  style: TextStyle(fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    _supabaseFixSql,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      color: Color(0xFF4EC9B0),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('Copy SQL'),
+            onPressed: () {
+              Clipboard.setData(const ClipboardData(text: _supabaseFixSql));
+              Navigator.of(ctx).pop();
+              showSnack(
+                context,
+                'SQL copied! Run it in your Supabase Dashboard > SQL Editor.',
+              );
+            },
+          ),
+          FilledButton(
+            child: const Text('Done'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _showEmailVerificationDialog(String email) async {
     bool resending = false;
@@ -537,44 +743,98 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _buildConfirmValidationFeedback(),
                     if (_databaseErrorMessage != null) ...[
                       Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.red.shade400),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.red.shade900,
-                              size: 20,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red.shade900,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Database Profile Trigger Error',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red.shade900,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _databaseErrorMessage!,
+                                        style: TextStyle(
+                                          color: Colors.red.shade900,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Database Profile Error',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red.shade900,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _databaseErrorMessage!,
-                                    style: TextStyle(
-                                      color: Colors.red.shade900,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.saffron,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
                               ),
+                              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                              label: Text(
+                                'Continue as ${_name.text.trim().isNotEmpty ? _name.text.trim() : 'Student'} (Demo Mode)',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              onPressed: _continueAsDemoUser,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red.shade900,
+                                      side: BorderSide(color: Colors.red.shade300),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                    icon: const Icon(Icons.copy_rounded, size: 16),
+                                    label: const Text('Copy SQL Fix', style: TextStyle(fontSize: 12)),
+                                    onPressed: () {
+                                      Clipboard.setData(const ClipboardData(text: _supabaseFixSql));
+                                      showSnack(
+                                        context,
+                                        'SQL fix copied to clipboard! Run in Supabase SQL Editor.',
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red.shade900,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                    icon: const Icon(Icons.info_outline, size: 16),
+                                    label: const Text('SQL Guide', style: TextStyle(fontSize: 12)),
+                                    onPressed: _showSqlGuideDialog,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -659,6 +919,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ? 'Please wait (${_cooldownSeconds}s)'
                                   : 'Create account',
                             ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.ink,
+                        side: BorderSide(color: Colors.grey.shade400),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.play_circle_outline, color: AppTheme.ink),
+                      label: const Text(
+                        'Instant Demo Access (Skip Cloud Registration)',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      onPressed: _continueAsDemoUser,
                     ),
                   ],
                 ),
