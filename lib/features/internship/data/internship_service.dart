@@ -12,6 +12,9 @@ class InternshipService {
 
   String get _uid => _c.auth.currentUser?.id ?? 'demo-student-id';
 
+  // Holds in-memory internship submissions created during local sessions
+  static final List<Internship> _localInternships = [];
+
   static List<Internship> get sampleInternships => [
         Internship(
           id: 'demo-intern-001',
@@ -60,7 +63,7 @@ class InternshipService {
   Future<List<Internship>> fetchMine() async {
     final ownerId = _uid;
     if (_c.auth.currentUser == null || ownerId == 'demo-student-id') {
-      return sampleInternships;
+      return [..._localInternships, ...sampleInternships];
     }
     try {
       final data = await _c
@@ -68,28 +71,32 @@ class InternshipService {
           .select()
           .eq('student_id', ownerId)
           .order('created_at', ascending: false);
-      final internships = data.map<Internship>(Internship.fromMap).toList();
-      if (internships.isNotEmpty) {
+      final remoteList = data.map<Internship>(Internship.fromMap).toList();
+      final combined = [..._localInternships, ...remoteList];
+      if (combined.isNotEmpty) {
         await CacheService.cacheData(
           ownerId: ownerId,
           key: 'internships',
-          data: internships.map(_internshipToMap).toList(),
+          data: combined.map(_internshipToMap).toList(),
         );
-        return internships;
+        return combined;
       }
       return sampleInternships;
     } on Exception catch (error) {
-      if (!isNetworkError(error)) return sampleInternships;
+      if (!isNetworkError(error)) return [..._localInternships, ...sampleInternships];
       final cached = CacheService.getCachedData(
         ownerId: ownerId,
         key: 'internships',
       );
-      if (cached == null) return sampleInternships;
+      if (cached == null) return [..._localInternships, ...sampleInternships];
       return _asMapList(cached).map(Internship.fromMap).toList();
     }
   }
 
   Future<Internship> fetchOne(String id) async {
+    final localMatch = _localInternships.where((i) => i.id == id);
+    if (localMatch.isNotEmpty) return localMatch.first;
+
     if (id.startsWith('demo-')) {
       final found = sampleInternships.where((i) => i.id == id);
       if (found.isNotEmpty) return found.first;
@@ -136,7 +143,7 @@ class InternshipService {
 
         final payload = <String, dynamic>{
           'id': user.id,
-          'full_name': fullName,
+          'full_name': fullName.isNotEmpty ? fullName : 'Student',
           'role': role,
           'branch': branch,
           'department': branch,
@@ -150,6 +157,27 @@ class InternshipService {
 
         await _c.from('profiles').upsert(payload);
       }
+
+      // Also ensure student record exists if students table is in use
+      try {
+        final existingStudent = await _c
+            .from('students')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (existingStudent == null) {
+          final meta = user.userMetadata ?? {};
+          final roll = meta['enrollment_no']?.toString().trim() ??
+              meta['roll_number']?.toString().trim() ??
+              'ENR-${user.id.substring(0, 8)}';
+          final dept = meta['branch']?.toString().trim() ?? 'CSE';
+          await _c.from('students').insert({
+            'user_id': user.id,
+            'roll_number': roll,
+            'department': dept,
+          });
+        }
+      } catch (_) {}
     } catch (_) {
       // Non-blocking fallback: server-side auth trigger remains authoritative
     }
@@ -164,18 +192,74 @@ class InternshipService {
     required DateTime endDate,
     String status = 'pending',
   }) async {
-    await _ensureProfileExists();
-    await _c.from('internships').insert({
-      'student_id': _uid,
-      'company_name': companyName,
-      'title': title,
-      'description': description,
-      'mode': mode,
-      'start_date': isoDate(startDate),
-      'end_date': isoDate(endDate),
-      'status': status.toLowerCase(),
-      'progress': 0,
-    });
+    final user = _c.auth.currentUser;
+    if (user != null) {
+      await _ensureProfileExists();
+
+      // Check whether public.students has a separate id for this user
+      String targetStudentId = user.id;
+      String? resolvedStudentTableId;
+      try {
+        final sRow = await _c
+            .from('students')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (sRow != null && sRow['id'] != null) {
+          resolvedStudentTableId = sRow['id'].toString();
+        }
+      } catch (_) {}
+
+      final payload = <String, dynamic>{
+        'student_id': targetStudentId,
+        'company_name': companyName.trim(),
+        'title': title.trim(),
+        'mode': mode.toLowerCase().trim(),
+        'start_date': isoDate(startDate),
+        'end_date': isoDate(endDate),
+        'status': status.toLowerCase().trim(),
+        'progress': 0,
+      };
+      if (description != null && description.trim().isNotEmpty) {
+        payload['description'] = description.trim();
+      }
+
+      try {
+        await _c.from('internships').insert(payload);
+      } catch (err) {
+        // If foreign key constraint requires students(id) rather than profiles(id), retry
+        if (resolvedStudentTableId != null && resolvedStudentTableId != targetStudentId) {
+          payload['student_id'] = resolvedStudentTableId;
+          await _c.from('internships').insert(payload);
+        } else {
+          rethrow;
+        }
+      }
+      await _invalidateInternshipCache();
+      return;
+    }
+
+    // Local / offline handling when no Supabase session is active
+    final localId = 'local-intern-${DateTime.now().millisecondsSinceEpoch}';
+    final localInternship = Internship(
+      id: localId,
+      studentId: _uid,
+      companyName: companyName.trim(),
+      title: title.trim(),
+      description: description?.trim(),
+      mode: mode.toLowerCase().trim(),
+      startDate: startDate,
+      endDate: endDate,
+      status: status.toLowerCase().trim(),
+      progress: 0,
+      createdAt: DateTime.now(),
+    );
+    _localInternships.insert(0, localInternship);
+    await CacheService.cacheData(
+      ownerId: _uid,
+      key: 'internships',
+      data: [..._localInternships, ...sampleInternships].map(_internshipToMap).toList(),
+    );
     await _invalidateInternshipCache();
   }
 
@@ -188,22 +272,44 @@ class InternshipService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    await _c
-        .from('internships')
-        .update({
-          'company_name': companyName,
-          'title': title,
-          'description': description,
-          'mode': mode,
-          'start_date': isoDate(startDate),
-          'end_date': isoDate(endDate),
-        })
-        .eq('id', id);
+    final localIndex = _localInternships.indexWhere((i) => i.id == id);
+    if (localIndex != -1) {
+      final prev = _localInternships[localIndex];
+      _localInternships[localIndex] = Internship(
+        id: prev.id,
+        studentId: prev.studentId,
+        companyName: companyName,
+        title: title,
+        description: description,
+        mode: mode,
+        startDate: startDate,
+        endDate: endDate,
+        status: prev.status,
+        progress: prev.progress,
+        createdAt: prev.createdAt,
+      );
+    }
+    if (_c.auth.currentUser != null && !id.startsWith('demo-') && !id.startsWith('local-')) {
+      await _c
+          .from('internships')
+          .update({
+            'company_name': companyName,
+            'title': title,
+            'description': description,
+            'mode': mode.toLowerCase().trim(),
+            'start_date': isoDate(startDate),
+            'end_date': isoDate(endDate),
+          })
+          .eq('id', id);
+    }
     await _invalidateInternshipCache(id);
   }
 
   Future<void> delete(String id) async {
-    await _c.from('internships').delete().eq('id', id);
+    _localInternships.removeWhere((i) => i.id == id);
+    if (_c.auth.currentUser != null && !id.startsWith('demo-') && !id.startsWith('local-')) {
+      await _c.from('internships').delete().eq('id', id);
+    }
     await _invalidateInternshipCache(id);
   }
 
