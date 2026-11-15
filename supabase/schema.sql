@@ -74,6 +74,9 @@ create policy "profiles update own" on public.profiles for update to authenticat
   using (auth.uid() = id)
   with check (auth.uid() = id and role = public.current_role_of_user()); -- users cannot change their own role
 
+grant select, insert, update, delete on table public.profiles to authenticated;
+grant select on table public.profiles to anon;
+
 -- ---------- INTERNSHIPS ----------
 create table if not exists public.internships (
   id           uuid primary key default gen_random_uuid(),
@@ -81,12 +84,12 @@ create table if not exists public.internships (
   company_name text not null,
   title        text not null,
   description  text,
-  mode         text not null default 'onsite' check (mode in ('onsite','remote','hybrid')),
+  mode         text not null default 'onsite',
   start_date   date not null,
   end_date     date not null,
-  status       text not null default 'pending'
-               check (status in ('pending','approved','rejected','completed')),
+  status       text not null default 'pending',
   progress     int  not null default 0 check (progress between 0 and 100),
+  industry_id  uuid,
   created_at   timestamptz not null default now(),
   check (end_date >= start_date)
 );
@@ -94,22 +97,47 @@ create table if not exists public.internships (
 alter table public.internships enable row level security;
 
 drop policy if exists "internships read" on public.internships;
+drop policy if exists "internships read scoped" on public.internships;
+drop policy if exists "Students can view own internships" on public.internships;
 create policy "internships read" on public.internships for select to authenticated
-  using (student_id = auth.uid() or public.current_role_of_user() in ('faculty','tnp'));
+  using (
+    student_id = auth.uid()
+    or (exists (select 1 from public.students s where s.id = internships.student_id and s.user_id = auth.uid()))
+    or public.current_role_of_user() in ('faculty','faculty_mentor','tnp','tp_officer','industry','industry_supervisor','admin')
+  );
 
 drop policy if exists "internships insert own" on public.internships;
+drop policy if exists "Students can insert own internships" on public.internships;
+drop policy if exists "Users can insert own internships" on public.internships;
 create policy "internships insert own" on public.internships for insert to authenticated
-  with check (student_id = auth.uid() and status = 'pending' and progress = 0);
+  with check (
+    (
+      student_id = auth.uid()
+      or (exists (select 1 from public.students s where s.id = internships.student_id and s.user_id = auth.uid()))
+    )
+    and (status is null or lower(status::text) in ('pending', 'planned', 'active'))
+  );
 
 -- a student can edit only while still pending; they cannot approve themselves
 drop policy if exists "internships update own pending" on public.internships;
 create policy "internships update own pending" on public.internships for update to authenticated
-  using (student_id = auth.uid() and status = 'pending')
-  with check (student_id = auth.uid() and status = 'pending');
+  using (
+    student_id = auth.uid()
+    or (exists (select 1 from public.students s where s.id = internships.student_id and s.user_id = auth.uid()))
+  )
+  with check (
+    student_id = auth.uid()
+    or (exists (select 1 from public.students s where s.id = internships.student_id and s.user_id = auth.uid()))
+  );
 
 drop policy if exists "internships delete own pending" on public.internships;
 create policy "internships delete own pending" on public.internships for delete to authenticated
-  using (student_id = auth.uid() and status = 'pending');
+  using (
+    student_id = auth.uid()
+    or (exists (select 1 from public.students s where s.id = internships.student_id and s.user_id = auth.uid()))
+  );
+
+grant select, insert, update, delete on table public.internships to authenticated;
 
 -- faculty / T&P review (used by the teammate building the approval workflow)
 drop policy if exists "internships review" on public.internships;

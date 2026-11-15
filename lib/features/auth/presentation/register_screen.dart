@@ -116,6 +116,19 @@ GRANT EXECUTE ON FUNCTION public.handle_new_user() TO anon, authenticated, servi
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "profiles insert own" ON public.profiles;
 CREATE POLICY "profiles insert own" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO authenticated;
+
+-- Internships RLS & Permissions
+ALTER TABLE public.internships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "internships insert own" ON public.internships;
+DROP POLICY IF EXISTS "Students can insert own internships" ON public.internships;
+CREATE POLICY "internships insert own" ON public.internships FOR INSERT TO authenticated
+  WITH CHECK ((student_id = auth.uid() OR EXISTS (SELECT 1 FROM public.students s WHERE s.id = internships.student_id AND s.user_id = auth.uid())) AND (status IS NULL OR LOWER(status::text) IN ('pending', 'planned', 'active')));
+DROP POLICY IF EXISTS "internships read" ON public.internships;
+CREATE POLICY "internships read" ON public.internships FOR SELECT TO authenticated
+  USING (student_id = auth.uid() OR EXISTS (SELECT 1 FROM public.students s WHERE s.id = internships.student_id AND s.user_id = auth.uid()) OR public.current_role_of_user() IN ('faculty', 'faculty_mentor', 'tnp', 'tp_officer', 'admin'));
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.internships TO authenticated;
+NOTIFY pgrst, 'reload schema';
 ''';
 
 class RegisterScreen extends StatefulWidget {
