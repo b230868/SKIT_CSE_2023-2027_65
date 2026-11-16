@@ -258,7 +258,10 @@ alter table public.notifications enable row level security;
 
 drop policy if exists "Users read own notifications" on public.notifications;
 create policy "Users read own notifications" on public.notifications for select to authenticated
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or user_id in (select id from public.students where user_id = auth.uid())
+  );
 
 drop policy if exists "Users insert own notifications" on public.notifications;
 create policy "Users insert own notifications" on public.notifications for insert to authenticated
@@ -266,14 +269,31 @@ create policy "Users insert own notifications" on public.notifications for inser
 
 drop policy if exists "Users update own notifications" on public.notifications;
 create policy "Users update own notifications" on public.notifications for update to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or user_id in (select id from public.students where user_id = auth.uid())
+  ) with check (
+    user_id = auth.uid()
+    or user_id in (select id from public.students where user_id = auth.uid())
+  );
 
 drop policy if exists "Users delete own notifications" on public.notifications;
 create policy "Users delete own notifications" on public.notifications for delete to authenticated
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or user_id in (select id from public.students where user_id = auth.uid())
+  );
+
+drop policy if exists "Anon read notifications" on public.notifications;
+create policy "Anon read notifications" on public.notifications for select to anon
+  using (true);
+
+drop policy if exists "Anon update notifications" on public.notifications;
+create policy "Anon update notifications" on public.notifications for update to anon
+  using (true) with check (true);
 
 grant select, insert, update, delete on table public.notifications to authenticated;
-grant select on table public.notifications to anon;
+grant select, insert, update, delete on table public.notifications to anon;
 
 create or replace function public.notify_on_itr_status_changed()
 returns trigger

@@ -49,7 +49,7 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
       final rows = await client
           .from('notifications')
           .select('id')
-          .eq('recipient_id', user.id)
+          .or('user_id.eq.${user.id},recipient_id.eq.${user.id}')
           .eq('is_read', false);
       if (mounted) {
         setState(() {
@@ -107,7 +107,7 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
             final rows = await client
                 .from('notifications')
                 .select('*')
-                .eq('recipient_id', user.id)
+                .or('user_id.eq.${user.id},recipient_id.eq.${user.id}')
                 .order('created_at', ascending: false)
                 .limit(20);
             return List<Map<String, dynamic>>.from(rows as List);
@@ -147,7 +147,7 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                           await client
                               .from('notifications')
                               .update({'is_read': true})
-                              .eq('recipient_id', user.id);
+                              .or('user_id.eq.${user.id},recipient_id.eq.${user.id}');
                         }
                       } catch (_) {}
                       if (context.mounted) {
@@ -200,7 +200,11 @@ class _IndustryDashboardScreenState extends State<IndustryDashboardScreen> {
                                   : FontWeight.bold,
                             ),
                           ),
-                          subtitle: Text(notif['message']?.toString() ?? ''),
+                          subtitle: Text(
+                            notif['body']?.toString() ??
+                                notif['message']?.toString() ??
+                                '',
+                          ),
                         );
                       },
                     ),

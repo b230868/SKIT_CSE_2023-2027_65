@@ -4,6 +4,7 @@ import 'alerts_screen.dart';
 
 import '../../features/internship/presentation/internship_detail_screen.dart';
 import '../../models/notification_models.dart';
+import '../../services/notification_cache_service.dart';
 import '../../services/notification_service.dart';
 
 IconData _iconFor(String type) => switch (type) {
@@ -29,6 +30,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   late final Stream<List<AppNotification>> _stream;
   final Set<String> _hidden =
       {}; // dismissed locally until the stream catches up
+  final Set<String> _readLocally = {};
+  List<AppNotification> _currentList = const [];
+
+  bool _isRead(AppNotification n) =>
+      n.isRead ||
+      _readLocally.contains(n.id) ||
+      NotificationCacheService.isReadLocally(n.id);
 
   @override
   void initState() {
@@ -43,7 +51,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _open(AppNotification n) async {
-    if (!n.isRead) {
+    if (!_isRead(n)) {
+      setState(() => _readLocally.add(n.id));
       try {
         await _svc.markRead(n.id);
       } catch (_) {
@@ -69,8 +78,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _markAllRead() async {
+    setState(() {
+      for (final n in _currentList) {
+        _readLocally.add(n.id);
+      }
+    });
     try {
       await _svc.markAllRead();
+      _toast('All notifications marked as read.');
     } catch (_) {
       _toast('Could not mark notifications as read.');
     }
@@ -118,6 +133,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           final list = (s.data ?? const <AppNotification>[])
               .where((n) => !_hidden.contains(n.id))
               .toList();
+          _currentList = list;
           if (list.isEmpty) {
             return const Center(child: Text('No notifications yet.'));
           }
@@ -126,6 +142,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final n = list[i];
+              final isRead = _isRead(n);
               return Dismissible(
                 key: ValueKey(n.id),
                 direction: DismissDirection.endToStart,
@@ -141,7 +158,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 onDismissed: (_) => _delete(n),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: n.isRead
+                    backgroundColor: isRead
                         ? scheme.surfaceContainerHighest
                         : scheme.primaryContainer,
                     child: Icon(_iconFor(n.type)),
@@ -149,21 +166,34 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   title: Text(
                     n.title,
                     style: TextStyle(
-                      fontWeight: n.isRead
+                      fontWeight: isRead
                           ? FontWeight.normal
                           : FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(n.body),
-                  trailing: n.internshipId != null
-                      ? const Icon(Icons.chevron_right)
-                      : (n.isRead
-                            ? null
-                            : const Icon(
-                                Icons.circle,
-                                size: 10,
-                                color: Colors.blue,
-                              )),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isRead)
+                        IconButton(
+                          tooltip: 'Mark as read',
+                          icon: const Icon(Icons.done_all, size: 20, color: Colors.blue),
+                          onPressed: () async {
+                            setState(() => _readLocally.add(n.id));
+                            await _svc.markRead(n.id);
+                          },
+                        ),
+                      if (n.internshipId != null)
+                        const Icon(Icons.chevron_right)
+                      else if (!isRead)
+                        const Icon(
+                          Icons.circle,
+                          size: 10,
+                          color: Colors.blue,
+                        ),
+                    ],
+                  ),
                   onTap: () => _open(n),
                 ),
               );
@@ -188,7 +218,7 @@ class NotificationBell extends StatelessWidget {
       stream: svc.watch(),
       builder: (context, s) {
         final unread = (s.data ?? const <AppNotification>[])
-            .where((n) => !n.isRead)
+            .where((n) => !n.isRead && !NotificationCacheService.isReadLocally(n.id))
             .length;
         return IconButton(
           tooltip: 'Notifications',
