@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 
+import '../../../../models/notification_models.dart';
+import '../../../../services/notification_cache_service.dart';
 import '../models/itr_model.dart';
 import 'itr_repository.dart';
 
@@ -99,13 +101,34 @@ class MockItrRepository implements ItrRepository {
 
   @override
   Future<void> updateItrStatus(String id, String status) async {
-    final index = _itrs.indexWhere((itr) => itr.id == id);
+    final index = _itrs.indexWhere((itr) => itr.id == id || itr.internshipId == id || itr.studentId == id);
 
     if (index == -1) return;
 
     final existingItr = _itrs[index];
 
     _itrs[index] = existingItr.copyWith(status: status);
+
+    final isApproved = status.toLowerCase() == 'approved' || status.toLowerCase() == 'verified';
+    final isRejected = status.toLowerCase() == 'rejected';
+    if (isApproved || isRejected) {
+      final notifTitle = isApproved ? 'ITR Approved' : 'ITR Rejected';
+      final notifBody = isApproved
+          ? 'Your Industrial Training Report (ITR) for ${existingItr.internshipTitle} has been approved by your Faculty Mentor.'
+          : 'Your Industrial Training Report (ITR) for ${existingItr.internshipTitle} was rejected by your Faculty Mentor.';
+
+      NotificationCacheService.addLocalNotification(
+        AppNotification(
+          id: 'notif-itr-${DateTime.now().millisecondsSinceEpoch}',
+          title: notifTitle,
+          body: notifBody,
+          type: 'document',
+          isRead: false,
+          createdAt: DateTime.now(),
+          applicationId: existingItr.internshipId,
+        ),
+      );
+    }
   }
 
   @override
@@ -114,7 +137,7 @@ class MockItrRepository implements ItrRepository {
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final index = _itrs.indexWhere((itr) => itr.id == itrId || itr.internshipId == itrId || itr.studentId == itrId);
     final path = 'mock/$itrId/project/$fileName';
 
     if (index != -1) {
@@ -131,7 +154,7 @@ class MockItrRepository implements ItrRepository {
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final index = _itrs.indexWhere((itr) => itr.id == itrId || itr.internshipId == itrId || itr.studentId == itrId);
     final path = 'mock/$itrId/presentation/$fileName';
 
     if (index != -1) {
@@ -148,7 +171,7 @@ class MockItrRepository implements ItrRepository {
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final index = _itrs.indexWhere((itr) => itr.id == itrId || itr.internshipId == itrId || itr.studentId == itrId);
     final path = 'mock/$itrId/certificate/$fileName';
 
     if (index != -1) {
@@ -196,7 +219,7 @@ class MockItrRepository implements ItrRepository {
     required String remarks,
     String? reviewerName,
   }) async {
-    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final index = _itrs.indexWhere((itr) => itr.id == itrId || itr.internshipId == itrId || itr.studentId == itrId);
     if (index == -1) return;
 
     final existing = _itrs[index];
@@ -204,8 +227,29 @@ class MockItrRepository implements ItrRepository {
       status: status,
       remarks: remarks,
       reviewerName:
-          reviewerName ?? existing.reviewerName ?? 'Industry Supervisor',
+          reviewerName ?? existing.reviewerName ?? 'Faculty Mentor',
     );
+
+    final isApproved = status.toLowerCase() == 'approved' || status.toLowerCase() == 'verified';
+    final isRejected = status.toLowerCase() == 'rejected';
+    if (isApproved || isRejected) {
+      final notifTitle = isApproved ? 'ITR Approved' : 'ITR Rejected';
+      final notifBody = isApproved
+          ? 'Your Industrial Training Report (ITR) for ${existing.internshipTitle} has been approved by your Faculty Mentor.'
+          : 'Your Industrial Training Report (ITR) for ${existing.internshipTitle} was rejected by your Faculty Mentor.${remarks.trim().isNotEmpty ? ' Remarks: $remarks' : ''}';
+
+      NotificationCacheService.addLocalNotification(
+        AppNotification(
+          id: 'notif-itr-${DateTime.now().millisecondsSinceEpoch}',
+          title: notifTitle,
+          body: notifBody,
+          type: 'document',
+          isRead: false,
+          createdAt: DateTime.now(),
+          applicationId: existing.internshipId,
+        ),
+      );
+    }
   }
 
   @override
@@ -233,7 +277,7 @@ class MockItrRepository implements ItrRepository {
     required String status,
     String? certificateUrl,
   }) async {
-    final index = _itrs.indexWhere((itr) => itr.id == itrId);
+    final index = _itrs.indexWhere((itr) => itr.id == itrId || itr.internshipId == itrId || itr.studentId == itrId);
     if (index != -1) {
       final existing = _itrs[index];
       _itrs[index] = existing.copyWith(

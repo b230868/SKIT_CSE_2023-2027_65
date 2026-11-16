@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../../services/notification_service.dart';
 import '../../../geo_progress/models/geo_progress_log.dart';
 import '../../../geo_progress/services/geo_progress_service.dart';
+import '../../../itr/data/services/itr_service.dart';
 import '../../data/models/student_monitoring_detail.dart';
 import '../../data/repositories/student_monitoring_repository_factory.dart';
 import '../../data/services/student_monitoring_service.dart';
@@ -1010,8 +1012,249 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        _buildFacultyItrReviewCard(detail),
       ],
     );
+  }
+
+  Widget _buildFacultyItrReviewCard(StudentMonitoringDetail detail) {
+    final status = detail.itrStatus?.toLowerCase() ?? 'submitted';
+    final isApproved = status == 'approved' || status == 'verified';
+    final isRejected = status == 'rejected';
+
+    Color bannerColor = Colors.orange.shade50;
+    Color iconColor = Colors.orange.shade800;
+    IconData icon = Icons.pending_actions;
+    String statusTitle = 'Pending Evaluation';
+
+    if (isApproved) {
+      bannerColor = Colors.green.shade50;
+      iconColor = Colors.green.shade800;
+      icon = Icons.check_circle;
+      statusTitle = 'ITR Approved';
+    } else if (isRejected) {
+      bannerColor = Colors.red.shade50;
+      iconColor = Colors.red.shade800;
+      icon = Icons.cancel;
+      statusTitle = 'ITR Rejected';
+    }
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader(
+              Icons.rate_review,
+              'Faculty Mentor Decision & Evaluation',
+            ),
+            const Divider(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: bannerColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: iconColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, color: iconColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Status: $statusTitle',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: iconColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (detail.itrRemarks != null &&
+                detail.itrRemarks!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Feedback / Remarks: ${detail.itrRemarks}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  key: const Key('approve_itr_button'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: Text(isApproved ? 'Update Approval' : 'Approve ITR'),
+                  onPressed: () => _showReviewItrDialog(detail, isApprove: true),
+                ),
+                FilledButton.tonalIcon(
+                  key: const Key('reject_itr_button'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red.shade50,
+                    foregroundColor: Colors.red.shade700,
+                  ),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: Text(isRejected ? 'Update Rejection' : 'Reject ITR'),
+                  onPressed: () => _showReviewItrDialog(detail, isApprove: false),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showReviewItrDialog(
+    StudentMonitoringDetail detail, {
+    required bool isApprove,
+  }) async {
+    final remarksController = TextEditingController(
+      text: detail.itrRemarks ?? '',
+    );
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isApprove ? Icons.check_circle : Icons.cancel,
+              color: isApprove ? Colors.green : Colors.red,
+            ),
+            const SizedBox(width: 8),
+            Text(isApprove ? 'Approve ITR' : 'Reject ITR'),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Student: ${detail.studentName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Report: ${detail.itrProjectTitle ?? detail.internshipTitle ?? "Industrial Training Report"}',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('itr_review_remarks_input'),
+                controller: remarksController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: isApprove
+                      ? 'Remarks / Feedback (Optional)'
+                      : 'Rejection Reason / Feedback *',
+                  hintText: isApprove
+                      ? 'e.g., Report meets all academic criteria. Approved.'
+                      : 'e.g., Please provide complete project documentation and code repo link.',
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (val) {
+                  if (!isApprove && (val == null || val.trim().isEmpty)) {
+                    return 'Please enter a reason or feedback for rejection.';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('confirm_itr_review_button'),
+            style: FilledButton.styleFrom(
+              backgroundColor: isApprove ? Colors.green : Colors.red,
+            ),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: Text(isApprove ? 'Confirm Approval' : 'Confirm Rejection'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final remarks = remarksController.text.trim();
+    final newStatus = isApprove ? 'approved' : 'rejected';
+    final targetItrId =
+        detail.itrId ?? detail.internshipId ?? widget.studentId;
+
+    try {
+      // 1. Submit review via ItrService
+      await ItrService().reviewItr(
+        itrId: targetItrId,
+        status: newStatus,
+        remarks: remarks,
+        reviewerName: 'Faculty Mentor',
+      );
+
+      // 2. Dispatch student notification explicitly
+      final title = detail.itrProjectTitle ??
+          detail.internshipTitle ??
+          'Industrial Training Report';
+      final notifTitle = isApprove ? 'ITR Approved' : 'ITR Rejected';
+      final notifBody = isApprove
+          ? 'Your Industrial Training Report (ITR) for $title has been approved by your Faculty Mentor.'
+          : 'Your Industrial Training Report (ITR) for $title was rejected by your Faculty Mentor.${remarks.isNotEmpty ? ' Remarks: $remarks' : ''}';
+
+      final recipientStudentId = detail.userId ?? detail.studentId;
+      await NotificationService.notifyStudent(
+        studentId: recipientStudentId,
+        title: notifTitle,
+        body: notifBody,
+        type: 'document',
+        internshipId: detail.internshipId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'ITR ${isApprove ? "approved" : "rejected"} successfully. Student has been notified.',
+          ),
+          backgroundColor: isApprove ? Colors.green : Colors.red,
+        ),
+      );
+
+      await _loadDetails();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update ITR status: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   // ===========================================================================
