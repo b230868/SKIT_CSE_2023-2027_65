@@ -55,7 +55,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
+
+    final content = RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<Application>>(
         future: _future,
@@ -163,6 +165,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           );
         },
       ),
+    );
+
+    return Scaffold(
+      appBar: canPop
+          ? AppBar(
+              title: const Text('My Applications & Documents'),
+            )
+          : null,
+      body: content,
     );
   }
 }
