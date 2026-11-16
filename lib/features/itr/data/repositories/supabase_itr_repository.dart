@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:prashikshan/features/industry/data/models/evaluation_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../services/notification_service.dart';
 import '../models/itr_model.dart';
 import 'itr_repository.dart';
 
@@ -385,12 +386,47 @@ class SupabaseItrRepository implements ItrRepository {
 
   @override
   Future<void> updateItrStatus(String id, String status) async {
+    Map<String, dynamic>? itrRow;
+    try {
+      itrRow = await _client
+          .from('itrs')
+          .select('id, student_id, internship_id, internship_title, remarks')
+          .or('id.eq.$id,internship_id.eq.$id')
+          .maybeSingle();
+    } catch (_) {}
+
+    final targetId = itrRow != null ? itrRow['id'].toString() : id;
+
     await _client
         .from('itrs')
         .update({'status': status})
-        .eq('id', id)
-        .select('id')
-        .single();
+        .eq('id', targetId);
+
+    try {
+      final isApproved = status.toLowerCase() == 'approved' || status.toLowerCase() == 'verified';
+      final isRejected = status.toLowerCase() == 'rejected';
+      if (isApproved || isRejected) {
+        final studentId = itrRow?['student_id']?.toString();
+        final internshipId = itrRow?['internship_id']?.toString();
+        final title = itrRow?['internship_title']?.toString() ?? 'Industrial Training Report';
+        final rem = itrRow?['remarks']?.toString();
+
+        if (studentId != null) {
+          final notifTitle = isApproved ? 'ITR Approved' : 'ITR Rejected';
+          final notifBody = isApproved
+              ? 'Your Industrial Training Report (ITR) for $title has been approved by your Faculty Mentor.'
+              : 'Your Industrial Training Report (ITR) for $title was rejected by your Faculty Mentor.${rem != null && rem.trim().isNotEmpty ? ' Remarks: $rem' : ''}';
+
+          await NotificationService.notifyStudent(
+            studentId: studentId,
+            title: notifTitle,
+            body: notifBody,
+            type: 'document',
+            internshipId: internshipId,
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -706,12 +742,47 @@ class SupabaseItrRepository implements ItrRepository {
       updates['reviewer_name'] = reviewerName.trim();
     }
 
+    Map<String, dynamic>? itrRow;
+    try {
+      itrRow = await _client
+          .from('itrs')
+          .select('id, student_id, internship_id, internship_title')
+          .or('id.eq.$itrId,internship_id.eq.$itrId')
+          .maybeSingle();
+    } catch (_) {}
+
+    final targetId = itrRow != null ? itrRow['id'].toString() : itrId;
+
     await _client
         .from('itrs')
         .update(updates)
-        .eq('id', itrId)
-        .select('id')
-        .single();
+        .eq('id', targetId);
+
+    // Notify student about approval/rejection of their submitted ITR
+    try {
+      final isApproved = status.toLowerCase() == 'approved' || status.toLowerCase() == 'verified';
+      final isRejected = status.toLowerCase() == 'rejected';
+      if (isApproved || isRejected) {
+        final studentId = itrRow?['student_id']?.toString();
+        final internshipId = itrRow?['internship_id']?.toString();
+        final title = itrRow?['internship_title']?.toString() ?? 'Industrial Training Report';
+
+        if (studentId != null) {
+          final notifTitle = isApproved ? 'ITR Approved' : 'ITR Rejected';
+          final notifBody = isApproved
+              ? 'Your Industrial Training Report (ITR) for $title has been approved by your Faculty Mentor.'
+              : 'Your Industrial Training Report (ITR) for $title was rejected by your Faculty Mentor.${remarks.trim().isNotEmpty ? ' Remarks: $remarks' : ''}';
+
+          await NotificationService.notifyStudent(
+            studentId: studentId,
+            title: notifTitle,
+            body: notifBody,
+            type: 'document',
+            internshipId: internshipId,
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   @override

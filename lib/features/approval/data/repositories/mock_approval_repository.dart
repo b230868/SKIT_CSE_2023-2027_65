@@ -1,3 +1,5 @@
+import '../../../../models/notification_models.dart';
+import '../../../../services/notification_cache_service.dart';
 import '../models/approval_request_model.dart';
 import '../models/approval_review_model.dart';
 import '../../domain/entities/approval_review_stage.dart';
@@ -126,6 +128,25 @@ class MockApprovalRepository implements ApprovalRepository {
     );
 
     _reviews.add(review);
+
+    if (status == ApprovalStatus.approved ||
+        status == ApprovalStatus.rejected) {
+      final isApproved = status == ApprovalStatus.approved;
+      NotificationCacheService.addLocalNotification(
+        AppNotification(
+          id: 'notif-mock-${DateTime.now().millisecondsSinceEpoch}',
+          title: isApproved ? 'ITR Approved' : 'ITR Rejected',
+          body: isApproved
+              ? 'Your Industrial Training Report (ITR) has been approved by your Faculty Mentor.'
+              : 'Your Industrial Training Report (ITR) was rejected by your Faculty Mentor.${remarks != null && remarks.isNotEmpty ? ' Remarks: $remarks' : ''}',
+          type: 'document',
+          isRead: false,
+          createdAt: DateTime.now(),
+          applicationId: internshipId,
+        ),
+      );
+    }
+
     return review;
   }
 
@@ -154,6 +175,25 @@ class MockApprovalRepository implements ApprovalRepository {
     );
 
     _reviews[index] = updated;
+
+    if (status == ApprovalStatus.approved ||
+        status == ApprovalStatus.rejected) {
+      final isApproved = status == ApprovalStatus.approved;
+      NotificationCacheService.addLocalNotification(
+        AppNotification(
+          id: 'notif-mock-${DateTime.now().millisecondsSinceEpoch}',
+          title: isApproved ? 'ITR Approved' : 'ITR Rejected',
+          body: isApproved
+              ? 'Your Industrial Training Report (ITR) has been approved by your Faculty Mentor.'
+              : 'Your Industrial Training Report (ITR) was rejected by your Faculty Mentor.${remarks != null && remarks.isNotEmpty ? ' Remarks: $remarks' : ''}',
+          type: 'document',
+          isRead: false,
+          createdAt: DateTime.now(),
+          applicationId: existing.internshipId,
+        ),
+      );
+    }
+
     return updated;
   }
 

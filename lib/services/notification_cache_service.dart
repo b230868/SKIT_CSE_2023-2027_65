@@ -66,7 +66,17 @@ class NotificationCacheService {
   // Reads
   // ---------------------------------------------------------------------------
 
-  static List<AppNotification> get sampleNotifications => [
+  static final List<AppNotification> _localNotifications = [];
+
+  static List<AppNotification> get localNotifications =>
+      List.unmodifiable(_localNotifications);
+
+  static void addLocalNotification(AppNotification notification) {
+    _localNotifications.removeWhere((n) => n.id == notification.id);
+    _localNotifications.insert(0, notification);
+  }
+
+  static List<AppNotification> get _defaultSampleNotifications => [
         AppNotification(
           id: 'demo-notif-001',
           title: 'Internship Application Approved',
@@ -108,6 +118,9 @@ class NotificationCacheService {
           applicationId: 'demo-intern-001',
         ),
       ];
+
+  static List<AppNotification> get sampleNotifications =>
+      [..._localNotifications, ..._defaultSampleNotifications];
 
   /// Cached notifications (empty if nothing has been fetched yet).
   Future<List<AppNotification>> getCached() async =>

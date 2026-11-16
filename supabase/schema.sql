@@ -241,3 +241,90 @@ drop policy if exists "docs storage delete" on storage.objects;
 create policy "docs storage delete" on storage.objects for delete to authenticated
   using (bucket_id = 'internship-docs'
          and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- NOTIFICATIONS & ITR STATUS TRIGGER ----------
+create table if not exists public.notifications (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references public.profiles(id) on delete cascade,
+  title         text not null,
+  body          text not null default '',
+  type          text not null default 'document',
+  internship_id uuid references public.internships(id) on delete cascade,
+  is_read       boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "Users read own notifications" on public.notifications;
+create policy "Users read own notifications" on public.notifications for select to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "Users insert own notifications" on public.notifications;
+create policy "Users insert own notifications" on public.notifications for insert to authenticated
+  with check (true);
+
+drop policy if exists "Users update own notifications" on public.notifications;
+create policy "Users update own notifications" on public.notifications for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "Users delete own notifications" on public.notifications;
+create policy "Users delete own notifications" on public.notifications for delete to authenticated
+  using (user_id = auth.uid());
+
+grant select, insert, update, delete on table public.notifications to authenticated;
+grant select on table public.notifications to anon;
+
+create or replace function public.notify_on_itr_status_changed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid;
+  v_title text;
+  v_body text;
+  v_internship_title text;
+  v_remarks text;
+begin
+  if new.status is distinct from old.status
+     and lower(new.status::text) in ('approved', 'rejected', 'changes_requested') then
+    begin
+      select coalesce(
+        (select s.user_id from public.students s where s.id = new.student_id limit 1),
+        (select p.id from public.profiles p where p.id = new.student_id limit 1),
+        (select i.student_id from public.internships i where i.id = new.internship_id limit 1)
+      ) into v_user_id;
+
+      select coalesce(
+        nullif(trim(coalesce(new.internship_title, '')), ''),
+        nullif(trim(coalesce(new.project_title, '')), ''),
+        (select title from public.internships where id = new.internship_id limit 1),
+        'Industrial Training Report'
+      ) into v_internship_title;
+
+      v_remarks := nullif(trim(coalesce(new.remarks, '')), '');
+
+      if lower(new.status::text) = 'approved' then
+        v_title := 'ITR Approved';
+        v_body := 'Your Industrial Training Report (ITR) for ' || v_internship_title || ' has been approved by your Faculty Mentor.';
+      elsif lower(new.status::text) = 'rejected' then
+        v_title := 'ITR Rejected';
+        v_body := 'Your Industrial Training Report (ITR) for ' || v_internship_title || ' was rejected.' || case when v_remarks is not null then ' Remarks: ' || v_remarks else '' end;
+      else
+        v_title := 'ITR Changes Requested';
+        v_body := 'Changes have been requested for your Industrial Training Report (ITR) for ' || v_internship_title || '.' || case when v_remarks is not null then ' Feedback: ' || v_remarks else '' end;
+      end if;
+
+      if v_user_id is not null then
+        insert into public.notifications (user_id, title, body, type, internship_id, is_read)
+        values (v_user_id, v_title, v_body, 'document', new.internship_id, false);
+      end if;
+    exception when others then
+      raise warning 'Could not create notification on ITR status change: %', sqlerrm;
+    end;
+  end if;
+  return new;
+end;
+$$;

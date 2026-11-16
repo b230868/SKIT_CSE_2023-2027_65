@@ -36,9 +36,10 @@ class NotificationService implements NotificationDataSource {
       final list = rows
           .map<AppNotification>((r) => AppNotification.fromMap(r))
           .toList();
-      return list.isEmpty
+      final combined = [...NotificationCacheService.localNotifications, ...list];
+      return combined.isEmpty
           ? NotificationCacheService.sampleNotifications
-          : list;
+          : combined;
     } catch (_) {
       return NotificationCacheService.sampleNotifications;
     }
@@ -59,10 +60,48 @@ class NotificationService implements NotificationDataSource {
         .map((rows) {
           final list =
               rows.map((r) => AppNotification.fromMap(r)).toList();
-          return list.isEmpty
+          final combined = [...NotificationCacheService.localNotifications, ...list];
+          return combined.isEmpty
               ? NotificationCacheService.sampleNotifications
-              : list;
+              : combined;
         });
+  }
+
+  /// Dispatches a notification to a student across cloud database and local cache
+  static Future<void> notifyStudent({
+    required String studentId,
+    required String title,
+    required String body,
+    String type = 'document',
+    String? internshipId,
+  }) async {
+    final notif = AppNotification(
+      id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      body: body,
+      type: type,
+      isRead: false,
+      createdAt: DateTime.now(),
+      applicationId: internshipId,
+    );
+    NotificationCacheService.addLocalNotification(notif);
+
+    try {
+      final client = Supabase.instance.client;
+      final payload = <String, dynamic>{
+        'user_id': studentId,
+        'title': title,
+        'body': body,
+        'type': type,
+        'is_read': false,
+      };
+      if (internshipId != null) {
+        payload['internship_id'] = internshipId;
+      }
+      await client.from('notifications').insert(payload);
+    } catch (_) {
+      // Best-effort in offline/mock environment
+    }
   }
 
   @override

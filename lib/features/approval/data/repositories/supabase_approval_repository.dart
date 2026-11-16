@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_service.dart';
+import '../../../../services/notification_service.dart';
 import '../../domain/entities/approval_review_stage.dart';
 import '../../domain/entities/approval_status.dart';
 import '../models/approval_request_model.dart';
@@ -83,6 +84,14 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           .from('internships')
           .update({'status': status.value})
           .eq('id', internshipId);
+
+      await _syncItrAndNotifyStudent(
+        client: client,
+        internshipId: internshipId,
+        status: status,
+        remarks: remarks,
+        currentUserId: currentUserId,
+      );
     }
 
     return ApprovalReviewModel.fromMap(Map<String, dynamic>.from(row));
@@ -119,28 +128,79 @@ class SupabaseApprovalRepository implements ApprovalRepository {
           .from('internships')
           .update({'status': status.value})
           .eq('id', review.internshipId);
-    }
 
-    // Sync with ITR table only on final approval/rejection if an ITR exists
-    if (status == ApprovalStatus.approved || status == ApprovalStatus.rejected) {
-      try {
-        await client
-            .from('itrs')
-            .update({
-              'status':
-                  status == ApprovalStatus.approved ? 'approved' : 'rejected',
-              'reviewed_at': DateTime.now().toIso8601String(),
-              'reviewer_id': currentUserId,
-              if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
-            })
-            .eq('internship_id', review.internshipId);
-      } catch (_) {
-        // Non-blocking if ITR row does not exist for this internship
-      }
+      await _syncItrAndNotifyStudent(
+        client: client,
+        internshipId: review.internshipId,
+        status: status,
+        remarks: remarks,
+        currentUserId: currentUserId,
+      );
     }
 
     return review;
   });
+
+  Future<void> _syncItrAndNotifyStudent({
+    required SupabaseClient client,
+    required String internshipId,
+    required ApprovalStatus status,
+    String? remarks,
+    String? currentUserId,
+  }) async {
+    if (status != ApprovalStatus.approved && status != ApprovalStatus.rejected) {
+      return;
+    }
+
+    final isApproved = status == ApprovalStatus.approved;
+    final statusStr = isApproved ? 'approved' : 'rejected';
+
+    // 1. Sync with ITR table if an ITR exists for this internship
+    try {
+      final updates = <String, dynamic>{
+        'status': statusStr,
+        'reviewed_at': DateTime.now().toIso8601String(),
+      };
+      if (currentUserId != null) updates['reviewer_id'] = currentUserId;
+      if (remarks != null && remarks.isNotEmpty) updates['remarks'] = remarks;
+
+      await client
+          .from('itrs')
+          .update(updates)
+          .eq('internship_id', internshipId);
+    } catch (_) {
+      // Non-blocking if ITR row does not exist for this internship
+    }
+
+    // 2. Fetch internship details & student ID to send student notification
+    try {
+      final internRow = await client
+          .from('internships')
+          .select('student_id, title, company_name')
+          .eq('id', internshipId)
+          .maybeSingle();
+
+      if (internRow != null && internRow['student_id'] != null) {
+        final studentId = internRow['student_id'].toString();
+        final title = internRow['title']?.toString() ??
+            internRow['company_name']?.toString() ??
+            'Industrial Training Report';
+
+        final notifTitle = isApproved ? 'ITR Approved' : 'ITR Rejected';
+        final notifBody = isApproved
+            ? 'Your Industrial Training Report (ITR) for $title has been approved by your Faculty Mentor.'
+            : 'Your Industrial Training Report (ITR) for $title was rejected by your Faculty Mentor.${remarks != null && remarks.isNotEmpty ? ' Remarks: $remarks' : ''}';
+
+        await NotificationService.notifyStudent(
+          studentId: studentId,
+          title: notifTitle,
+          body: notifBody,
+          type: 'document',
+          internshipId: internshipId,
+        );
+      }
+    } catch (_) {}
+  }
 
   @override
   Future<List<ApprovalRequestModel>> getApprovalRequests({
