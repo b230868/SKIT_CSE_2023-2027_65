@@ -22,10 +22,13 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 
 -- Ensure columns exist
 ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS recipient_id uuid REFERENCES public.profiles(id),
   ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'document',
   ADD COLUMN IF NOT EXISTS internship_id uuid REFERENCES public.internships(id) ON DELETE CASCADE,
   ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+UPDATE public.notifications SET recipient_id = user_id WHERE recipient_id IS NULL;
 
 -- Ensure indexes exist
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications (user_id);
@@ -33,7 +36,47 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON public.notification
 
 -- Ensure permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.notifications TO authenticated;
-GRANT SELECT ON TABLE public.notifications TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.notifications TO anon;
+
+-- Ensure RLS policies for notifications
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users read own notifications" ON public.notifications;
+CREATE POLICY "Users read own notifications" ON public.notifications FOR SELECT TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR user_id IN (SELECT id FROM public.students WHERE user_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users update own notifications" ON public.notifications;
+CREATE POLICY "Users update own notifications" ON public.notifications FOR UPDATE TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR user_id IN (SELECT id FROM public.students WHERE user_id = auth.uid())
+  )
+  WITH CHECK (
+    user_id = auth.uid()
+    OR user_id IN (SELECT id FROM public.students WHERE user_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users insert notifications" ON public.notifications;
+CREATE POLICY "Users insert notifications" ON public.notifications FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users delete own notifications" ON public.notifications;
+CREATE POLICY "Users delete own notifications" ON public.notifications FOR DELETE TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR user_id IN (SELECT id FROM public.students WHERE user_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Anon read notifications" ON public.notifications;
+CREATE POLICY "Anon read notifications" ON public.notifications FOR SELECT TO anon
+  USING (true);
+
+DROP POLICY IF EXISTS "Anon update notifications" ON public.notifications;
+CREATE POLICY "Anon update notifications" ON public.notifications FOR UPDATE TO anon
+  USING (true) WITH CHECK (true);
 
 -- Ensure notifications_type_check is permissive
 DO $$

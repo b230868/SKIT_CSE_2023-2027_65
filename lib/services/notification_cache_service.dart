@@ -67,9 +67,35 @@ class NotificationCacheService {
   // ---------------------------------------------------------------------------
 
   static final List<AppNotification> _localNotifications = [];
+  static final Set<String> _readIds = <String>{};
+
+  static bool isReadLocally(String id) => _readIds.contains(id);
+
+  static void markIdAsReadLocally(String id) {
+    _readIds.add(id);
+    for (int i = 0; i < _localNotifications.length; i++) {
+      if (_localNotifications[i].id == id) {
+        _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+      }
+    }
+  }
+
+  static void markAllAsReadLocally([Iterable<String>? ids]) {
+    if (ids != null) {
+      _readIds.addAll(ids);
+    }
+    for (int i = 0; i < _localNotifications.length; i++) {
+      _readIds.add(_localNotifications[i].id);
+      _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+    }
+    for (final sample in _defaultSampleNotifications) {
+      _readIds.add(sample.id);
+    }
+  }
 
   static List<AppNotification> get localNotifications =>
-      List.unmodifiable(_localNotifications);
+      List.unmodifiable(_localNotifications.map((n) =>
+          _readIds.contains(n.id) ? n.copyWith(isRead: true) : n));
 
   static void addLocalNotification(AppNotification notification) {
     _localNotifications.removeWhere((n) => n.id == notification.id);
@@ -120,7 +146,9 @@ class NotificationCacheService {
       ];
 
   static List<AppNotification> get sampleNotifications =>
-      [..._localNotifications, ..._defaultSampleNotifications];
+      [..._localNotifications, ..._defaultSampleNotifications]
+          .map((n) => _readIds.contains(n.id) ? n.copyWith(isRead: true) : n)
+          .toList();
 
   /// Cached notifications (empty if nothing has been fetched yet).
   Future<List<AppNotification>> getCached() async =>
@@ -208,6 +236,7 @@ class NotificationCacheService {
   // ---------------------------------------------------------------------------
 
   Future<void> markAsRead(String id) async {
+    markIdAsReadLocally(id);
     await _patchCache((row) {
       if (row['id'] == id) row['is_read'] = true;
     });
@@ -219,8 +248,8 @@ class NotificationCacheService {
   }
 
   Future<void> markAllAsRead() async {
+    markAllAsReadLocally();
     final uid = _uid;
-    if (uid == null) return;
 
     final unreadIds = (await _readCache())
         .where((m) => m['is_read'] != true)
@@ -229,15 +258,17 @@ class NotificationCacheService {
 
     await _patchCache((row) => row['is_read'] = true);
 
-    try {
-      await _client
-          .from('notifications')
-          .update({'is_read': true})
-          .eq('user_id', uid)
-          .eq('is_read', false);
-    } catch (_) {
-      for (final id in unreadIds) {
-        await _queueRead(id);
+    if (uid != null) {
+      try {
+        await _client
+            .from('notifications')
+            .update({'is_read': true})
+            .eq('user_id', uid)
+            .eq('is_read', false);
+      } catch (_) {
+        for (final id in unreadIds) {
+          await _queueRead(id);
+        }
       }
     }
   }

@@ -29,6 +29,26 @@ class AppNotification {
         createdAt: DateTime.parse(m['created_at'] as String),
         applicationId: (m['internship_id'] ?? m['application_id']) as String?,
       );
+
+  AppNotification copyWith({
+    String? id,
+    String? title,
+    String? body,
+    String? type,
+    bool? isRead,
+    DateTime? createdAt,
+    String? applicationId,
+    String? internshipId,
+  }) =>
+      AppNotification(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        body: body ?? this.body,
+        type: type ?? this.type,
+        isRead: isRead ?? this.isRead,
+        createdAt: createdAt ?? this.createdAt,
+        applicationId: applicationId ?? internshipId ?? this.applicationId,
+      );
 }
 
 /// One weekly progress entry, used by the trend chart and the PDF.
