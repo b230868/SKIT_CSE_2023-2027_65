@@ -44,20 +44,32 @@ String _signed(int v) => v > 0 ? '+$v' : '$v';
 /// analytics with a selectable time window, documents and notification
 /// statistics, PDF export and a copyable summary.
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
+  /// Optional data source. Used by the widget tests to supply fake data;
+  /// in the app it is left null and ReportService is used.
+  final Future<ReportSummary> Function({bool force})? loader;
+
+  const ReportsScreen({super.key, this.loader});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final _service = ReportService();
-  late Future<ReportSummary> _future = _service.studentSummary();
+  late final ReportService _service = ReportService(); // created only when needed
+
+  Future<ReportSummary> _load({bool force = false}) {
+    final custom = widget.loader;
+    return custom != null ? custom(force: force) : _service.studentSummary(force: force);
+  }
+
+  late Future<ReportSummary> _future = _load();
   bool _exporting = false;
   int _window = 0; // 0 = all weeks, otherwise the last N weeks
 
   Future<void> _refresh() async {
-    setState(() => _future = _service.studentSummary(force: true));
+    setState(() {
+      _future = _load(force: true);
+    });
     await _future.then((_) {}, onError: (_) {});
   }
 
@@ -247,18 +259,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             'Apply for an internship, upload your documents and log weekly progress. '
             'Your report will appear here.',
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: FilledButton.icon(
-              onPressed: () {
-                setState(() {
-                  _future = Future.value(ReportSummary.sample());
-                });
-              },
-              icon: const Icon(Icons.analytics_outlined),
-              label: const Text('Preview Sample Report & Analytics'),
-            ),
           ),
         ],
       );
