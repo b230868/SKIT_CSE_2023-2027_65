@@ -60,6 +60,11 @@ class CacheService {
     await box.deleteAll(keys);
   }
 
+  /// Wipes all local offline cached data across all keys and users.
+  static Future<void> clearAll() async {
+    await box.clear();
+  }
+
   static Future<void> cacheDashboardStats(
     String key,
     Map<String, dynamic> stats,

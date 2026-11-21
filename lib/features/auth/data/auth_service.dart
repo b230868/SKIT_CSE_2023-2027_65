@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/storage/cache_service.dart';
 import '../../../core/supabase_config.dart';
 import '../models/app_user.dart';
 
@@ -195,7 +196,12 @@ class AuthService {
     );
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    try {
+      await CacheService.clearAll();
+    } catch (_) {}
+    await _client.auth.signOut();
+  }
 
   /// Fetches profile with self-healing fallback in case the database trigger failed.
   Future<AppUser> fetchProfile() async {
