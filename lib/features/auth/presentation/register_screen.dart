@@ -8,11 +8,7 @@ import '../../../core/supabase_config.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
-import '../../industry/presentation/screens/industry_shell.dart';
-import '../../student/student_shell.dart';
 import '../data/auth_service.dart';
-import '../models/app_user.dart';
 import '../utils/password_validator.dart';
 import '../utils/phone_validator.dart';
 
@@ -329,44 +325,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _continueAsDemoUser() {
-    final trimmedEmail = _email.text.trim().toLowerCase();
-    final name = _name.text.trim().isNotEmpty ? _name.text.trim() : 'Student User';
-    final role = _role;
-    final isStudent = role == 'student';
-    final isFaculty = role == 'faculty';
-    final isIndustry = role == 'industry' || role == 'industry_supervisor';
-
-    final demoUser = AppUser(
-      id: 'student-demo-${DateTime.now().millisecondsSinceEpoch}',
-      fullName: name,
-      email: trimmedEmail.isNotEmpty ? trimmedEmail : 'student@skit.ac.in',
-      role: isStudent ? 'student' : (isFaculty ? 'faculty_mentor' : 'industry_supervisor'),
-      enrollmentNo: isStudent
-          ? (_enrollment.text.trim().isNotEmpty ? _enrollment.text.trim() : 'B230888')
-          : null,
-      branch: isStudent ? (_branch ?? 'CSE') : null,
-      phone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : '+91 70144 93739',
-      designation: isIndustry
-          ? (_company.text.trim().isNotEmpty ? _company.text.trim() : 'Industry Partner')
-          : (isFaculty ? 'Faculty Mentor' : 'Student'),
-    );
-
-    if (isFaculty) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const FacultyDashboardScreen()),
-      );
-    } else if (isIndustry) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => IndustryShell(user: demoUser)),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => StudentShell(user: demoUser)),
-      );
     }
   }
 
@@ -801,20 +759,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppTheme.saffron,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                              ),
-                              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                              label: Text(
-                                'Continue as ${_name.text.trim().isNotEmpty ? _name.text.trim() : 'Student'} (Demo Mode)',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                              onPressed: _continueAsDemoUser,
-                            ),
-                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Expanded(
@@ -932,20 +876,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ? 'Please wait (${_cooldownSeconds}s)'
                                   : 'Create account',
                             ),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.ink,
-                        side: BorderSide(color: Colors.grey.shade400),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                      icon: const Icon(Icons.play_circle_outline, color: AppTheme.ink),
-                      label: const Text(
-                        'Instant Demo Access (Skip Cloud Registration)',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                      onPressed: _continueAsDemoUser,
                     ),
                   ],
                 ),

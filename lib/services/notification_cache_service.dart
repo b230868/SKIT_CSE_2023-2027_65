@@ -102,51 +102,10 @@ class NotificationCacheService {
     _localNotifications.insert(0, notification);
   }
 
-  static List<AppNotification> get _defaultSampleNotifications => [
-        AppNotification(
-          id: 'demo-notif-001',
-          title: 'Internship Application Approved',
-          body:
-              'Your application for Full Stack Flutter Developer at Infosys Technologies has been approved by the Faculty Mentor.',
-          type: 'application',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-002',
-          title: 'Milestone Progress Verified',
-          body:
-              'Week 4 progress update (75%) has been reviewed and verified with GPS stamp.',
-          type: 'progress',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-003',
-          title: 'Offer Letter Verified',
-          body:
-              'Training & Placement office verified your uploaded offer letter document.',
-          type: 'document',
-          isRead: true,
-          createdAt: DateTime.now().subtract(const Duration(days: 3)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-004',
-          title: 'Weekly Report Due Reminder',
-          body:
-              'Please submit your Week 5 progress report before Sunday 11:59 PM.',
-          type: 'alert',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(days: 5)),
-          applicationId: 'demo-intern-001',
-        ),
-      ];
+  static List<AppNotification> get _defaultSampleNotifications => const [];
 
   static List<AppNotification> get sampleNotifications =>
-      [..._localNotifications, ..._defaultSampleNotifications]
+      _localNotifications
           .map((n) => _readIds.contains(n.id) ? n.copyWith(isRead: true) : n)
           .toList();
 
@@ -157,7 +116,7 @@ class NotificationCacheService {
   /// Fetches the latest notifications; falls back to the cache when offline.
   Future<List<AppNotification>> fetchNotifications({int limit = 100}) async {
     final uid = _uid;
-    if (uid == null || uid == 'demo-student-id') return sampleNotifications;
+    if (uid == null || uid.isEmpty) return sampleNotifications;
 
     try {
       await syncPending();
@@ -186,7 +145,7 @@ class NotificationCacheService {
   /// Number of unread notifications (used for the bell badge).
   Future<int> unreadCount() async {
     final uid = _uid;
-    if (uid == null || uid == 'demo-student-id') {
+    if (uid == null || uid.isEmpty) {
       return sampleNotifications.where((n) => !n.isRead).length;
     }
 

@@ -108,7 +108,7 @@ class GeoProgressService {
         'Task descriptions must be 500 characters or less.',
       );
     }
-    final ownerId = _db.auth.currentUser?.id ?? 'demo-student-id';
+    final ownerId = _db.auth.currentUser?.id ?? '';
 
     final pos = await getCurrentPosition();
 
@@ -125,7 +125,7 @@ class GeoProgressService {
     );
 
     await _queue.enqueue(log, ownerId: ownerId);
-    if (_db.auth.currentUser == null || ownerId == 'demo-student-id') {
+    if (_db.auth.currentUser == null || ownerId.isEmpty) {
       return log;
     }
     try {
@@ -176,22 +176,19 @@ class GeoProgressService {
 
   /// Returns this signed-in user's queued logs, newest first.
   List<GeoProgressLog> getPendingProgress({String? internshipId}) {
-    final ownerId = _db.auth.currentUser?.id ?? 'demo-student-id';
+    final ownerId = _db.auth.currentUser?.id ?? '';
     return _queue.pending(ownerId: ownerId, internshipId: internshipId);
   }
 
   /// Retries locally cached progress. Failed entries remain queued for retry.
   Future<GeoProgressSyncResult> syncPendingProgress() async {
-    final ownerId = _db.auth.currentUser?.id ?? 'demo-student-id';
+    final ownerId = _db.auth.currentUser?.id ?? '';
 
     var syncedCount = 0;
     final failures = <String, String>{};
     for (final log in _queue.pending(ownerId: ownerId)) {
       try {
-        if (_db.auth.currentUser == null || ownerId == 'demo-student-id') {
-          // Demo/offline walkthrough mode: simulate successful upload & clear from local queue
-          await _queue.remove(ownerId: ownerId, clientRef: log.clientRef);
-          syncedCount++;
+        if (_db.auth.currentUser == null || ownerId.isEmpty) {
           continue;
         }
         final savedLog = await _send(log, ownerId: ownerId);
@@ -211,57 +208,8 @@ class GeoProgressService {
 
   /// Full history for one internship, newest first.
   Future<List<GeoProgressLog>> fetchHistory(String internshipId) async {
-    final ownerId = _db.auth.currentUser?.id ?? 'demo-student-id';
+    final ownerId = _db.auth.currentUser?.id ?? '';
     final pending = _queue.pending(ownerId: ownerId, internshipId: internshipId);
-
-    if (internshipId.startsWith('demo-')) {
-      final sample = [
-        GeoProgressLog(
-          clientRef: 'demo-geo-3',
-          internshipId: internshipId,
-          progressPercent: 75,
-          taskSummary:
-              'Integrated live Supabase queries and optimized reports view.',
-          latitude: 26.8228,
-          longitude: 75.8654,
-          accuracyM: 12.0,
-          capturedAt: DateTime.now().subtract(const Duration(days: 7)),
-          isPendingSync: false,
-        ),
-        GeoProgressLog(
-          clientRef: 'demo-geo-2',
-          internshipId: internshipId,
-          progressPercent: 50,
-          taskSummary:
-              'Built student notifications, badges and offline Hive storage.',
-          latitude: 26.8228,
-          longitude: 75.8654,
-          accuracyM: 15.0,
-          capturedAt: DateTime.now().subtract(const Duration(days: 14)),
-          isPendingSync: false,
-        ),
-        GeoProgressLog(
-          clientRef: 'demo-geo-1',
-          internshipId: internshipId,
-          progressPercent: 25,
-          taskSummary:
-              'Implemented internship application forms and validation.',
-          latitude: 26.8228,
-          longitude: 75.8654,
-          accuracyM: 10.0,
-          capturedAt: DateTime.now().subtract(const Duration(days: 21)),
-          isPendingSync: false,
-        ),
-      ];
-      final combined = <String, GeoProgressLog>{};
-      for (final s in sample) {
-        combined[s.clientRef] = s;
-      }
-      for (final p in pending) {
-        combined[p.clientRef] = p;
-      }
-      return _newestFirst(combined.values);
-    }
     final cacheKey = 'progress:$internshipId';
     try {
       final rows = await _db

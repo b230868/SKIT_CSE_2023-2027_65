@@ -10,60 +10,18 @@ class InternshipService {
   static const _bucket = 'internship-docs';
   final SupabaseClient _c = Supabase.instance.client;
 
-  String get _uid => _c.auth.currentUser?.id ?? 'demo-student-id';
+  String get _uid => _c.auth.currentUser?.id ?? '';
 
   // Holds in-memory internship submissions created during local sessions
   static final List<Internship> _localInternships = [];
 
-  static List<Internship> get sampleInternships => [
-        Internship(
-          id: 'demo-intern-001',
-          studentId: 'demo-student-id',
-          companyName: 'Infosys Technologies',
-          title: 'Full Stack Flutter Developer Intern',
-          description:
-              'Developing cross-platform mobile and web applications with Supabase backend.',
-          mode: 'hybrid',
-          startDate: DateTime(2026, 8, 15),
-          endDate: DateTime(2026, 12, 15),
-          status: 'approved',
-          progress: 75,
-          createdAt: DateTime(2026, 8, 15),
-        ),
-        Internship(
-          id: 'demo-intern-002',
-          studentId: 'demo-student-id',
-          companyName: 'Tata Consultancy Services (TCS)',
-          title: 'Cloud & AI Engineering Intern',
-          description:
-              'Building automated microservices and reporting dashboards.',
-          mode: 'onsite',
-          startDate: DateTime(2026, 9, 1),
-          endDate: DateTime(2026, 11, 30),
-          status: 'pending',
-          progress: 40,
-          createdAt: DateTime(2026, 9, 1),
-        ),
-        Internship(
-          id: 'demo-intern-003',
-          studentId: 'demo-student-id',
-          companyName: 'Wipro Technologies',
-          title: 'Mobile App Developer Intern',
-          description: 'Built mobile attendance and check-in workflows.',
-          mode: 'onsite',
-          startDate: DateTime(2026, 7, 1),
-          endDate: DateTime(2026, 8, 30),
-          status: 'completed',
-          progress: 100,
-          createdAt: DateTime(2026, 7, 1),
-        ),
-      ];
+  static List<Internship> get sampleInternships => const <Internship>[];
 
   // ---------- internships ----------
   Future<List<Internship>> fetchMine() async {
     final ownerId = _uid;
-    if (_c.auth.currentUser == null || ownerId == 'demo-student-id') {
-      return [..._localInternships, ...sampleInternships];
+    if (_c.auth.currentUser == null || ownerId.isEmpty) {
+      return _localInternships;
     }
     try {
       final data = await _c
@@ -79,16 +37,15 @@ class InternshipService {
           key: 'internships',
           data: combined.map(_internshipToMap).toList(),
         );
-        return combined;
       }
-      return sampleInternships;
+      return combined;
     } on Exception catch (error) {
-      if (!isNetworkError(error)) return [..._localInternships, ...sampleInternships];
+      if (!isNetworkError(error)) return _localInternships;
       final cached = CacheService.getCachedData(
         ownerId: ownerId,
         key: 'internships',
       );
-      if (cached == null) return [..._localInternships, ...sampleInternships];
+      if (cached == null) return _localInternships;
       return _asMapList(cached).map(Internship.fromMap).toList();
     }
   }
@@ -97,31 +54,29 @@ class InternshipService {
     final localMatch = _localInternships.where((i) => i.id == id);
     if (localMatch.isNotEmpty) return localMatch.first;
 
-    if (id.startsWith('demo-')) {
-      final found = sampleInternships.where((i) => i.id == id);
-      if (found.isNotEmpty) return found.first;
-      return sampleInternships.first;
-    }
     final ownerId = _uid;
     try {
       final data = await _c.from('internships').select().eq('id', id).single();
       final internship = Internship.fromMap(data);
-      await CacheService.cacheData(
-        ownerId: ownerId,
-        key: 'internship:$id',
-        data: _internshipToMap(internship),
-      );
-      return internship;
-    } on Exception catch (error) {
-      if (!isNetworkError(error)) {
-        return sampleInternships.first;
+      if (ownerId.isNotEmpty) {
+        await CacheService.cacheData(
+          ownerId: ownerId,
+          key: 'internship:$id',
+          data: _internshipToMap(internship),
+        );
       }
-      final cached = CacheService.getCachedData(
-        ownerId: ownerId,
-        key: 'internship:$id',
-      );
-      if (cached == null) return sampleInternships.first;
-      return Internship.fromMap(Map<String, dynamic>.from(cached as Map));
+      return internship;
+    } on Exception {
+      if (ownerId.isNotEmpty) {
+        final cached = CacheService.getCachedData(
+          ownerId: ownerId,
+          key: 'internship:$id',
+        );
+        if (cached != null) {
+          return Internship.fromMap(Map<String, dynamic>.from(cached as Map));
+        }
+      }
+      rethrow;
     }
   }
 
@@ -258,7 +213,7 @@ class InternshipService {
     await CacheService.cacheData(
       ownerId: _uid,
       key: 'internships',
-      data: [..._localInternships, ...sampleInternships].map(_internshipToMap).toList(),
+      data: _localInternships.map(_internshipToMap).toList(),
     );
     await _invalidateInternshipCache();
   }
@@ -289,7 +244,7 @@ class InternshipService {
         createdAt: prev.createdAt,
       );
     }
-    if (_c.auth.currentUser != null && !id.startsWith('demo-') && !id.startsWith('local-')) {
+    if (_c.auth.currentUser != null && !id.startsWith('local-')) {
       await _c
           .from('internships')
           .update({
@@ -307,7 +262,7 @@ class InternshipService {
 
   Future<void> delete(String id) async {
     _localInternships.removeWhere((i) => i.id == id);
-    if (_c.auth.currentUser != null && !id.startsWith('demo-') && !id.startsWith('local-')) {
+    if (_c.auth.currentUser != null && !id.startsWith('local-')) {
       await _c.from('internships').delete().eq('id', id);
     }
     await _invalidateInternshipCache(id);
@@ -375,37 +330,6 @@ class InternshipService {
         return documents;
       }
     } catch (_) {}
-    if (internshipId.startsWith('demo-')) {
-      return [
-        InternshipDocument(
-          id: 'doc-001',
-          internshipId: internshipId,
-          fileName: 'Offer_Letter_Infosys.pdf',
-          filePath: 'docs/offer_letter.pdf',
-          docType: 'offer_letter',
-          status: 'verified',
-          createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        ),
-        InternshipDocument(
-          id: 'doc-002',
-          internshipId: internshipId,
-          fileName: 'College_NOC_Permission.pdf',
-          filePath: 'docs/college_noc.pdf',
-          docType: 'noc',
-          status: 'verified',
-          createdAt: DateTime.now().subtract(const Duration(days: 28)),
-        ),
-        InternshipDocument(
-          id: 'doc-003',
-          internshipId: internshipId,
-          fileName: 'Mid_Term_Evaluation_Report.pdf',
-          filePath: 'docs/mid_term_report.pdf',
-          docType: 'certificate',
-          status: 'pending',
-          createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        ),
-      ];
-    }
     return [];
   }
 
