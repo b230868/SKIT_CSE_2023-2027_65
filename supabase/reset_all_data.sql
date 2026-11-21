@@ -3,12 +3,13 @@
 -- ==============================================================================
 -- PURPOSE:
 -- Deletes all existing user accounts, login credentials, profiles, internship
--- applications (ITRs), reviews, progress updates, documents, notifications,
--- attendance, evaluations, and storage files.
+-- applications (ITRs), reviews, progress updates, document records, notifications,
+-- attendance, and evaluations.
 --
 -- PRESERVES:
 -- All tables, schema definitions, constraints, sequences, foreign keys,
 -- triggers (e.g. handle_new_user), RLS policies, and storage buckets.
+-- (If you wish to empty files in storage buckets, you can do so in the Storage tab).
 --
 -- HOW TO RUN:
 -- 1. Open your Supabase Dashboard: https://supabase.com/dashboard
@@ -68,16 +69,7 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- 2. Clear uploaded storage files (keeps storage buckets intact)
-    IF EXISTS (
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_schema = 'storage' AND table_name = 'objects'
-    ) THEN
-        DELETE FROM storage.objects;
-        RAISE NOTICE 'Cleared all files from Supabase Storage.';
-    END IF;
-
-    -- 3. Delete all authentication credentials, users, and sessions
+    -- 2. Delete all authentication credentials, users, and sessions
     -- This wipes all student, faculty, tp_officer, and industry logins so they can register fresh.
     IF EXISTS (
         SELECT 1 FROM information_schema.tables 
