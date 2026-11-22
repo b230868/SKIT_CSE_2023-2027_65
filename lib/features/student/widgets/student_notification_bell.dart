@@ -213,7 +213,7 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: top5.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+                  separatorBuilder: (_, _) => const Divider(height: 1, indent: 64),
                   itemBuilder: (context, i) {
                     final n = top5[i];
                     final read = _isRead(n);

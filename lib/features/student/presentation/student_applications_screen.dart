@@ -411,7 +411,7 @@ class _StudentApplicationsScreenState extends State<StudentApplicationsScreen> {
                       : AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: ListView.builder(
-                            key: ValueKey('apps-${_selectedFilter}-$_sortBy-$_searchQuery'),
+                            key: ValueKey('apps-$_selectedFilter-$_sortBy-$_searchQuery'),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             itemCount: filteredList.length,
                             itemBuilder: (context, i) {

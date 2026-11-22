@@ -386,17 +386,22 @@ class _DocumentsTabState extends State<_DocumentsTab> {
   bool _busy = false;
 
   Future<void> _upload() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'],
     );
-    if (result == null || result.files.isEmpty) return;
+    if (files.isEmpty) return;
 
-    final file = result.files.single;
-    final size = file.size;
+    final file = files.single;
+    final size = await file.length();
+    if (!mounted) return;
+    if (size == null) {
+      showSnack(context, 'Could not read that file.', error: true);
+      return;
+    }
 
     if (size > 5 * 1024 * 1024) {
-      if (mounted) showSnack(context, 'File must be under 5 MB.', error: true);
+      showSnack(context, 'File must be under 5 MB.', error: true);
       return;
     }
 
