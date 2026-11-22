@@ -31,6 +31,45 @@ class NotificationCacheService {
   static const _lastFullKey = 'last_full_sync';
   static const _incrementalLimit = 500;
 
+  // ---------------------------------------------------------------------------
+  // In-memory local notification cache & read states (for mock/offline sessions)
+  // ---------------------------------------------------------------------------
+  static final List<AppNotification> _localNotifications = [];
+  static final Set<String> _readIds = <String>{};
+
+  /// Returns true if the notification has been marked read in local memory.
+  static bool isReadLocally(String id) => _readIds.contains(id);
+
+  /// Marks a notification read in local memory.
+  static void markIdAsReadLocally(String id) {
+    _readIds.add(id);
+    for (int i = 0; i < _localNotifications.length; i++) {
+      if (_localNotifications[i].id == id) {
+        _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+      }
+    }
+  }
+
+  /// Marks all local notifications as read, optionally including a set of IDs.
+  static void markAllAsReadLocally([Iterable<String>? ids]) {
+    if (ids != null) _readIds.addAll(ids);
+    for (int i = 0; i < _localNotifications.length; i++) {
+      _readIds.add(_localNotifications[i].id);
+      _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+    }
+  }
+
+  /// In-memory local notifications (e.g., from mock repositories or offline actions).
+  static List<AppNotification> get localNotifications =>
+      List.unmodifiable(_localNotifications.map((n) =>
+          _readIds.contains(n.id) ? n.copyWith(isRead: true) : n));
+
+  /// Adds an in-memory notification.
+  static void addLocalNotification(AppNotification notification) {
+    _localNotifications.removeWhere((n) => n.id == notification.id);
+    _localNotifications.insert(0, notification);
+  }
+
   String? get _uid => _client.auth.currentUser?.id;
 
   // ---------------------------------------------------------------------------
@@ -373,6 +412,8 @@ class NotificationCacheService {
 
   /// Call on sign-out so the next user never sees this user's cached data.
   Future<void> clear() async {
+    _localNotifications.clear();
+    _readIds.clear();
     final box = await _box();
     for (final key in [
       _listKey,
