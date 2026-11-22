@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/notification_models.dart';
 import '../../models/report_insights.dart';
 import '../../services/analytics_service.dart';
+import '../../services/sync_coordinator.dart';
+import '../../core/widgets/sync_status_banner.dart';
 
 class ProgressAnalyticsScreen extends StatefulWidget {
   const ProgressAnalyticsScreen({super.key});
@@ -23,6 +25,7 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
   @override
   void initState() {
     super.initState();
+    SyncCoordinator.instance.start();
     _load();
   }
 
@@ -42,8 +45,7 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
         _full = result.summary;
         _offline = result.fromCache;
       } else {
-        _full = ReportSummary.sample();
-        _offline = true;
+        _error = 'Could not load your report. Pull down to retry.';
       }
       _loading = false;
     });
@@ -55,7 +57,12 @@ class _ProgressAnalyticsScreenState extends State<ProgressAnalyticsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Progress Analytics')),
-      body: _body(context),
+      body: Column(
+        children: [
+          const SyncStatusBanner(),
+          Expanded(child: _body(context)),
+        ],
+      ),
     );
   }
 
