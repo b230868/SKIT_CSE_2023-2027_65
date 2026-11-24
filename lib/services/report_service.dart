@@ -51,15 +51,9 @@ class ReportService {
         try {
           result = await _fromTables();
         } catch (_) {
-          result = ReportSummary.sample();
+          result = ReportSummary.empty();
         }
       }
-    }
-    if ((uid.isEmpty || uid.startsWith('demo-')) &&
-        result.totalApplications == 0 &&
-        result.progressHistory.isEmpty &&
-        result.documentsUploaded == 0) {
-      result = ReportSummary.sample();
     }
     if (uid.isNotEmpty) {
       _cached = result;

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../features/internship/data/internship_service.dart';
 import '../features/internship/models/internship.dart';
 import '../models/notification_models.dart';
 import 'notification_cache_service.dart';
@@ -36,7 +35,7 @@ class NotificationService implements NotificationDataSource {
   Future<List<AppNotification>> list() async {
     final userId = _currentUserId;
     List<AppNotification> items = [];
-    if (userId != null && userId != 'demo-student-id') {
+    if (userId != null && userId.isNotEmpty) {
       try {
         final rows = await _db
             .from('notifications')
@@ -50,11 +49,7 @@ class NotificationService implements NotificationDataSource {
     }
 
     final combined = [...NotificationCacheService.localNotifications, ...items];
-    final list = combined.isEmpty
-        ? NotificationCacheService.sampleNotifications
-        : combined;
-
-    return list.map((n) {
+    return combined.map((n) {
       if (NotificationCacheService.isReadLocally(n.id)) {
         return n.copyWith(isRead: true);
       }
@@ -87,7 +82,7 @@ class NotificationService implements NotificationDataSource {
         });
 
         final userId = _currentUserId;
-        if (userId != null && userId != 'demo-student-id') {
+        if (userId != null && userId.isNotEmpty) {
           try {
             dbSub = _db
                 .from('notifications')
@@ -218,12 +213,6 @@ class NotificationService implements NotificationDataSource {
   /// Loads only this user's internship linked by the notification.
   @override
   Future<Internship?> internshipFor(String internshipId) async {
-    if (internshipId.startsWith('demo-')) {
-      final sample = InternshipService.sampleInternships
-          .where((i) => i.id == internshipId);
-      if (sample.isNotEmpty) return sample.first;
-      return InternshipService.sampleInternships.first;
-    }
     try {
       final row = await _db
           .from('internships')
@@ -234,10 +223,6 @@ class NotificationService implements NotificationDataSource {
         return Internship.fromMap(row);
       }
     } catch (_) {}
-
-    final sample = InternshipService.sampleInternships
-        .where((i) => i.id == internshipId);
-    if (sample.isNotEmpty) return sample.first;
     return null;
   }
 }

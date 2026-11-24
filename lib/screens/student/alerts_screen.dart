@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../features/internship/presentation/internship_detail_screen.dart';
 import '../../models/notification_models.dart';
 import '../../services/notification_cache_service.dart';
+import '../../services/sync_coordinator.dart';
+import '../../core/widgets/sync_status_banner.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key, this.onOpenInternship});
@@ -25,6 +26,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   void initState() {
     super.initState();
+    SyncCoordinator.instance.start();
     _stream = _service.watch();
   }
 
@@ -50,19 +52,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
       setState(() => _readLocally.add(n.id));
       await _service.markAsRead(n.id);
     }
-    if (!mounted) return;
     final internshipId = n.internshipId;
-    if (internshipId != null) {
-      if (widget.onOpenInternship != null) {
-        widget.onOpenInternship!(internshipId);
-      } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => InternshipDetailScreen(internshipId: internshipId),
-          ),
-        );
-      }
-    }
+    if (internshipId != null) widget.onOpenInternship?.call(internshipId);
   }
 
   Future<void> _delete(AppNotification n) async {
@@ -93,6 +84,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       ),
       body: Column(
         children: [
+          const SyncStatusBanner(),
           Expanded(
             child: StreamBuilder<List<AppNotification>>(
               stream: _stream,
@@ -122,7 +114,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         )
                       : ListView.separated(
                           itemCount: items.length + 1,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          separatorBuilder: (context, index) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             if (index == 0) {
                               return Padding(

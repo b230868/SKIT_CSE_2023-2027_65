@@ -5,55 +5,15 @@ import '../../../core/config/role_config.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
+
 import '../../faculty_tp/presentation/screens/faculty_shell.dart';
 import '../../faculty_tp/presentation/screens/tp_shell.dart';
 import '../../industry/presentation/screens/industry_shell.dart';
 import '../../student/student_shell.dart';
+
 import '../data/auth_service.dart';
-import '../models/app_user.dart';
 import '../utils/email_validator.dart';
 import 'register_screen.dart';
-
-const demoStudent = AppUser(
-  id: 'demo-student-id',
-  fullName: 'Vidhi Sharma',
-  email: 'vidhi.sharma@skit.ac.in',
-  role: 'student',
-  enrollmentNo: 'SKIT/2023/CSE/065',
-  branch: 'CSE',
-  phone: '+91 98765 43210',
-  designation: 'Student',
-);
-
-const demoFaculty = AppUser(
-  id: 'demo-faculty-id',
-  fullName: 'Dr. Ramesh Kumar',
-  email: 'ramesh.faculty@skit.ac.in',
-  role: 'faculty_mentor',
-  branch: 'CSE',
-  phone: '+91 98765 11111',
-  designation: 'Associate Professor',
-);
-
-const demoTp = AppUser(
-  id: 'demo-tp-id',
-  fullName: 'T&P Officer',
-  email: 'tp.officer@skit.ac.in',
-  role: 'tp_officer',
-  branch: 'T&P Cell',
-  phone: '+91 98765 22222',
-  designation: 'Training & Placement Officer',
-);
-
-const demoIndustry = AppUser(
-  id: 'demo-industry-id',
-  fullName: 'Vikram Mehta',
-  email: 'vikram@infosys.com',
-  role: 'industry_supervisor',
-  branch: 'IT & Software',
-  phone: '+91 98765 33333',
-  designation: 'Senior Project Manager',
-);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -335,6 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                       child: const Text('New here? Create an account'),
                     ),
+
                     const SizedBox(height: 16),
                     const Row(
                       children: [
@@ -507,6 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+
                   ],
                 ),
               ),

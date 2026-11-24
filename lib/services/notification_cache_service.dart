@@ -5,11 +5,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/notification_models.dart';
+import 'sync_merge.dart';
 
 /// Reads, live-updates and manages the signed-in student's notifications.
 ///
-/// Offline support: the latest list is cached in Hive, and "mark as read"
-/// actions made without a connection are queued and synced later.
+/// Offline support (refined in S5):
+///  * the list is cached in Hive and shown instantly;
+///  * "mark as read" and "delete" made offline are queued, retried with back-off
+///    and dropped after [maxSyncAttempts] failures;
+///  * sync downloads only what changed since the last sync, with a full refresh
+///    at least once a day;
+///  * the server wins on conflicts, except that a notification you read offline
+///    stays read until the server has been told.
 class NotificationCacheService {
   NotificationCacheService({SupabaseClient? client})
       : _client = client ?? Supabase.instance.client;
@@ -18,12 +25,55 @@ class NotificationCacheService {
 
   static const _boxName = 'notifications_offline_cache';
   static const _listKey = 'list';
-  static const _pendingKey = 'pending_read';
+  static const _readQueueKey = 'pending_read';
+  static const _deleteQueueKey = 'pending_delete';
+  static const _lastSyncKey = 'last_sync';
+  static const _lastFullKey = 'last_full_sync';
+  static const _incrementalLimit = 500;
+
+  // ---------------------------------------------------------------------------
+  // In-memory local notification cache & read states (for mock/offline sessions)
+  // ---------------------------------------------------------------------------
+  static final List<AppNotification> _localNotifications = [];
+  static final Set<String> _readIds = <String>{};
+
+  /// Returns true if the notification has been marked read in local memory.
+  static bool isReadLocally(String id) => _readIds.contains(id);
+
+  /// Marks a notification read in local memory.
+  static void markIdAsReadLocally(String id) {
+    _readIds.add(id);
+    for (int i = 0; i < _localNotifications.length; i++) {
+      if (_localNotifications[i].id == id) {
+        _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+      }
+    }
+  }
+
+  /// Marks all local notifications as read, optionally including a set of IDs.
+  static void markAllAsReadLocally([Iterable<String>? ids]) {
+    if (ids != null) _readIds.addAll(ids);
+    for (int i = 0; i < _localNotifications.length; i++) {
+      _readIds.add(_localNotifications[i].id);
+      _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
+    }
+  }
+
+  /// In-memory local notifications (e.g., from mock repositories or offline actions).
+  static List<AppNotification> get localNotifications =>
+      List.unmodifiable(_localNotifications.map((n) =>
+          _readIds.contains(n.id) ? n.copyWith(isRead: true) : n));
+
+  /// Adds an in-memory notification.
+  static void addLocalNotification(AppNotification notification) {
+    _localNotifications.removeWhere((n) => n.id == notification.id);
+    _localNotifications.insert(0, notification);
+  }
 
   String? get _uid => _client.auth.currentUser?.id;
 
   // ---------------------------------------------------------------------------
-  // Hive cache (best effort: the service still works if Hive is unavailable)
+  // Hive helpers (best effort: the service still works if Hive is unavailable)
   // ---------------------------------------------------------------------------
 
   Future<Box?> _box() async {
@@ -54,7 +104,38 @@ class NotificationCacheService {
     await box?.put(_listKey, jsonEncode(rows));
   }
 
-  Future<void> _patchCache(void Function(Map<String, dynamic> row) patch) async {
+  Future<List<PendingRead>> _readQueue(String key) async {
+    final box = await _box();
+    final raw = (box?.get(key) as List?) ?? const [];
+    final out = <PendingRead>[];
+    for (final e in raw) {
+      try {
+        out.add(PendingRead.fromDynamic(e));
+      } catch (_) {
+        // ignore a damaged entry
+      }
+    }
+    return out;
+  }
+
+  Future<void> _writeQueue(String key, List<PendingRead> queue) async {
+    final box = await _box();
+    await box?.put(key, queue.map((e) => e.toMap()).toList());
+  }
+
+  Future<DateTime?> _readDate(String key) async {
+    final box = await _box();
+    final raw = box?.get(key) as String?;
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> _writeDate(String key, DateTime value) async {
+    final box = await _box();
+    await box?.put(key, value.toUtc().toIso8601String());
+  }
+
+  Future<void> _patchCache(
+      void Function(Map<String, dynamic> row) patch) async {
     final rows = await _readCache();
     for (final row in rows) {
       patch(row);
@@ -63,132 +144,152 @@ class NotificationCacheService {
   }
 
   // ---------------------------------------------------------------------------
-  // Reads
+  // Status
   // ---------------------------------------------------------------------------
-
-  static final List<AppNotification> _localNotifications = [];
-  static final Set<String> _readIds = <String>{};
-
-  static bool isReadLocally(String id) => _readIds.contains(id);
-
-  static void markIdAsReadLocally(String id) {
-    _readIds.add(id);
-    for (int i = 0; i < _localNotifications.length; i++) {
-      if (_localNotifications[i].id == id) {
-        _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
-      }
-    }
-  }
-
-  static void markAllAsReadLocally([Iterable<String>? ids]) {
-    if (ids != null) {
-      _readIds.addAll(ids);
-    }
-    for (int i = 0; i < _localNotifications.length; i++) {
-      _readIds.add(_localNotifications[i].id);
-      _localNotifications[i] = _localNotifications[i].copyWith(isRead: true);
-    }
-    for (final sample in _defaultSampleNotifications) {
-      _readIds.add(sample.id);
-    }
-  }
-
-  static List<AppNotification> get localNotifications =>
-      List.unmodifiable(_localNotifications.map((n) =>
-          _readIds.contains(n.id) ? n.copyWith(isRead: true) : n));
-
-  static void addLocalNotification(AppNotification notification) {
-    _localNotifications.removeWhere((n) => n.id == notification.id);
-    _localNotifications.insert(0, notification);
-  }
-
-  static List<AppNotification> get _defaultSampleNotifications => [
-        AppNotification(
-          id: 'demo-notif-001',
-          title: 'Internship Application Approved',
-          body:
-              'Your application for Full Stack Flutter Developer at Infosys Technologies has been approved by the Faculty Mentor.',
-          type: 'application',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-002',
-          title: 'Milestone Progress Verified',
-          body:
-              'Week 4 progress update (75%) has been reviewed and verified with GPS stamp.',
-          type: 'progress',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-003',
-          title: 'Offer Letter Verified',
-          body:
-              'Training & Placement office verified your uploaded offer letter document.',
-          type: 'document',
-          isRead: true,
-          createdAt: DateTime.now().subtract(const Duration(days: 3)),
-          applicationId: 'demo-intern-001',
-        ),
-        AppNotification(
-          id: 'demo-notif-004',
-          title: 'Weekly Report Due Reminder',
-          body:
-              'Please submit your Week 5 progress report before Sunday 11:59 PM.',
-          type: 'alert',
-          isRead: false,
-          createdAt: DateTime.now().subtract(const Duration(days: 5)),
-          applicationId: 'demo-intern-001',
-        ),
-      ];
-
-  static List<AppNotification> get sampleNotifications =>
-      [..._localNotifications, ..._defaultSampleNotifications]
-          .map((n) => _readIds.contains(n.id) ? n.copyWith(isRead: true) : n)
-          .toList();
 
   /// Cached notifications (empty if nothing has been fetched yet).
   Future<List<AppNotification>> getCached() async =>
       (await _readCache()).map(AppNotification.fromMap).toList();
 
-  /// Fetches the latest notifications; falls back to the cache when offline.
-  Future<List<AppNotification>> fetchNotifications({int limit = 100}) async {
+  /// Number of offline actions still waiting to be sent.
+  Future<int> pendingCount() async =>
+      (await _readQueue(_readQueueKey)).length +
+      (await _readQueue(_deleteQueueKey)).length;
+
+  Future<DateTime?> lastSyncedAt() => _readDate(_lastSyncKey);
+
+  // ---------------------------------------------------------------------------
+  // Sync
+  // ---------------------------------------------------------------------------
+
+  /// Sends queued offline actions, then downloads what changed on the server.
+  /// Never throws: the outcome is returned in a [SyncResult].
+  Future<SyncResult> sync({bool full = false, int limit = 200}) async {
     final uid = _uid;
-    if (uid == null || uid == 'demo-student-id') return sampleNotifications;
+    if (uid == null) return const SyncResult.skipped();
 
+    final started = DateTime.now().toUtc();
     try {
-      await syncPending();
-      final data = await _client
-          .from('notifications')
-          .select()
-          .eq('user_id', uid)
-          .order('created_at', ascending: false)
-          .limit(limit);
+      final reads = await _pushQueue(_readQueueKey, _sendReads);
+      final deletes = await _pushQueue(_deleteQueueKey, _sendDeletes);
 
-      final rows = (data as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      if (rows.isNotEmpty) {
-        await _writeCache(rows);
-        return rows.map(AppNotification.fromMap).toList();
+      final lastSync = await _readDate(_lastSyncKey);
+      final lastFull = await _readDate(_lastFullKey);
+      var doFull = full || lastSync == null || needsFullRefresh(lastFull, started);
+
+      List<Map<String, dynamic>> incoming = const [];
+      if (!doFull) {
+        try {
+          final res = await _client.rpc('get_notifications_since', params: {
+            'p_since': lastSync.toIso8601String(),
+            'p_limit': _incrementalLimit,
+          });
+          incoming = (res as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          // Too many changes (or an old server without the API): do a full refresh.
+          if (incoming.length >= _incrementalLimit) doFull = true;
+        } catch (_) {
+          doFull = true;
+        }
       }
-      return sampleNotifications;
-    } catch (_) {
-      final cached = await getCached();
-      if (cached.isNotEmpty) return cached;
-      return sampleNotifications;
+
+      if (doFull) {
+        final data = await _client
+            .from('notifications')
+            .select()
+            .eq('user_id', uid)
+            .order('created_at', ascending: false)
+            .limit(limit);
+        incoming = (data as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+
+      final pendingReads =
+          (await _readQueue(_readQueueKey)).map((p) => p.id).toSet();
+      final pendingDeletes =
+          (await _readQueue(_deleteQueueKey)).map((p) => p.id).toSet();
+
+      final merged = mergeNotificationRows(
+        cached: doFull ? const [] : await _readCache(),
+        incoming: incoming,
+        pendingReadIds: pendingReads,
+      ).where((r) => !pendingDeletes.contains(r['id'])).toList();
+
+      await _writeCache(merged);
+      // 30 s of overlap so a row changed during this sync is never missed.
+      await _writeDate(_lastSyncKey, started.subtract(const Duration(seconds: 30)));
+      if (doFull) await _writeDate(_lastFullKey, started);
+
+      return SyncResult(
+        pushed: reads.pushed + deletes.pushed,
+        pulled: incoming.length,
+        dropped: reads.dropped + deletes.dropped,
+      );
+    } catch (e) {
+      return SyncResult(ok: false, error: e.toString());
     }
   }
+
+  /// Full refresh (used by pull-to-refresh). Falls back to the cache when offline.
+  Future<List<AppNotification>> fetchNotifications({int limit = 100}) async {
+    await sync(full: true, limit: limit);
+    return getCached();
+  }
+
+  Future<({int pushed, int dropped})> _pushQueue(
+    String key,
+    Future<void> Function(List<String> ids) send,
+  ) async {
+    final queue = await _readQueue(key);
+    if (queue.isEmpty) return (pushed: 0, dropped: 0);
+
+    final now = DateTime.now();
+    final expired = queue.where((p) => p.isExpired).toList();
+    final live = queue.where((p) => !p.isExpired).toList();
+    final due = live.where((p) => p.isDue(now)).toList();
+    final waiting = live.where((p) => !p.isDue(now)).toList();
+
+    if (due.isEmpty) {
+      if (expired.isNotEmpty) await _writeQueue(key, waiting);
+      return (pushed: 0, dropped: expired.length);
+    }
+
+    try {
+      await send(due.map((p) => p.id).toList());
+      await _writeQueue(key, waiting);
+      return (pushed: due.length, dropped: expired.length);
+    } catch (_) {
+      await _writeQueue(key, [...waiting, ...due.map((p) => p.retried(now))]);
+      return (pushed: 0, dropped: expired.length);
+    }
+  }
+
+  Future<void> _sendReads(List<String> ids) async {
+    try {
+      // One call for the whole queue (see the 20261109 migration).
+      await _client.rpc('mark_notifications_read', params: {'p_ids': ids});
+    } catch (_) {
+      // Migration not applied yet: fall back to a plain update.
+      await _client
+          .from('notifications')
+          .update({'is_read': true}).inFilter('id', ids);
+    }
+  }
+
+  Future<void> _sendDeletes(List<String> ids) async {
+    await _client.from('notifications').delete().inFilter('id', ids);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reads
+  // ---------------------------------------------------------------------------
 
   /// Number of unread notifications (used for the bell badge).
   Future<int> unreadCount() async {
     final uid = _uid;
-    if (uid == null || uid == 'demo-student-id') {
-      return sampleNotifications.where((n) => !n.isRead).length;
-    }
+    if (uid == null) return 0;
 
     try {
       final res = await _client
@@ -198,15 +299,13 @@ class NotificationCacheService {
           .eq('is_read', false);
       return (res as List).length;
     } catch (_) {
-      final list = await _readCache();
-      if (list.isEmpty) {
-        return sampleNotifications.where((n) => !n.isRead).length;
-      }
-      return list.where((m) => m['is_read'] != true).length;
+      return (await _readCache()).where((m) => m['is_read'] != true).length;
     }
   }
 
   /// Live list: emits the cached list first, then every realtime change.
+  /// Offline reads and deletes that are still queued are applied to every emission,
+  /// so the screen never flips back to an older state.
   Stream<List<AppNotification>> watch() async* {
     final uid = _uid;
     if (uid == null) {
@@ -215,6 +314,7 @@ class NotificationCacheService {
     }
 
     yield await getCached();
+    unawaited(sync()); // refresh in the background
 
     try {
       await for (final rows in _client
@@ -222,9 +322,19 @@ class NotificationCacheService {
           .stream(primaryKey: ['id'])
           .eq('user_id', uid)
           .order('created_at', ascending: false)) {
-        final list = rows.map((e) => Map<String, dynamic>.from(e)).toList();
-        await _writeCache(list);
-        yield list.map(AppNotification.fromMap).toList();
+        final pendingReads =
+            (await _readQueue(_readQueueKey)).map((p) => p.id).toSet();
+        final pendingDeletes =
+            (await _readQueue(_deleteQueueKey)).map((p) => p.id).toSet();
+
+        final merged = mergeNotificationRows(
+          cached: const [],
+          incoming: rows.map((e) => Map<String, dynamic>.from(e)).toList(),
+          pendingReadIds: pendingReads,
+        ).where((r) => !pendingDeletes.contains(r['id'])).toList();
+
+        await _writeCache(merged);
+        yield merged.map(AppNotification.fromMap).toList();
       }
     } catch (_) {
       // Offline or realtime unavailable: the cached list stays on screen.
@@ -232,33 +342,33 @@ class NotificationCacheService {
   }
 
   // ---------------------------------------------------------------------------
-  // Writes
+  // Writes (all of them work offline)
   // ---------------------------------------------------------------------------
 
   Future<void> markAsRead(String id) async {
-    markIdAsReadLocally(id);
     await _patchCache((row) {
       if (row['id'] == id) row['is_read'] = true;
     });
     try {
-      await _client.from('notifications').update({'is_read': true}).eq('id', id);
+      await _sendReads([id]);
     } catch (_) {
-      await _queueRead(id);
+      await _queueAction(_readQueueKey, [id]);
     }
   }
 
   Future<void> markAllAsRead() async {
-    markAllAsReadLocally();
     final uid = _uid;
+    if (uid == null) return;
 
     final unreadIds = (await _readCache())
         .where((m) => m['is_read'] != true)
         .map((m) => m['id'] as String)
         .toList();
-
     await _patchCache((row) => row['is_read'] = true);
 
-    if (uid != null) {
+    try {
+      await _client.rpc('mark_all_notifications_read');
+    } catch (_) {
       try {
         await _client
             .from('notifications')
@@ -266,64 +376,53 @@ class NotificationCacheService {
             .eq('user_id', uid)
             .eq('is_read', false);
       } catch (_) {
-        for (final id in unreadIds) {
-          await _queueRead(id);
-        }
+        await _queueAction(_readQueueKey, unreadIds);
       }
     }
   }
 
-  /// Deletes a notification. Throws if the server request fails, so the UI
-  /// can restore the item.
+  /// Deletes a notification. If the server cannot be reached the delete is queued
+  /// and sent later; the item disappears from the list immediately.
   Future<void> delete(String id) async {
-    await _client.from('notifications').delete().eq('id', id);
     final rows = await _readCache();
     rows.removeWhere((row) => row['id'] == id);
     await _writeCache(rows);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Offline queue
-  // ---------------------------------------------------------------------------
-
-  Future<void> _queueRead(String id) async {
-    final box = await _box();
-    if (box == null) return;
-    final pending =
-        List<String>.from(box.get(_pendingKey, defaultValue: <String>[]) as List);
-    if (!pending.contains(id)) pending.add(id);
-    await box.put(_pendingKey, pending);
-  }
-
-  /// Sends queued offline "mark as read" actions to Supabase.
-  Future<void> syncPending() async {
-    final box = await _box();
-    if (box == null) return;
-    final pending =
-        List<String>.from(box.get(_pendingKey, defaultValue: <String>[]) as List);
-    if (pending.isEmpty) return;
 
     try {
-      try {
-        // One server call for the whole queue (see 20261109 migration).
-        await _client.rpc('mark_notifications_read', params: {'p_ids': pending});
-      } catch (_) {
-        // Migration not applied yet: fall back to a plain update.
-        await _client
-            .from('notifications')
-            .update({'is_read': true})
-            .inFilter('id', pending);
-      }
-      await box.delete(_pendingKey);
+      await _sendDeletes([id]);
     } catch (_) {
-      // Still offline: keep the queue for next time.
+      await _queueAction(_deleteQueueKey, [id]);
     }
+  }
+
+  Future<void> _queueAction(String key, List<String> ids) async {
+    var queue = await _readQueue(key);
+    final now = DateTime.now();
+    for (final id in ids) {
+      queue = enqueue(queue, id, now);
+    }
+    await _writeQueue(key, queue);
+  }
+
+  /// Kept for older callers: sends the queued actions now.
+  Future<void> syncPending() async {
+    await _pushQueue(_readQueueKey, _sendReads);
+    await _pushQueue(_deleteQueueKey, _sendDeletes);
   }
 
   /// Call on sign-out so the next user never sees this user's cached data.
   Future<void> clear() async {
+    _localNotifications.clear();
+    _readIds.clear();
     final box = await _box();
-    await box?.delete(_listKey);
-    await box?.delete(_pendingKey);
+    for (final key in [
+      _listKey,
+      _readQueueKey,
+      _deleteQueueKey,
+      _lastSyncKey,
+      _lastFullKey,
+    ]) {
+      await box?.delete(key);
+    }
   }
 }
