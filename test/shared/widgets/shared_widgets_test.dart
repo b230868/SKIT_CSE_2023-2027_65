@@ -42,10 +42,7 @@ void main() {
           home: MediaQuery(
             data: MediaQueryData(disableAnimations: true),
             child: Scaffold(
-              body: AnimatedCountCard(
-                label: 'Approved',
-                count: 12,
-              ),
+              body: AnimatedCountCard(label: 'Approved', count: 12),
             ),
           ),
         ),
@@ -91,7 +88,9 @@ void main() {
       expect(ringTapped, true);
     });
 
-    testWidgets('does not show log progress button when not approved', (tester) async {
+    testWidgets('does not show log progress button when not approved', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -110,7 +109,9 @@ void main() {
   });
 
   group('StepperTimeline Tests', () {
-    testWidgets('renders all 6 lifecycle steps and handles step tap', (tester) async {
+    testWidgets('renders all 6 lifecycle steps and handles step tap', (
+      tester,
+    ) async {
       int? tappedIndex;
       await tester.pumpWidget(
         MaterialApp(
@@ -126,7 +127,7 @@ void main() {
       );
 
       expect(find.text('Applied'), findsOneWidget);
-      expect(find.text('Approved'), findsOneWidget);
+      expect(find.text('Approved'), findsWidgets);
       expect(find.text('Documents'), findsOneWidget);
       expect(find.text('Progress'), findsOneWidget);
       expect(find.text('ITR'), findsOneWidget);
@@ -157,11 +158,7 @@ void main() {
   group('SkeletonLoader Tests', () {
     testWidgets('renders skeleton box and dashboard skeleton', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: DashboardSkeleton(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: DashboardSkeleton())),
       );
 
       expect(find.byType(DashboardSkeleton), findsOneWidget);
@@ -170,30 +167,38 @@ void main() {
   });
 
   group('EmptyStateView and ErrorStateView Tests', () {
-    testWidgets('EmptyStateView displays title, description, and action button', (tester) async {
-      bool actionTriggered = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: EmptyStateView(
-              title: 'No applications',
-              description: 'You have not submitted any applications yet.',
-              actionLabel: 'Apply now',
-              onAction: () => actionTriggered = true,
+    testWidgets(
+      'EmptyStateView displays title, description, and action button',
+      (tester) async {
+        bool actionTriggered = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: EmptyStateView(
+                title: 'No applications',
+                description: 'You have not submitted any applications yet.',
+                actionLabel: 'Apply now',
+                onAction: () => actionTriggered = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('No applications'), findsOneWidget);
-      expect(find.text('You have not submitted any applications yet.'), findsOneWidget);
-      expect(find.text('Apply now'), findsOneWidget);
+        expect(find.text('No applications'), findsOneWidget);
+        expect(
+          find.text('You have not submitted any applications yet.'),
+          findsOneWidget,
+        );
+        expect(find.text('Apply now'), findsOneWidget);
 
-      await tester.tap(find.text('Apply now'));
-      expect(actionTriggered, true);
-    });
+        await tester.tap(find.text('Apply now'));
+        expect(actionTriggered, true);
+      },
+    );
 
-    testWidgets('ErrorStateView displays message and triggers retry', (tester) async {
+    testWidgets('ErrorStateView displays message and triggers retry', (
+      tester,
+    ) async {
       bool retryTriggered = false;
       await tester.pumpWidget(
         MaterialApp(

@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../core/widgets/empty_state_widget.dart';
-import '../../core/widgets/kpi_metric_card.dart';
 import '../../core/widgets/status_chip.dart';
 import '../../models/notification_models.dart';
 import '../../models/student_models.dart';
 import '../../services/notification_service.dart';
 import '../../shared/widgets/animated_count_card.dart';
-import '../../shared/widgets/empty_state_view.dart';
 import '../../shared/widgets/error_state_view.dart';
 import '../../shared/widgets/progress_ring.dart';
 import '../../shared/widgets/skeleton_loader.dart';
@@ -78,32 +76,35 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (widget.onNavigate != null) {
       widget.onNavigate!(1, filter: filter); // Applications tab
     } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => StudentApplicationsScreen(
-            initialFilter: filter,
-            onBrowseInternships: widget.onApply,
-          ),
-        ),
-      ).then((_) => _reload());
+      Navigator.of(context)
+          .push(
+            MaterialPageRoute(
+              builder: (_) => StudentApplicationsScreen(
+                initialFilter: filter,
+                onBrowseInternships: widget.onApply,
+              ),
+            ),
+          )
+          .then((_) => _reload());
     }
   }
 
   void _openReports() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const StudentReportsScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const StudentReportsScreen()));
   }
 
   void _openApplicationDetail(Internship item, {int tabIndex = 0}) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => StudentApplicationDetailScreen(
-          application: Application(item),
-          initialTabIndex: tabIndex,
-        ),
-      ),
-    ).then((_) => _reload());
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => StudentApplicationDetailScreen(
+              application: Application(item),
+              initialTabIndex: tabIndex,
+            ),
+          ),
+        )
+        .then((_) => _reload());
   }
 
   String _timeAgo(DateTime dt) {
@@ -116,12 +117,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   IconData _iconForType(String type) => switch (type.toLowerCase()) {
-        'application' => Icons.assignment_turned_in_outlined,
-        'document' => Icons.description_outlined,
-        'progress' => Icons.timeline,
-        'alert' => Icons.warning_amber_rounded,
-        _ => Icons.notifications_outlined,
-      };
+    'application' => Icons.assignment_turned_in_outlined,
+    'document' => Icons.description_outlined,
+    'progress' => Icons.timeline,
+    'alert' => Icons.warning_amber_rounded,
+    _ => Icons.notifications_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -158,19 +159,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             }
 
             final items = snap.data ?? [];
-            final pending = items.where((i) => i.status.toLowerCase() == 'pending').length;
+            final pending = items
+                .where((i) => i.status.toLowerCase() == 'pending')
+                .length;
             final approved = items.where((i) {
               final s = i.status.toLowerCase();
               return s == 'approved' || s == 'active' || s == 'completed';
             }).length;
-            final rejected = items.where((i) => i.status.toLowerCase() == 'rejected').length;
+            final avg = items.isEmpty
+                ? 0
+                : (items.fold<int>(0, (sum, i) => sum + i.progress) /
+                          items.length)
+                      .round();
 
             final approvedInternship = items.where((i) {
               final s = i.status.toLowerCase();
               return s == 'approved' || s == 'active';
             }).firstOrNull;
 
-            final latestInternship = approvedInternship ?? (items.isNotEmpty ? items.first : null);
+            final latestInternship =
+                approvedInternship ?? (items.isNotEmpty ? items.first : null);
             final latestProgress = latestInternship?.progress ?? 0;
 
             return ListView(
@@ -200,7 +208,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               : 'Here is where your internship progress stands.',
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade700,
                           ),
                         ),
                       ],
@@ -213,37 +223,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Row(
                   children: [
                     Expanded(
-
-                      child: KpiMetricCard(
-                        title: 'Applied',
-                        value: '${items.length}',
-                        onTap: widget.onApply,
+                      child: AnimatedCountCard(
+                        label: 'Applied',
+                        count: items.length,
+                        icon: Icons.assignment_outlined,
+                        tooltip: 'View all applications',
+                        onTap: () => _navigateToApplications('all'),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: KpiMetricCard(
-                        title: 'Pending',
-                        value: '$pending',
-                        onTap: widget.onApply,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: KpiMetricCard(
-                        title: 'Approved',
-                        value: '$approved',
-                        onTap: widget.onApply,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: KpiMetricCard(
-                        title: 'Avg progress',
-                        value: '$avg%',
-                        highlight: true,
-                      ),
-
                       child: AnimatedCountCard(
                         label: 'Pending',
                         count: pending,
@@ -267,12 +256,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: AnimatedCountCard(
-                        label: 'Rejected',
-                        count: rejected,
-                        icon: Icons.cancel_outlined,
-                        color: Colors.red,
-                        tooltip: 'View rejected applications',
-                        onTap: () => _navigateToApplications('rejected'),
+                        label: 'Avg progress',
+                        count: avg,
+                        icon: Icons.trending_up,
+                        highlight: true,
+                        tooltip: 'Average internship progress',
                       ),
                     ),
                   ],
@@ -282,12 +270,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 // 2. Progress Ring Card
                 ProgressRingCard(
                   progress: latestProgress,
-                  companyName: latestInternship?.companyName ?? 'Internship Journey',
+                  companyName:
+                      latestInternship?.companyName ?? 'Internship Journey',
                   roleTitle: latestInternship?.title,
                   isApproved: approvedInternship != null,
                   onTap: _openReports,
                   onLogProgress: approvedInternship != null
-                      ? () => _openApplicationDetail(approvedInternship, tabIndex: 2)
+                      ? () => _openApplicationDetail(
+                          approvedInternship,
+                          tabIndex: 2,
+                        )
                       : null,
                 ),
                 const SizedBox(height: 20),
@@ -321,7 +313,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         if (items.isNotEmpty) {
                           _openApplicationDetail(items.first, tabIndex: 1);
                         } else {
-                          showSnack(context, 'Please apply for an internship first.');
+                          showSnack(
+                            context,
+                            'Please apply for an internship first.',
+                          );
                         }
                       },
                     ),
@@ -332,7 +327,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       subtitle: 'PDF & analytics',
                       color: AppTheme.saffron,
                       onTap: _openReports,
-
                     ),
                   ],
                 ),
@@ -359,33 +353,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 const SizedBox(height: 6),
 
                 if (items.isEmpty)
-
                   EmptyStateWidget(
                     title: 'No internships yet',
-                    message: 'Apply for your first internship to start tracking it.',
+                    message:
+                        'Apply for your first internship to start tracking it.',
                     action: FilledButton.icon(
                       onPressed: _openApplyForm,
                       icon: const Icon(Icons.add),
                       label: const Text('Apply for an internship'),
                     ),
-
-                  EmptyStateView(
-                    icon: Icons.work_outline,
-                    title: 'No applications submitted',
-                    description: 'Explore opportunities and apply to begin tracking.',
-                    actionLabel: 'Apply for an internship',
-                    onAction: _openApplyForm,
-
                   )
                 else
-                  ...items.take(3).map(
+                  ...items
+                      .take(3)
+                      .map(
                         (i) => Card(
                           elevation: 0,
                           margin: const EdgeInsets.only(bottom: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                             side: BorderSide(
-                              color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                              color: isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300,
                             ),
                           ),
                           child: InkWell(
@@ -399,23 +389,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                     backgroundColor: isDark
                                         ? const Color(0xFF1E293B)
                                         : const Color(0xFFEFF6FF),
-                                    child: const Icon(Icons.business_outlined, color: AppTheme.ink),
+                                    child: const Icon(
+                                      Icons.business_outlined,
+                                      color: AppTheme.ink,
+                                    ),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           i.title,
-                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
                                           '${i.companyName} · ${fmtDate(i.startDate)}',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                            color: isDark
+                                                ? Colors.grey.shade400
+                                                : Colors.grey.shade600,
                                           ),
                                         ),
                                       ],
@@ -423,7 +421,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                   ),
                                   StatusChip(status: i.status),
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    size: 18,
+                                    color: Colors.grey,
+                                  ),
                                 ],
                               ),
                             ),
@@ -453,7 +455,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                           side: BorderSide(
-                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                            color: isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade300,
                           ),
                         ),
                         child: const Padding(
@@ -461,7 +465,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           child: Center(
                             child: Text(
                               'No recent activity yet.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                         ),
@@ -473,7 +480,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                         side: BorderSide(
-                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                          color: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300,
                         ),
                       ),
                       child: Column(
@@ -494,7 +503,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 notifs[i].title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               subtitle: Text(
                                 notifs[i].body,
@@ -504,21 +516,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               ),
                               trailing: Text(
                                 _timeAgo(notifs[i].createdAt),
-                                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
                               ),
                               onTap: () {
                                 final linkedId = notifs[i].internshipId;
                                 if (linkedId != null) {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) =>
-                                          InternshipDetailScreen(internshipId: linkedId),
+                                      builder: (_) => InternshipDetailScreen(
+                                        internshipId: linkedId,
+                                      ),
                                     ),
                                   );
                                 }
                               },
                             ),
-                            if (i < notifs.take(3).length - 1) const Divider(height: 1),
+                            if (i < notifs.take(3).length - 1)
+                              const Divider(height: 1),
                           ],
                         ],
                       ),
@@ -538,7 +555,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 }
-
 
 class _QuickActionTile extends StatelessWidget {
   final IconData icon;
@@ -564,7 +580,9 @@ class _QuickActionTile extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          side: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -584,7 +602,10 @@ class _QuickActionTile extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
                 Text(
                   subtitle,
@@ -603,4 +624,3 @@ class _QuickActionTile extends StatelessWidget {
     );
   }
 }
-

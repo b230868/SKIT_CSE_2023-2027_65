@@ -22,9 +22,7 @@ class StudentNotificationBell extends StatelessWidget {
       stream: svc.watch(),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? const <AppNotification>[];
-        final unreadCount = notifications
-            .where((n) => !n.isRead)
-            .length;
+        final unreadCount = notifications.where((n) => !n.isRead).length;
 
         return IconButton(
           tooltip: 'Notifications ($unreadCount unread)',
@@ -50,10 +48,15 @@ class StudentNotificationBell extends StatelessWidget {
       showDialog(
         context: context,
         builder: (ctx) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480, maxHeight: 580),
-            child: _QuickPreviewSheet(service: svc, notifications: notifications),
+            child: _QuickPreviewSheet(
+              service: svc,
+              notifications: notifications,
+            ),
           ),
         ),
       );
@@ -89,8 +92,7 @@ class _QuickPreviewSheet extends StatefulWidget {
 class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
   final Set<String> _readLocally = {};
 
-  bool _isRead(AppNotification n) =>
-      n.isRead || _readLocally.contains(n.id);
+  bool _isRead(AppNotification n) => n.isRead || _readLocally.contains(n.id);
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -102,12 +104,12 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
   }
 
   IconData _iconFor(String type) => switch (type.toLowerCase()) {
-        'application' => Icons.assignment_turned_in_outlined,
-        'document' => Icons.description_outlined,
-        'progress' => Icons.timeline,
-        'alert' => Icons.warning_amber_rounded,
-        _ => Icons.notifications_outlined,
-      };
+    'application' => Icons.assignment_turned_in_outlined,
+    'document' => Icons.description_outlined,
+    'progress' => Icons.timeline,
+    'alert' => Icons.warning_amber_rounded,
+    _ => Icons.notifications_outlined,
+  };
 
   Future<void> _markRead(String id) async {
     setState(() => _readLocally.add(id));
@@ -141,7 +143,8 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
         if (mounted && internship != null) {
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => InternshipDetailScreen(internshipId: internship.id),
+              builder: (_) =>
+                  InternshipDetailScreen(internshipId: internship.id),
             ),
           );
         }
@@ -163,23 +166,32 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
           padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
           child: Row(
             children: [
-              Text(
-                'Notifications',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : AppTheme.ink,
+              Expanded(
+                child: Text(
+                  'Notifications',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppTheme.ink,
+                  ),
                 ),
               ),
-              const Spacer(),
               if (hasUnread)
                 TextButton.icon(
                   onPressed: () => _markAllRead(top5),
                   icon: const Icon(Icons.done_all, size: 16),
-                  label: const Text('Mark all read', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Mark all read',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.blue.shade700,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                   ),
                 ),
               IconButton(
@@ -198,12 +210,18 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.notifications_none, size: 48, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.notifications_none,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'No notifications yet',
                         style: TextStyle(
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -213,17 +231,25 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: top5.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1, indent: 64),
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, indent: 64),
                   itemBuilder: (context, i) {
                     final n = top5[i];
                     final read = _isRead(n);
 
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 4,
+                      ),
                       leading: CircleAvatar(
                         backgroundColor: read
-                            ? (isDark ? Colors.grey.shade800 : Colors.grey.shade200)
-                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
+                            ? (isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200)
+                            : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFEFF6FF)),
                         child: Icon(
                           _iconFor(n.type),
                           size: 20,
@@ -250,7 +276,9 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -258,7 +286,9 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
                             _timeAgo(n.createdAt),
                             style: TextStyle(
                               fontSize: 10,
-                              color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                              color: isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade500,
                             ),
                           ),
                         ],
@@ -268,7 +298,10 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
                         children: [
                           if (!read)
                             IconButton(
-                              icon: const Icon(Icons.check_circle_outline, size: 20),
+                              icon: const Icon(
+                                Icons.check_circle_outline,
+                                size: 20,
+                              ),
                               tooltip: 'Mark as read',
                               color: Colors.blue,
                               onPressed: () => _markRead(n.id),
@@ -290,24 +323,35 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Showing latest ${top5.length} items',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              Expanded(
+                child: Text(
+                  'Showing latest ${top5.length} items',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
               ),
               FilledButton.tonalIcon(
                 onPressed: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => NotificationScreen(service: widget.service),
+                      builder: (_) =>
+                          NotificationScreen(service: widget.service),
                     ),
                   );
                 },
                 icon: const Icon(Icons.open_in_new, size: 14),
                 label: const Text('See all notifications'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
