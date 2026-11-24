@@ -102,3 +102,68 @@ export const erpSyncGradesSchema = z.object({
   department: z.string().max(100).optional(),
   export_format: z.enum(["json", "csv"]).default("json"),
 });
+
+export const createPlacementNoticeSchema = z.object({
+  industry_id: z.string().regex(UUID_REGEX, "Invalid industry_id UUID").optional().nullable(),
+  company_name: z.string().min(1, "Company name is required").max(200),
+  opportunity_type: z
+    .enum(["internship", "full_time", "internship_ppo", "campus_recruitment", "other"])
+    .default("campus_recruitment"),
+  title: z.string().max(250).optional().nullable(),
+  description: z.string().max(10000).optional().nullable(),
+  eligibility: z.string().max(3000).optional().nullable(),
+  recruitment_process: z.string().max(4000).optional().nullable(),
+  additional_notes: z.string().max(4000).optional().nullable(),
+  application_link: z.string().max(1000).optional().nullable(),
+  application_deadline: z.string().optional().nullable(),
+  recruitment_date: z.string().optional().nullable(),
+  is_all_branches: z.boolean().default(false),
+  target_branches: z.array(z.string().min(1).max(80)).default([]),
+  status: z.enum(["open", "upcoming", "closed"]).default("open"),
+  notify_students: z.boolean().default(true),
+});
+
+export const updatePlacementNoticeSchema = createPlacementNoticeSchema.partial();
+
+export const createTpFaqSchema = z.object({
+  category: z.string().min(1).max(100).default("General"),
+  question: z.string().min(3).max(500),
+  answer: z.string().min(2).max(5000),
+  keywords: z.array(z.string().max(80)).default([]),
+  target_branches: z.array(z.string().max(80)).default([]),
+  is_all_branches: z.boolean().default(true),
+  is_active: z.boolean().default(true),
+});
+
+export const updateTpFaqSchema = createTpFaqSchema.partial();
+
+export const createStudentQuerySchema = z.object({
+  notice_id: z.string().regex(UUID_REGEX, "Invalid notice_id UUID").optional().nullable(),
+  company_name: z.string().max(200).optional().nullable(),
+  category: z.string().min(1).max(100).default("General"),
+  question: z.string().min(3, "Please enter your question").max(3000),
+});
+
+export const createQueryReplySchema = z.object({
+  message: z.string().min(1, "Reply cannot be empty").max(4000),
+});
+
+export const updateQueryStatusSchema = z.object({
+  status: z.enum(["open", "answered", "closed"]),
+});
+
+export const createNocRequestSchema = z.object({
+  internship_id: z.string().regex(UUID_REGEX, "Invalid internship_id UUID").optional().nullable(),
+  notice_id: z.string().regex(UUID_REGEX, "Invalid notice_id UUID").optional().nullable(),
+  company_name: z.string().min(1, "Company name is required").max(200),
+  opportunity_title: z.string().max(250).optional().nullable(),
+  student_remarks: z.string().max(2000).optional().nullable(),
+  document_name: z.string().max(300).optional().nullable(),
+  document_path: z.string().max(500).optional().nullable(),
+});
+
+export const reviewNocRequestSchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+  tp_remarks: z.string().max(2000).optional().nullable(),
+  rejection_reason: z.string().max(2000).optional().nullable(),
+});

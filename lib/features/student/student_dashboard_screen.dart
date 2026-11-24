@@ -16,6 +16,10 @@ import '../internship/data/internship_service.dart';
 import '../internship/models/internship.dart';
 import '../internship/presentation/internship_detail_screen.dart';
 import '../internship/presentation/internship_form_screen.dart';
+import '../placement/data/models/placement_models.dart';
+import '../placement/data/services/placement_repository_provider.dart';
+import '../placement/presentation/screens/placement_notice_detail_screen.dart';
+import '../placement/presentation/screens/student_placements_hub_screen.dart';
 import 'presentation/student_application_detail_screen.dart';
 import 'presentation/student_applications_screen.dart';
 import 'presentation/student_reports_screen.dart';
@@ -40,8 +44,10 @@ class StudentDashboardScreen extends StatefulWidget {
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   final _service = InternshipService();
   final _notifService = NotificationService();
+  final _placementRepo = PlacementRepositoryProvider.instance;
   late Future<List<Internship>> _future;
   late Future<List<AppNotification>> _notifFuture;
+  late Future<List<PlacementNotice>> _noticesFuture;
 
   @override
   void initState() {
@@ -52,6 +58,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   void _load() {
     _future = _service.fetchMine();
     _notifFuture = _notifService.list();
+    _noticesFuture = _placementRepo
+        .getNotices(studentView: true, studentBranch: widget.user.branch)
+        .catchError((_) => <PlacementNotice>[]);
   }
 
   Future<void> _reload() async {
@@ -74,7 +83,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   void _navigateToApplications([String filter = 'all']) {
     if (widget.onNavigate != null) {
-      widget.onNavigate!(1, filter: filter); // Applications tab
+      widget.onNavigate!(2, filter: filter); // Applications tab
     } else {
       Navigator.of(context)
           .push(
@@ -121,6 +130,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     'document' => Icons.description_outlined,
     'progress' => Icons.timeline,
     'alert' => Icons.warning_amber_rounded,
+    'placement' => Icons.campaign_outlined,
+    'query' => Icons.question_answer_outlined,
+    'noc' => Icons.verified_outlined,
     _ => Icons.notifications_outlined,
   };
 
@@ -297,27 +309,38 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Row(
                   children: [
                     _QuickActionTile(
-                      icon: Icons.explore_outlined,
-                      label: 'Browse',
-                      subtitle: 'Find roles',
+                      icon: Icons.campaign_outlined,
+                      label: 'Placements',
+                      subtitle: 'Notices & drives',
                       color: const Color(0xFF3B82F6),
-                      onTap: widget.onApply,
+                      onTap: () {
+                        if (widget.onNavigate != null) {
+                          widget.onNavigate!(1);
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  StudentPlacementsHubScreen(user: widget.user),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(width: 10),
                     _QuickActionTile(
-                      icon: Icons.upload_file_outlined,
-                      label: 'Upload Doc',
-                      subtitle: 'Resume & NOC',
+                      icon: Icons.question_answer_outlined,
+                      label: 'T&P Help',
+                      subtitle: 'FAQs & NOC',
                       color: const Color(0xFF10B981),
                       onTap: () {
-                        if (items.isNotEmpty) {
-                          _openApplicationDetail(items.first, tabIndex: 1);
-                        } else {
-                          showSnack(
-                            context,
-                            'Please apply for an internship first.',
-                          );
-                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => StudentPlacementsHubScreen(
+                              user: widget.user,
+                              initialTabIndex: 1,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     const SizedBox(width: 10),
@@ -329,6 +352,72 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       onTap: _openReports,
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+
+                // 3b. T&P Placement Feed Preview Card
+                FutureBuilder<List<PlacementNotice>>(
+                  future: _noticesFuture,
+                  builder: (context, noticeSnap) {
+                    final notices = noticeSnap.data ?? const <PlacementNotice>[];
+                    final activeCount = notices.where((n) => !n.isClosed).length;
+                    final unreadCount =
+                        notices.where((n) => !n.isRead && !n.isClosed).length;
+                    final closingSoon =
+                        notices.where((n) => n.isClosingSoon).length;
+
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: unreadCount > 0
+                              ? AppTheme.saffron
+                              : (isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300),
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.ink.withValues(alpha: 0.1),
+                          child: const Icon(
+                            Icons.campaign_outlined,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        title: Text(
+                          'T&P Placement Feed ($activeCount active)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          unreadCount > 0
+                              ? '$unreadCount new notice(s)${closingSoon > 0 ? ' · $closingSoon closing soon' : ''}'
+                              : (closingSoon > 0
+                                  ? '$closingSoon opportunity closing soon'
+                                  : 'View campus drives, internships & company notices'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          if (widget.onNavigate != null) {
+                            widget.onNavigate!(1);
+                          } else {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => StudentPlacementsHubScreen(
+                                  user: widget.user,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -522,6 +611,41 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                                 ),
                               ),
                               onTap: () {
+                                final noticeId = notifs[i].noticeId;
+                                if (noticeId != null && noticeId.isNotEmpty) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PlacementNoticeDetailScreen(
+                                        noticeId: noticeId,
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                if (notifs[i].type == 'query' ||
+                                    notifs[i].queryId != null) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => StudentPlacementsHubScreen(
+                                        user: widget.user,
+                                        initialTabIndex: 1,
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                if (notifs[i].type == 'noc' ||
+                                    notifs[i].nocRequestId != null) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => StudentPlacementsHubScreen(
+                                        user: widget.user,
+                                        initialTabIndex: 2,
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 final linkedId = notifs[i].internshipId;
                                 if (linkedId != null) {
                                   Navigator.of(context).push(

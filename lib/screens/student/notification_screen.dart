@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'alerts_screen.dart';
 
 import '../../features/internship/presentation/internship_detail_screen.dart';
+import '../../features/placement/presentation/screens/placement_notice_detail_screen.dart';
+import '../../features/placement/presentation/screens/student_placements_hub_screen.dart';
 import '../../models/notification_models.dart';
 import '../../services/notification_cache_service.dart';
 import '../../services/notification_service.dart';
@@ -11,6 +13,9 @@ IconData _iconFor(String type) => switch (type) {
   'application' => Icons.assignment_turned_in_outlined,
   'document' => Icons.description_outlined,
   'progress' => Icons.timeline,
+  'placement' => Icons.campaign_outlined,
+  'query' => Icons.question_answer_outlined,
+  'noc' => Icons.verified_outlined,
   _ => Icons.notifications_outlined,
 };
 
@@ -59,6 +64,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
         _toast('Could not mark the notification as read.');
       }
     }
+    final noticeId = n.noticeId;
+    if (noticeId != null && noticeId.isNotEmpty) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlacementNoticeDetailScreen(noticeId: noticeId),
+        ),
+      );
+      return;
+    }
+
+    if (n.type == 'query' || n.queryId != null) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const StudentPlacementsHubScreen(initialTabIndex: 1),
+        ),
+      );
+      return;
+    }
+
+    if (n.type == 'noc' || n.nocRequestId != null) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const StudentPlacementsHubScreen(initialTabIndex: 2),
+        ),
+      );
+      return;
+    }
+
     final internshipId = n.internshipId;
     if (internshipId == null) return;
     try {
@@ -184,7 +220,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             await _svc.markRead(n.id);
                           },
                         ),
-                      if (n.internshipId != null)
+                      if (n.internshipId != null ||
+                          n.noticeId != null ||
+                          n.queryId != null ||
+                          n.nocRequestId != null)
                         const Icon(Icons.chevron_right)
                       else if (!isRead)
                         const Icon(
