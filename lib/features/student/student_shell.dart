@@ -6,6 +6,7 @@ import '../auth/models/app_user.dart';
 import '../auth/presentation/profile_screen.dart';
 import '../internship/presentation/internship_list_screen.dart';
 import '../itr/presentation/screens/itr_screen.dart';
+import '../placement/presentation/screens/student_placements_hub_screen.dart';
 import 'presentation/student_applications_screen.dart';
 import 'student_dashboard_screen.dart';
 
@@ -118,13 +119,17 @@ class _StudentShellState extends State<StudentShell> {
       StudentDashboardScreen(
         key: ValueKey('dashboard-$_version'),
         user: _user,
-        onApply: () => _navigate(2), // Switch to Internships catalog
+        onApply: () => _navigate(3), // Switch to Internships catalog
         onNavigate: _navigate,
+      ),
+      StudentPlacementsHubScreen(
+        key: ValueKey('placements-$_version'),
+        user: _user,
       ),
       StudentApplicationsScreen(
         key: ValueKey('apps-$_version-$_applicationsFilter'),
         initialFilter: _applicationsFilter,
-        onBrowseInternships: () => _navigate(2),
+        onBrowseInternships: () => _navigate(3),
       ),
       InternshipListScreen(onChanged: _refreshDashboard),
       ItrListScreen(key: ValueKey('itrs-$_version')),
@@ -136,7 +141,8 @@ class _StudentShellState extends State<StudentShell> {
 
     final destinations = const [
       (Icons.dashboard_outlined, Icons.dashboard, 'Home'),
-      (Icons.assignment_outlined, Icons.assignment, 'Applications'),
+      (Icons.campaign_outlined, Icons.campaign, 'Placements'),
+      (Icons.assignment_outlined, Icons.assignment, 'Applied'),
       (Icons.work_outline, Icons.work, 'Internships'),
       (Icons.fact_check_outlined, Icons.fact_check, 'ITRs'),
       (Icons.person_outline, Icons.person, 'Profile'),
@@ -158,7 +164,7 @@ class _StudentShellState extends State<StudentShell> {
                     onDestinationSelected: (i) {
                       setState(() {
                         if (i == 0 && _index != 0) _version++;
-                        if (i == 1) _applicationsFilter = 'all';
+                        if (i == 2) _applicationsFilter = 'all';
                         _index = i;
                       });
                     },
@@ -198,7 +204,7 @@ class _StudentShellState extends State<StudentShell> {
                 onDestinationSelected: (i) {
                   setState(() {
                     if (i == 0 && _index != 0) _version++;
-                    if (i == 1) _applicationsFilter = 'all';
+                    if (i == 2) _applicationsFilter = 'all';
                     _index = i;
                   });
                 },

@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth.routes";
 import industryRoutes from "./routes/industry.routes";
 import itrRoutes from "./routes/itr.routes";
 import notificationRoutes from "./routes/notification.routes";
+import placementRoutes from "./routes/placement.routes";
 import { sendSuccess } from "./utils/response";
 
 const app = express();
@@ -79,6 +80,7 @@ app.use("/auth", authRoutes);
 app.use("/industry", industryRoutes);
 app.use("/itr", itrRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/placement", placementRoutes);
 
 // 404 handler for unknown routes
 app.use(notFoundHandler);

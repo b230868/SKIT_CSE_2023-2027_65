@@ -6,6 +6,11 @@ class AppNotification {
   /// Set for notifications that belong to an application or internship, so
   /// tapping them can open that item directly.
   final String? applicationId;
+  final String? noticeId;
+  final String? queryId;
+  final String? nocRequestId;
+  final String? referenceType;
+  final String? referenceId;
 
   String? get internshipId => applicationId;
 
@@ -18,17 +23,34 @@ class AppNotification {
     required this.createdAt,
     String? applicationId,
     String? internshipId,
+    this.noticeId,
+    this.queryId,
+    this.nocRequestId,
+    this.referenceType,
+    this.referenceId,
   }) : applicationId = applicationId ?? internshipId;
 
-  factory AppNotification.fromMap(Map<String, dynamic> m) => AppNotification(
-        id: m['id'] as String,
-        title: m['title'] as String,
-        body: (m['body'] ?? '') as String,
-        type: (m['type'] ?? 'general') as String,
-        isRead: (m['is_read'] ?? false) as bool,
-        createdAt: DateTime.parse(m['created_at'] as String),
-        applicationId: (m['internship_id'] ?? m['application_id']) as String?,
-      );
+  factory AppNotification.fromMap(Map<String, dynamic> m) {
+    final refType = m['reference_type']?.toString();
+    final refId = m['reference_id']?.toString();
+    return AppNotification(
+      id: m['id'] as String,
+      title: (m['title'] ?? 'Notification') as String,
+      body: (m['body'] ?? m['message'] ?? '') as String,
+      type: (m['type'] ?? 'general') as String,
+      isRead: (m['is_read'] ?? false) as bool,
+      createdAt: DateTime.parse(m['created_at'] as String),
+      applicationId: (m['internship_id'] ?? m['application_id']) as String?,
+      noticeId: m['notice_id']?.toString() ??
+          (refType == 'placement_notice' ? refId : null),
+      queryId: m['query_id']?.toString() ??
+          (refType == 'student_query' ? refId : null),
+      nocRequestId: m['noc_request_id']?.toString() ??
+          (refType == 'noc_request' ? refId : null),
+      referenceType: refType,
+      referenceId: refId,
+    );
+  }
 
   AppNotification copyWith({
     String? id,
@@ -39,6 +61,11 @@ class AppNotification {
     DateTime? createdAt,
     String? applicationId,
     String? internshipId,
+    String? noticeId,
+    String? queryId,
+    String? nocRequestId,
+    String? referenceType,
+    String? referenceId,
   }) =>
       AppNotification(
         id: id ?? this.id,
@@ -48,6 +75,11 @@ class AppNotification {
         isRead: isRead ?? this.isRead,
         createdAt: createdAt ?? this.createdAt,
         applicationId: applicationId ?? internshipId ?? this.applicationId,
+        noticeId: noticeId ?? this.noticeId,
+        queryId: queryId ?? this.queryId,
+        nocRequestId: nocRequestId ?? this.nocRequestId,
+        referenceType: referenceType ?? this.referenceType,
+        referenceId: referenceId ?? this.referenceId,
       );
 }
 

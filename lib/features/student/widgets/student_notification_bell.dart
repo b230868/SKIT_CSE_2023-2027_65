@@ -5,6 +5,8 @@ import '../../../models/notification_models.dart';
 import '../../../screens/student/notification_screen.dart';
 import '../../../services/notification_service.dart';
 import '../../internship/presentation/internship_detail_screen.dart';
+import '../../placement/presentation/screens/placement_notice_detail_screen.dart';
+import '../../placement/presentation/screens/student_placements_hub_screen.dart';
 
 /// Notification bell with live unread badge.
 /// Tapping it opens a quick preview modal of the top 5 notifications
@@ -108,6 +110,9 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
     'document' => Icons.description_outlined,
     'progress' => Icons.timeline,
     'alert' => Icons.warning_amber_rounded,
+    'placement' => Icons.campaign_outlined,
+    'query' => Icons.question_answer_outlined,
+    'noc' => Icons.verified_outlined,
     _ => Icons.notifications_outlined,
   };
 
@@ -135,6 +140,34 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
     }
     if (!mounted) return;
     Navigator.of(context).pop();
+
+    final noticeId = n.noticeId;
+    if (noticeId != null && noticeId.isNotEmpty) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlacementNoticeDetailScreen(noticeId: noticeId),
+        ),
+      );
+      return;
+    }
+
+    if (n.type == 'query' || n.queryId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const StudentPlacementsHubScreen(initialTabIndex: 1),
+        ),
+      );
+      return;
+    }
+
+    if (n.type == 'noc' || n.nocRequestId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const StudentPlacementsHubScreen(initialTabIndex: 2),
+        ),
+      );
+      return;
+    }
 
     final internshipId = n.internshipId;
     if (internshipId != null) {
@@ -306,7 +339,10 @@ class _QuickPreviewSheetState extends State<_QuickPreviewSheet> {
                               color: Colors.blue,
                               onPressed: () => _markRead(n.id),
                             ),
-                          if (n.internshipId != null)
+                          if (n.internshipId != null ||
+                              n.noticeId != null ||
+                              n.queryId != null ||
+                              n.nocRequestId != null)
                             const Icon(Icons.chevron_right, size: 18),
                         ],
                       ),
