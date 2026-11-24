@@ -86,6 +86,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _changePassword() async {
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool busy = false;
+    String? errorText;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter a new secure password (at least 6 characters):',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newPassCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmPassCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm Password',
+                  prefixIcon: Icon(Icons.lock_reset),
+                ),
+              ),
+              if (errorText != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      final p1 = newPassCtrl.text;
+                      final p2 = confirmPassCtrl.text;
+                      if (p1.length < 6) {
+                        setDialogState(() {
+                          errorText = 'Password must be at least 6 characters.';
+                        });
+                        return;
+                      }
+                      if (p1 != p2) {
+                        setDialogState(() {
+                          errorText = 'Passwords do not match.';
+                        });
+                        return;
+                      }
+
+                      setDialogState(() {
+                        busy = true;
+                        errorText = null;
+                      });
+
+                      try {
+                        if (!widget.user.id.startsWith('demo-')) {
+                          await _auth.updatePassword(p1);
+                        }
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (mounted) {
+                          showSnack(context, 'Password updated successfully!');
+                        }
+                      } catch (err) {
+                        setDialogState(() {
+                          errorText = AuthService.parseAuthErrorMessage(err);
+                          busy = false;
+                        });
+                      }
+                    },
+              child: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Update Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+    newPassCtrl.dispose();
+    confirmPassCtrl.dispose();
+  }
+
   Future<void> _logout() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -241,9 +351,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
+                      onPressed: _changePassword,
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Change password'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
                       onPressed: _logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Sign out'),
+                      icon: const Icon(Icons.logout, color: Colors.redAccent),
+                      label: const Text(
+                        'Sign out',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
                     ),
                   ],
                 ),

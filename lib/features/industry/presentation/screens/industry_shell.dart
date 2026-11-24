@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:prashikshan/features/auth/models/app_user.dart';
-import 'package:prashikshan/features/auth/presentation/profile_screen.dart';
 
+import '../../../../core/widgets/app_navigation_shell.dart';
+import '../../../auth/models/app_user.dart';
+import '../../../auth/presentation/profile_screen.dart';
 import 'industry_attendance_screen.dart';
 import 'industry_dashboard_screen.dart';
 import 'industry_reports_screen.dart';
@@ -19,7 +20,6 @@ class IndustryShell extends StatefulWidget {
 }
 
 class _IndustryShellState extends State<IndustryShell> {
-  int _currentIndex = 0;
   late AppUser _user;
 
   @override
@@ -28,59 +28,44 @@ class _IndustryShellState extends State<IndustryShell> {
     _user = widget.user;
   }
 
-  void _onTabSelected(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          IndustryDashboardScreen(onNavigateToTab: _onTabSelected),
-          const InternshipManagementScreen(),
-          const IndustryAttendanceScreen(),
-          const IndustryReportsScreen(),
-          ProfileScreen(
+    return AppNavigationShell(
+      tabs: [
+        const NavigationShellTab(
+          screen: IndustryDashboardScreen(),
+          icon: Icons.dashboard_outlined,
+          selectedIcon: Icons.dashboard,
+          label: 'Dashboard',
+        ),
+        const NavigationShellTab(
+          screen: InternshipManagementScreen(),
+          icon: Icons.business_center_outlined,
+          selectedIcon: Icons.business_center,
+          label: 'Internships',
+        ),
+        const NavigationShellTab(
+          screen: IndustryAttendanceScreen(),
+          icon: Icons.fact_check_outlined,
+          selectedIcon: Icons.fact_check,
+          label: 'Attendance',
+        ),
+        const NavigationShellTab(
+          screen: IndustryReportsScreen(),
+          icon: Icons.bar_chart_outlined,
+          selectedIcon: Icons.bar_chart,
+          label: 'Reports',
+        ),
+        NavigationShellTab(
+          screen: ProfileScreen(
             user: _user,
             onUpdated: (u) => setState(() => _user = u),
           ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _onTabSelected,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.business_center_outlined),
-            selectedIcon: Icon(Icons.business_center),
-            label: 'Internships',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fact_check_outlined),
-            selectedIcon: Icon(Icons.fact_check),
-            label: 'Attendance',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
+          icon: Icons.person_outline,
+          selectedIcon: Icons.person,
+          label: 'Profile',
+        ),
+      ],
     );
   }
 }

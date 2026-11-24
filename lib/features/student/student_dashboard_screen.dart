@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/utils.dart';
+import '../../core/widgets/empty_state_widget.dart';
+import '../../core/widgets/kpi_metric_card.dart';
 import '../../core/widgets/status_chip.dart';
 import '../../screens/student/alerts_screen.dart';
 import '../../screens/student/applications_screen.dart';
@@ -141,16 +143,36 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    _Stat(label: 'Applied', value: '${items.length}', onTap: widget.onApply),
-                    const SizedBox(width: 10),
-                    _Stat(label: 'Pending', value: '$pending', onTap: widget.onApply),
-                    const SizedBox(width: 10),
-                    _Stat(label: 'Approved', value: '$approved', onTap: widget.onApply),
-                    const SizedBox(width: 10),
-                    _Stat(
-                      label: 'Avg progress',
-                      value: '$avg%',
-                      highlight: true,
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Applied',
+                        value: '${items.length}',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Pending',
+                        value: '$pending',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Approved',
+                        value: '$approved',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Avg progress',
+                        value: '$avg%',
+                        highlight: true,
+                      ),
                     ),
                   ],
                 ),
@@ -174,23 +196,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
                 const SizedBox(height: 6),
                 if (items.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('No internships yet'),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: _openApplyForm,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Apply for an internship'),
-                        ),
-                      ],
+                  EmptyStateWidget(
+                    title: 'No internships yet',
+                    message: 'Apply for your first internship to start tracking it.',
+                    action: FilledButton.icon(
+                      onPressed: _openApplyForm,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Apply for an internship'),
                     ),
                   )
                 else
@@ -316,64 +328,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         onPressed: _openApplyForm,
         icon: const Icon(Icons.add),
         label: const Text('Apply'),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool highlight;
-  final VoidCallback? onTap;
-
-  const _Stat({
-    required this.label,
-    required this.value,
-    this.highlight = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            decoration: BoxDecoration(
-              color: highlight ? AppTheme.ink : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: highlight ? AppTheme.ink : Colors.grey.shade300,
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: highlight ? AppTheme.saffron : AppTheme.ink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: highlight ? Colors.white70 : Colors.grey.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

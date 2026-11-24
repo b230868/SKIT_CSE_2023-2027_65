@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/role_config.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
-import '../../faculty_tp/presentation/screens/tp_dashboard_screen.dart';
+import '../../faculty_tp/presentation/screens/faculty_shell.dart';
+import '../../faculty_tp/presentation/screens/tp_shell.dart';
 import '../../industry/presentation/screens/industry_shell.dart';
 import '../../student/student_shell.dart';
 import '../data/auth_service.dart';
@@ -87,12 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Only check unverified email if Supabase denied issuing a session:
       // If a valid session exists or user is faculty/staff, allow login without blocking
       final meta = user?.userMetadata ?? {};
-      final role = (meta['role'] ?? '').toString().toLowerCase().trim();
-      final isStaffOrFaculty = role == 'faculty' ||
-          role == 'faculty_mentor' ||
-          role == 'tnp' ||
-          role == 'tp_officer' ||
-          role == 'admin';
+      final isStaffOrFaculty = RoleConfig.isStaffOrFaculty(meta['role']?.toString());
 
       if (res.session == null && !isStaffOrFaculty && user != null && user.emailConfirmedAt == null) {
         await _auth.signOut();
@@ -439,7 +435,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const FacultyDashboardScreen(),
+                                  builder: (_) => const FacultyShell(user: demoFaculty),
                                 ),
                               ),
                             ),
@@ -471,7 +467,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const TpDashboardScreen(),
+                                  builder: (_) => const TpShell(user: demoTp),
                                 ),
                               ),
                             ),

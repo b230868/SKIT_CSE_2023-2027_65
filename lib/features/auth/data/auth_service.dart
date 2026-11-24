@@ -197,6 +197,10 @@ class AuthService {
 
   Future<void> signOut() => _client.auth.signOut();
 
+  Future<UserResponse> updatePassword(String newPassword) {
+    return _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
   /// Fetches profile with self-healing fallback in case the database trigger failed.
   Future<AppUser> fetchProfile() async {
     final user = _client.auth.currentUser;
