@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/utils.dart';
+import '../../core/widgets/empty_state_widget.dart';
+import '../../core/widgets/kpi_metric_card.dart';
 import '../../core/widgets/status_chip.dart';
 import '../../models/notification_models.dart';
 import '../../models/student_models.dart';
@@ -211,6 +213,37 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 Row(
                   children: [
                     Expanded(
+
+                      child: KpiMetricCard(
+                        title: 'Applied',
+                        value: '${items.length}',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Pending',
+                        value: '$pending',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Approved',
+                        value: '$approved',
+                        onTap: widget.onApply,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KpiMetricCard(
+                        title: 'Avg progress',
+                        value: '$avg%',
+                        highlight: true,
+                      ),
+
                       child: AnimatedCountCard(
                         label: 'Pending',
                         count: pending,
@@ -299,6 +332,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       subtitle: 'PDF & analytics',
                       color: AppTheme.saffron,
                       onTap: _openReports,
+
                     ),
                   ],
                 ),
@@ -325,12 +359,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 const SizedBox(height: 6),
 
                 if (items.isEmpty)
+
+                  EmptyStateWidget(
+                    title: 'No internships yet',
+                    message: 'Apply for your first internship to start tracking it.',
+                    action: FilledButton.icon(
+                      onPressed: _openApplyForm,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Apply for an internship'),
+                    ),
+
                   EmptyStateView(
                     icon: Icons.work_outline,
                     title: 'No applications submitted',
                     description: 'Explore opportunities and apply to begin tracking.',
                     actionLabel: 'Apply for an internship',
                     onAction: _openApplyForm,
+
                   )
                 else
                   ...items.take(3).map(
@@ -494,6 +539,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 }
 
+
 class _QuickActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -557,3 +603,4 @@ class _QuickActionTile extends StatelessWidget {
     );
   }
 }
+

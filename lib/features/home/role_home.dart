@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/role_config.dart';
+import '../admin/presentation/screens/admin_shell.dart';
 import '../auth/data/auth_service.dart';
 import '../auth/models/app_user.dart';
-import '../faculty_tp/presentation/screens/faculty_dashboard_screen.dart';
-import '../faculty_tp/presentation/screens/tp_dashboard_screen.dart';
+import '../faculty_tp/presentation/screens/faculty_shell.dart';
+import '../faculty_tp/presentation/screens/tp_shell.dart';
 import '../industry/presentation/screens/industry_shell.dart';
 import '../student/student_shell.dart';
-import 'coming_soon_screen.dart';
 
 /// Routes signed-in users to the dashboard for their role.
 class RoleHome extends StatefulWidget {
@@ -69,26 +70,17 @@ class _RoleHomeState extends State<RoleHome> {
         }
 
         final user = snap.data!;
-        final role = user.role.toLowerCase().trim();
-
-        switch (role) {
-          case 'student':
+        switch (RoleConfig.normalize(user.role)) {
+          case AppRole.student:
             return StudentShell(user: user);
-          case 'faculty':
-          case 'faculty_mentor':
-          case 'facultymentor':
-            return const FacultyDashboardScreen();
-          case 'tnp':
-          case 'tp_officer':
-          case 'tpofficer':
-            return const TpDashboardScreen();
-          case 'admin':
-            return ComingSoonScreen(user: user);
-          case 'industry':
-          case 'industry_supervisor':
+          case AppRole.facultyMentor:
+            return FacultyShell(user: user);
+          case AppRole.tpOfficer:
+            return TpShell(user: user);
+          case AppRole.admin:
+            return AdminShell(user: user);
+          case AppRole.industrySupervisor:
             return IndustryShell(user: user);
-          default:
-            return ComingSoonScreen(user: user);
         }
       },
     );

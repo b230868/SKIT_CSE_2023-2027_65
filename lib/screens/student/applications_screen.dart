@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+import '../../core/widgets/empty_state_widget.dart';
 import '../../models/student_models.dart';
 import '../../services/document_progress_service.dart';
 import '../../services/student_service.dart';
@@ -41,139 +43,225 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     await _future.catchError((_) => <Application>[]);
   }
 
-  static Widget _message(String text) => ListView(
-    children: [
-      const SizedBox(height: 160),
-      Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(text, textAlign: TextAlign.center),
-        ),
-      ),
-    ],
-  );
-
   @override
   Widget build(BuildContext context) {
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
-    final content = RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<Application>>(
-        future: _future,
-        builder: (context, s) {
-          if (s.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (s.hasError) {
-            return _message('Could not load applications. Pull down to retry.');
-          }
-          final list = s.data!;
-          if (list.isEmpty) {
-            return _message(
-              'No applications yet. Open the Internships tab and apply.',
-            );
-          }
-
-          int countFor(String st) => list
-              .where((a) =>
-                  a.status.trim().toLowerCase() == st.trim().toLowerCase())
-              .length;
-
-          final filtered = _selectedFilter == 'all'
-              ? list
-              : list
-                  .where((a) =>
-                      a.status.trim().toLowerCase() ==
-                      _selectedFilter.trim().toLowerCase())
-                  .toList();
-
-          return Column(
-            children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    ChoiceChip(
-                      label: Text('All (${list.length})'),
-                      selected: _selectedFilter == 'all',
-                      onSelected: (_) => setState(() => _selectedFilter = 'all'),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: Text('Pending (${countFor('pending')})'),
-                      selected: _selectedFilter == 'pending',
-                      onSelected: (_) =>
-                          setState(() => _selectedFilter = 'pending'),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: Text('Approved (${countFor('approved')})'),
-                      selected: _selectedFilter == 'approved',
-                      onSelected: (_) =>
-                          setState(() => _selectedFilter = 'approved'),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: Text('Rejected (${countFor('rejected')})'),
-                      selected: _selectedFilter == 'rejected',
-                      onSelected: (_) =>
-                          setState(() => _selectedFilter = 'rejected'),
+    return Material(
+      color: AppTheme.paper,
+      child: Scaffold(
+        backgroundColor: AppTheme.paper,
+        appBar: canPop
+            ? AppBar(
+                title: const Text('My Applications & Documents'),
+                elevation: 0,
+              )
+            : null,
+        body: RefreshIndicator(
+          onRefresh: _refresh,
+          child: FutureBuilder<List<Application>>(
+            future: _future,
+            builder: (context, s) {
+              if (s.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (s.hasError) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    EmptyStateWidget(
+                      message: 'Could not load applications. Pull down to retry.',
+                      icon: Icons.error_outline,
                     ),
                   ],
-                ),
-              ),
-              Expanded(
-                child: filtered.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'No $_selectedFilter applications found.',
-                            style: TextStyle(color: Colors.grey.shade700),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, i) {
-                          final a = filtered[i];
-                          return Card(
-                            child: ListTile(
-                              title: Text(a.internship.title),
-                              subtitle: Text(
-                                '${a.internship.companyName}\nApplied ${formatDate(a.appliedAt)}',
-                              ),
-                              isThreeLine: true,
-                              trailing: statusChip(a.status),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ApplicationDetailScreen(
-                                    application: a,
-                                    service: widget.documentService,
+                );
+              }
+              final list = s.data ?? [];
+              if (list.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    EmptyStateWidget(
+                      message:
+                          'No applications found.\nBrowse internships from the Internships tab and submit your application.',
+                      icon: Icons.work_off_outlined,
+                    ),
+                  ],
+                );
+              }
+
+              int countFor(String st) => list
+                  .where((a) =>
+                      a.status.trim().toLowerCase() == st.trim().toLowerCase())
+                  .length;
+
+              final filtered = _selectedFilter == 'all'
+                  ? list
+                  : list
+                      .where((a) =>
+                          a.status.trim().toLowerCase() ==
+                          _selectedFilter.trim().toLowerCase())
+                      .toList();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          _buildFilterChip('all', 'All (${list.length})'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                              'pending', 'Pending (${countFor('pending')})'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                              'approved', 'Approved (${countFor('approved')})'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                              'rejected', 'Rejected (${countFor('rejected')})'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? EmptyStateWidget(
+                            message: 'No $_selectedFilter applications found.',
+                            icon: Icons.filter_alt_off_outlined,
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: filtered.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, i) {
+                              final a = filtered[i];
+                              return Card(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => ApplicationDetailScreen(
+                                        application: a,
+                                        service: widget.documentService,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEFF6FF),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: const Color(0xFFBFDBFE),
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.business_center_outlined,
+                                            color: Color(0xFF1D4ED8),
+                                            size: 22,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                a.internship.title,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 16,
+                                                  color: AppTheme.ink,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                a.internship.companyName,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppTheme.slateMuted,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Applied: ${formatDate(a.appliedAt)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            statusChip(a.status),
+                                            const SizedBox(height: 8),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              color: AppTheme.slateMuted,
+                                              size: 20,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
-        },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
+  }
 
-    return Scaffold(
-      appBar: canPop
-          ? AppBar(
-              title: const Text('My Applications & Documents'),
-            )
-          : null,
-      body: content,
+  Widget _buildFilterChip(String filterKey, String label) {
+    final isSelected = _selectedFilter == filterKey;
+    return FilterChip(
+      selected: isSelected,
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? Colors.white : AppTheme.ink,
+      ),
+      selectedColor: AppTheme.ink,
+      backgroundColor: Colors.white,
+      checkmarkColor: Colors.white,
+      side: BorderSide(
+        color: isSelected ? AppTheme.ink : AppTheme.slateBorder,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onSelected: (_) => setState(() => _selectedFilter = filterKey),
     );
   }
 }

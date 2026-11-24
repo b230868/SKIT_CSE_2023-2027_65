@@ -1,3 +1,5 @@
+import '../../../core/config/role_config.dart';
+
 class AppUser {
   final String id;
   final String fullName;
@@ -41,31 +43,15 @@ class AppUser {
   String get initial =>
       fullName.trim().isEmpty ? '?' : fullName.trim()[0].toUpperCase();
 
-  String get roleLabel {
-    switch (role.toLowerCase().trim()) {
-      case 'faculty':
-      case 'faculty_mentor':
-      case 'facultymentor':
-        return 'Faculty';
-      case 'tnp':
-      case 'tp_officer':
-      case 'tpofficer':
-        return 'Training & Placement';
-      case 'industry':
-      case 'industry_supervisor':
-        return 'Industry';
-      default:
-        return 'Student';
-    }
-  }
+  String get roleLabel => RoleConfig.label(role);
 
-  bool get isFaculty {
-    final r = role.toLowerCase().trim();
-    return r == 'faculty' || r == 'faculty_mentor' || r == 'facultymentor';
-  }
+  bool get isFaculty => RoleConfig.normalize(role) == AppRole.facultyMentor;
 
-  bool get isTpOfficer {
-    final r = role.toLowerCase().trim();
-    return r == 'tnp' || r == 'tp_officer' || r == 'tpofficer';
-  }
+  bool get isTpOfficer => RoleConfig.normalize(role) == AppRole.tpOfficer;
+
+  bool get isAdmin => RoleConfig.normalize(role) == AppRole.admin;
+
+  bool get isStudent => RoleConfig.normalize(role) == AppRole.student;
+
+  bool get isIndustry => RoleConfig.normalize(role) == AppRole.industrySupervisor;
 }

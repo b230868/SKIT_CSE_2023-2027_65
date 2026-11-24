@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/role_config.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../core/widgets/app_text_field.dart';
+
+import '../../faculty_tp/presentation/screens/faculty_shell.dart';
+import '../../faculty_tp/presentation/screens/tp_shell.dart';
+import '../../industry/presentation/screens/industry_shell.dart';
+import '../../student/student_shell.dart';
+
 import '../data/auth_service.dart';
 import '../utils/email_validator.dart';
 import 'register_screen.dart';
@@ -41,12 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Only check unverified email if Supabase denied issuing a session:
       // If a valid session exists or user is faculty/staff, allow login without blocking
       final meta = user?.userMetadata ?? {};
-      final role = (meta['role'] ?? '').toString().toLowerCase().trim();
-      final isStaffOrFaculty = role == 'faculty' ||
-          role == 'faculty_mentor' ||
-          role == 'tnp' ||
-          role == 'tp_officer' ||
-          role == 'admin';
+      final isStaffOrFaculty = RoleConfig.isStaffOrFaculty(meta['role']?.toString());
 
       if (res.session == null && !isStaffOrFaculty && user != null && user.emailConfirmedAt == null) {
         await _auth.signOut();
@@ -293,6 +295,180 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                       child: const Text('New here? Create an account'),
                     ),
+
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR EXPLORE DEMO ROLES',
+                            style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 0.8,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 0,
+                      color: const Color(0xFFF8F9FA),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Instant Feature Walkthrough:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.school, color: AppTheme.ink),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Student Portal (Vidhi - CSE)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Dashboard, Internships, Reports, Analytics & Alerts',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StudentShell(user: demoStudent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.co_present, color: Colors.teal),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Faculty Mentor Portal',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Student Monitoring, Approvals & Faculty Reports',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const FacultyShell(user: demoFaculty),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.business_center, color: Colors.deepOrange),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Training & Placement Officer',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'T&P Dashboard, Assignments & Final Approvals',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const TpShell(user: demoTp),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              icon: const Icon(Icons.factory, color: Colors.indigo),
+                              label: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Industry Supervisor Portal',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Student Evaluations & Document Verification',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const IndustryShell(user: demoIndustry),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   ],
                 ),
               ),
